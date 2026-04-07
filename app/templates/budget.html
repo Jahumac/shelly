@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block title %}Budget · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/budget/" class="subnav-active">Budget Plan</a>
+  <a href="/monthly-review/">Monthly Update</a>
+</nav>
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
+{% set _mk_month = month_key.split('-')[1] | int %}
+<section class="card highlight mb-1 month-accent-{{ _mk_month }}">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Budget</p>
+      <h2 class="hero-value">{{ month_label }}</h2>
+      {% if is_inherited %}
+      <p class="hero-subtitle budget-inherited-note">Shelly carried everything forward from your last saved month — tweak any number to make this month your own.</p>
+      {% elif sections | length == 0 %}
+      <p class="hero-subtitle">Your budget is a blank canvas! Head to <a href="/budget/items/?mode=create" class="link-accent">Manage items</a> to tell Shelly what to track.</p>
+      {% else %}
+      <p class="hero-subtitle">Here's where the money goes — Shelly keeps score so you don't have to.</p>
+      {% endif %}
+    </div>
+    <div class="badge-row badge-row-end">
+      <a class="badge badge-sm" href="/budget/export.xlsx?month={{ month_key }}">↓ Export</a>
+      <a class="badge badge-sm" href="/budget/items/">Manage items</a>
+    </div>
+  </div>
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Income</span>
+      <strong id="stat-income">£{{ '{:,.0f}'.format(summary.total_income) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Expenses</span>
+      <strong id="stat-expenses">£{{ '{:,.0f}'.format(summary.total_expenses) }}</strong>
+    </div>
+    <div class="hero-strip-stat" id="stat-surplus-container">
+      <span>Left over</span>
+      <strong id="stat-surplus" class="{% if summary.surplus >= 0 %}stat-positive-text{% else %}stat-negative-text{% endif %}">
+        {% if summary.surplus >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(summary.surplus) }}
+      </strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Savings Rate</span>
+      <strong id="stat-savings">{{ '{:.1f}'.format(summary.savings_rate) }}%</strong>
+    </div>
+  </div>
+</section>
+
+{# ── Month strip (tax year: Apr → Mar) — below hero for consistency ──── #}
+<section class="budget-year-strip month-accent-{{ _mk_month }}">
+  <div class="budget-year-strip-inner">
+    <button type="button" class="budget-year-arrow" id="prev-month" title="Previous month">◀</button>
+    {% for m in month_strip %}
+    <a href="/budget/?month={{ m.key }}"
+       class="budget-month-pill{% if m.is_current %} budget-month-active{% endif %}{% if m.is_today and not m.is_current %} budget-month-today{% endif %}{% if m.has_data %} budget-month-has-data{% endif %}">
+      <span class="budget-month-pill-label">{{ m.label }}</span>
+      {% if m.has_data %}<span class="budget-month-dot"></span>{% endif %}
+    </a>
+    {% endfor %}
+    <button type="button" class="budget-year-arrow" id="next-month" title="Next month">▶</button>
+  </div>
+</section>
+
+<p class="budget-linked-hint">Tip: items marked <em>linked</em> sync their amount from your account's monthly contribution — edit the account to change them.</p>
+
+{# ── Budget sections ──────────────────────────────────────────────────────── #}
+{% for section in sections %}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">{{ section.key | replace('_', ' ') | upper }}</p>
+      <h3>{{ section.label }}</h3>
+    </div>
+    <strong class="budget-section-total" id="total-{{ section.key }}">
+      £{{ '{:,.2f}'.format(section.total) }}
+    </strong>
+  </div>
+  {# Section-level Shelly hints #}
+  {% if loop.first %}
+  <p class="helper-text helper-text-section">Your take-home pay and any side income — Shelly uses this to work out how much you've got to play with.</p>
+  {% elif 'debt' in section.key %}
+  <p class="helper-text helper-text-section">Minimum payments and extra chunks you're throwing at debt — every pound here gets you closer to freedom.</p>
+  {% elif 'invest' in section.key or 'saving' in section.key %}
+  <p class="helper-text helper-text-section">Pay yourself first! Items marked <em>linked</em> pull their amount from your account's monthly contribution automatically.</p>
+  {% elif 'fixed' in section.key or 'expense' in section.key %}
+  <p class="helper-text helper-text-section">The essentials — bills, rent, subscriptions. These tend to stay steady month to month.</p>
+  {% elif 'discretionary' in section.key or 'variable' in section.key or 'personal' in section.key %}
+  <p class="helper-text helper-text-section">The flexible stuff — eating out, hobbies, shopping. Shelly won't judge, but he will keep count.</p>
+  {% endif %}
+
+  {% if section.rows %}
+  <div class="budget-rows">
+    {% for item in section.rows %}
+    <div class="budget-row">
+      <div class="budget-row-left">
+        <span class="budget-row-name">{{ item.name }}</span>
+        {% if item.linked %}<span class="budget-pill" title="Amount synced from your account's monthly contribution — edit the account to change it">linked</span>{% endif %}
+        {% if item.source == 'inherited' %}<span class="budget-row-source" data-source="inherited" title="Carried forward from the last month you edited">prev month</span>{% endif %}
+        {% if item.source == 'default' %}<span class="budget-row-source" data-source="default" title="Using the default amount — change it to save for this month">default</span>{% endif %}
+        {% if item.notes %}<span class="budget-row-note">{{ item.notes }}</span>{% endif %}
+      </div>
+      <div class="budget-row-right">
+        <span class="budget-row-currency">£</span>
+        <input type="number" step="0.01"
+               class="budget-amount-input"
+               data-item-id="{{ item.id }}"
+               data-section="{{ section.key }}"
+               value="{{ '{:.2f}'.format(item.amount) }}">
+        <span class="budget-save-indicator" id="ind-{{ item.id }}"></span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="helper-text">Nothing here yet — <a href="/budget/items/?mode=create" class="link-accent">add a budget item</a> and Shelly will start tracking it.</p>
+  {% endif %}
+</section>
+{% endfor %}
+
+<script>
+(function() {
+  var MONTH      = '{{ month_key }}';
+  var INCOME_KEY = '{{ income_key }}';
+  var SAVE_KEYS  = ['invest', 'saving'];  // section keys that count toward savings rate
+
+  function fmtGBP(v, showSign) {
+    var s = Math.abs(v).toLocaleString('en-GB', {minimumFractionDigits:0, maximumFractionDigits:0});
+    if (showSign) return (v >= 0 ? '+' : '-') + '£' + s;
+    return '£' + s;
+  }
+
+  /* Recalculate one section's total and update header */
+  function recalcSection(sectionKey) {
+    var inputs = document.querySelectorAll('.budget-amount-input[data-section="' + sectionKey + '"]');
+    var total = 0;
+    inputs.forEach(function(inp) { total += parseFloat(inp.value) || 0; });
+    var el = document.getElementById('total-' + sectionKey);
+    if (el) el.textContent = '£' + total.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return total;
+  }
+
+  /* Recalculate hero strip */
+  function recalcSummary() {
+    /* collect all section totals */
+    var sectionTotals = {};
+    document.querySelectorAll('.budget-amount-input').forEach(function(inp) {
+      var k = inp.dataset.section;
+      sectionTotals[k] = (sectionTotals[k] || 0) + (parseFloat(inp.value) || 0);
+    });
+
+    var income   = sectionTotals[INCOME_KEY] || 0;
+    var expenses = 0;
+    var savings  = 0;
+    Object.keys(sectionTotals).forEach(function(k) {
+      if (k === INCOME_KEY) return;
+      expenses += sectionTotals[k];
+      SAVE_KEYS.forEach(function(s) { if (k.indexOf(s) !== -1) savings += sectionTotals[k]; });
+    });
+    var surplus      = income - expenses;
+    var savingsRate  = income > 0 ? (savings / income * 100) : 0;
+
+    var si = document.getElementById('stat-income');
+    var se = document.getElementById('stat-expenses');
+    var ss = document.getElementById('stat-surplus');
+    var sr = document.getElementById('stat-savings');
+    if (si) si.textContent = fmtGBP(income);
+    if (se) se.textContent = fmtGBP(expenses);
+    if (ss) {
+      ss.textContent = (surplus >= 0 ? '+' : '-') + fmtGBP(Math.abs(surplus));
+      ss.className   = surplus >= 0 ? 'stat-positive-text' : 'stat-negative-text';
+    }
+    if (sr) sr.textContent = savingsRate.toFixed(1) + '%';
+  }
+
+  /* Save a single entry via AJAX */
+  function saveEntry(itemId, amount, ind) {
+    fetch('/budget/api/entry', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body:    'month=' + encodeURIComponent(MONTH) +
+               '&item_id=' + encodeURIComponent(itemId) +
+               '&amount='  + encodeURIComponent(amount),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok && ind) {
+        ind.textContent = '✓';
+        ind.style.opacity = '1';
+        setTimeout(function() {
+          ind.style.opacity = '0';
+          setTimeout(function() { ind.textContent = ''; ind.style.opacity = '1'; }, 300);
+        }, 1200);
+      }
+    })
+    .catch(function() {
+      if (ind) {
+        ind.textContent = '✗';
+        ind.style.color = 'var(--error)';
+        ind.style.opacity = '1';
+        setTimeout(function() {
+          ind.style.opacity = '0';
+          setTimeout(function() { ind.textContent = ''; ind.style.color = ''; ind.style.opacity = '1'; }, 300);
+        }, 2500);
+      }
+    });
+  }
+
+  document.querySelectorAll('.budget-amount-input').forEach(function(input) {
+    var debounceTimer = null;
+    var ind = document.getElementById('ind-' + input.dataset.itemId);
+    var row = input.closest('.budget-row');
+    var isLinked = !!row.querySelector('.budget-pill');
+    var linkedNotified = false;
+
+    /* Hide source badge once the user starts editing */
+    var sourceBadge = row.querySelector('.budget-row-source');
+
+    /* Live recalc on every keystroke */
+    input.addEventListener('input', function() {
+      if (sourceBadge) { sourceBadge.style.display = 'none'; sourceBadge = null; }
+      /* Show a one-time hint when overriding a linked item */
+      if (isLinked && !linkedNotified) {
+        linkedNotified = true;
+        if (ind) {
+          ind.textContent = 'this month only';
+          ind.style.opacity = '1';
+          ind.style.color = 'var(--accent-3)';
+          ind.style.fontSize = '0.65rem';
+          ind.style.width = 'auto';
+          setTimeout(function() {
+            ind.style.opacity = '0';
+            setTimeout(function() { ind.textContent = ''; ind.style.color = ''; ind.style.fontSize = ''; ind.style.width = ''; ind.style.opacity = '1'; }, 300);
+          }, 2500);
+        }
+      }
+      recalcSection(input.dataset.section);
+      recalcSummary();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        saveEntry(input.dataset.itemId, input.value, ind);
+      }, 900);
+    });
+
+    /* Definitive save on blur */
+    input.addEventListener('blur', function() {
+      clearTimeout(debounceTimer);
+      saveEntry(input.dataset.itemId, input.value, ind);
+    });
+  });
+
+  /* ── Month navigation ◀ / ▶ ──────────────────────────────────────────── */
+  function changeMonth(delta) {
+    var parts = MONTH.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1 + delta, 1);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    window.location.href = '/budget/?month=' + y + '-' + m;
+  }
+  var prevBtn = document.getElementById('prev-month');
+  var nextBtn = document.getElementById('next-month');
+  if (prevBtn) prevBtn.addEventListener('click', function() { changeMonth(-1); });
+  if (nextBtn) nextBtn.addEventListener('click', function() { changeMonth(1); });
+})();
+</script>
+
+{% endblock %}

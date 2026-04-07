@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Users · Shelly{% endblock %}
+
+{% block content %}
+
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Admin</p>
+      <h2 class="hero-value">{{ users | length }} user{{ 's' if users | length != 1 }}</h2>
+      <p class="hero-subtitle">Everyone who's allowed inside Shelly's shell</p>
+    </div>
+  </div>
+</section>
+
+{% if error %}
+  <div class="panel card-danger mb-1">{{ error }}</div>
+{% endif %}
+{% if success %}
+  <div class="panel panel-spacious text-center text-muted mb-1" style="border-color: var(--green);">{{ success }}</div>
+{% endif %}
+
+<div class="row-end">
+  <a class="badge badge-primary-action" href="/users?mode=create">+ Add user</a>
+</div>
+
+{# ── User list ────────────────────────────────────────────────────────────── #}
+<div class="panel mb-1" style="padding: 0; overflow: hidden;">
+  {% for user in users %}
+    <div class="user-row {% if not loop.last %}user-row-divider{% endif %} {% if edit_user and edit_user.id == user.id %}user-row-active{% endif %}">
+      <div class="user-row-left">
+        <span class="user-row-avatar">{{ user.username[0].upper() }}</span>
+        <div class="user-row-info">
+          <span class="user-row-name">{{ user.username }}</span>
+          <span class="user-row-date">Since {{ user.created_at[:10] if user.created_at else '—' }}</span>
+        </div>
+      </div>
+      <div class="user-row-right">
+        <span class="user-role-badge {% if user.is_admin %}user-role-admin{% else %}user-role-user{% endif %}">
+          {{ "Admin" if user.is_admin else "User" }}
+        </span>
+        {% if edit_user and edit_user.id == user.id %}
+          <a class="badge" href="/users">Close</a>
+        {% else %}
+          <a class="badge" href="/users?edit={{ user.id }}">Edit</a>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="panel-spacious text-center text-muted">No users found.</div>
+  {% endfor %}
+</div>
+
+{# ── Edit panel ───────────────────────────────────────────────────────────── #}
+{% if edit_user %}
+<section class="panel mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Editing user</p>
+      <h2>{{ edit_user.username }}</h2>
+    </div>
+    <a class="badge" href="/users">Cancel</a>
+  </div>
+
+  <form id="edit-user-form" method="POST" action="/users/{{ edit_user.id }}/edit" class="settings-form mt-1">
+    <label>
+      <span>Username</span>
+      <input type="text" name="username" value="{{ edit_user.username }}" minlength="3" autocomplete="off">
+      <small class="form-hint">Leave as-is to keep current username</small>
+    </label>
+    <label>
+      <span>New password</span>
+      <input type="password" name="password" minlength="8" autocomplete="new-password" placeholder="Leave blank to keep current password">
+      <small class="form-hint">Minimum 8 characters — only fill in to change it</small>
+    </label>
+
+    {% if edit_user.id != current_user.id %}
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-title">Admin access</span>
+        <span class="toggle-desc">Admin users can create, edit, and delete other accounts</span>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" name="is_admin" value="1" {% if edit_user.is_admin %}checked{% endif %}>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
+    {% else %}
+    <div class="toggle-row row-disabled">
+      <div class="toggle-info">
+        <span class="toggle-title">Admin access</span>
+        <span class="toggle-desc">You cannot change your own admin role</span>
+      </div>
+      <label class="toggle-switch" style="pointer-events: none;">
+        <input type="checkbox" {% if edit_user.is_admin %}checked{% endif %} disabled>
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
+    {% endif %}
+  </form>
+
+  {# Badge row is OUTSIDE the edit form to avoid invalid nested-form HTML #}
+  <div class="badge-row mt-1">
+    <button type="submit" form="edit-user-form">Save changes</button>
+    <a class="badge" href="/users">Cancel</a>
+    {% if edit_user.id != current_user.id %}
+      <form method="POST" action="/users/{{ edit_user.id }}/delete" class="form-reset">
+        <button type="submit" class="badge badge-danger"
+          data-confirm="This will permanently remove {{ edit_user.username }} and all their data. Shelly can't undo this one."
+          data-confirm-title="Delete {{ edit_user.username }}?"
+          data-confirm-ok="Yes, delete them"
+          data-confirm-cancel="Keep them">
+          Delete user
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# ── Create user form ─────────────────────────────────────────────────────── #}
+{% if mode == 'create' %}
+<section class="panel mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">New account</p>
+      <h2>Add user</h2>
+    </div>
+    <a class="badge" href="/users">Cancel</a>
+  </div>
+
+  <form method="POST" action="{{ url_for('auth.create_user_route') }}" class="settings-form mt-1">
+    <label>
+      <span>Username</span>
+      <input type="text" name="username" required minlength="3" autocomplete="off">
+    </label>
+    <label>
+      <span>Password</span>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+      <small class="form-hint">Minimum 8 characters</small>
+    </label>
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-title">Admin access</span>
+        <span class="toggle-desc">Admin users can create, edit, and delete other accounts</span>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" name="is_admin" value="1">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+    </div>
+    <button type="submit">Create user</button>
+  </form>
+</section>
+{% endif %}
+
+{% endblock %}

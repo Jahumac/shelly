@@ -1,0 +1,546 @@
+{% extends 'base.html' %}
+{% block title %}Monthly Update · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/budget/">Budget Plan</a>
+  <a href="/monthly-review/" class="subnav-active">Monthly Update</a>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash flash-{{ category }} mb-1">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Monthly Update</p>
+      <h2 class="hero-value">{{ month_label }}</h2>
+      <p class="hero-subtitle">Shelly's monthly check-in — update your numbers and lock in the snapshot</p>
+    </div>
+    <div class="hero-actions-col">
+      {% if review.status == 'complete' %}
+        <span class="badge badge-complete">✓ Completed</span>
+      {% else %}
+        <form method="post" class="form-reset" id="mark-complete-form">
+          <input type="hidden" name="form_name" value="mark_complete">
+          <input type="hidden" name="month" value="{{ month_key }}">
+          <button type="button" class="badge badge-primary-action" id="mark-complete-btn">Mark as Complete</button>
+        </form>
+
+        <dialog id="confirm-complete-dialog" class="confirm-dialog">
+          <div class="confirm-dialog-content">
+            <h3>Lock in {{ month_label }}?</h3>
+            <p>Shelly will snapshot your net worth for this month. You can still tweak values afterwards — Shelly's thorough, not inflexible.</p>
+            <div class="confirm-dialog-actions">
+              <button type="button" class="badge badge-primary-action" id="confirm-complete-yes">Yes, mark complete</button>
+              <button type="button" class="badge" id="confirm-complete-no">Cancel</button>
+            </div>
+          </div>
+        </dialog>
+      {% endif %}
+      <div class="budget-month-nav">
+        <button type="button" class="badge badge-meta review-prev-month" title="Previous month">◀</button>
+        <span class="budget-month-nav-label">{{ month_label }}</span>
+        <button type="button" class="badge badge-meta review-next-month" title="Next month">▶</button>
+      </div>
+    </div>
+  </div>
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Status</span>
+      <strong>{{ 'Complete' if review.status == 'complete' else 'In progress' }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Accounts</span>
+      <strong>{{ (holdings_items | length) + (manual_items | length) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Expected contributions</span>
+      <strong>£{{ '{:,.0f}'.format(contribution_items | sum(attribute='expected_contribution')) }}</strong>
+    </div>
+  </div>
+</section>
+
+{% if review.status != 'complete' %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">How this works</p>
+      <h2>Monthly Update Guide</h2>
+    </div>
+    <button type="button" class="badge badge-meta" id="guide-toggle">{{ 'Hide' if not assumptions or not assumptions.salary_day else 'Show' }}</button>
+  </div>
+  <div id="guide-panel" {% if assumptions and assumptions.salary_day %}class="hidden"{% endif %}>
+    <div class="guide-steps">
+      <div class="guide-step">
+        <div class="guide-step-num">1</div>
+        <div>
+          <strong>Wait for investments to settle</strong>
+          <p>After your salary arrives{% if assumptions and assumptions.salary_day %} (around the {{ assumptions.salary_day }}{{ 'st' if assumptions.salary_day in [1,21,31] else ('nd' if assumptions.salary_day in [2,22] else ('rd' if assumptions.salary_day in [3,23] else 'th')) }}){% endif %}, give your regular investments 2–3 working days to settle before updating.
+          {% if assumptions and assumptions.update_day %} <strong>Your ideal update day: the {{ assumptions.update_day }}{{ 'st' if assumptions.update_day in [1,21,31] else ('nd' if assumptions.update_day in [2,22] else ('rd' if assumptions.update_day in [3,23] else 'th')) }}.</strong>{% endif %}</p>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-num">2</div>
+        <div>
+          <strong>Update your holdings</strong>
+          <p>For each holdings-based account, update the <em>units</em> and <em>price</em> for every fund or ETF. You can type them in directly or use the ↻ button to fetch live prices.</p>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-num">3</div>
+        <div>
+          <strong>Update manual accounts</strong>
+          <p>For savings accounts, workplace pensions, or anything without individual holdings — just enter the total balance shown by your provider.</p>
+        </div>
+      </div>
+      <div class="guide-step">
+        <div class="guide-step-num">4</div>
+        <div>
+          <strong>Mark as complete</strong>
+          <p>Once everything's up to date, hit "Mark as Complete" and Shelly will snapshot your net worth for the month. You can always come back and tweak numbers later.</p>
+        </div>
+      </div>
+    </div>
+    {% if not assumptions or not assumptions.salary_day %}
+    <p class="helper-text mt-075">
+      <strong>Tip:</strong> Tell Shelly when your salary arrives in <a href="/settings/?mode=edit" class="link-accent">Settings</a> and he'll suggest the best day to do your monthly update.
+    </p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Checklist</p>
+      <h2>Expected Contributions</h2>
+    </div>
+  </div>
+  {% if contribution_items %}
+    <div class="simple-list">
+      {% for item in contribution_items %}
+        <div class="simple-list-item">
+          <div>
+            <strong>{{ item.account_name }}</strong>
+            <p>{{ item.provider }} · {{ item.wrapper_type }}</p>
+          </div>
+          <div><strong>£{{ '{:,.2f}'.format(item.expected_contribution) }}</strong></div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="helper-text">No contributions to track this month. Set them up in <a href="/accounts/" class="link-accent">Accounts</a> and Shelly will list them here.</p>
+  {% endif %}
+</section>
+
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Holdings</p>
+      <h2>Holdings-Based Accounts</h2>
+    </div>
+    {% if holdings_items %}
+    <div class="badge-row">
+      <button type="button" class="badge badge-accent" id="update-all-prices" title="Fetch latest prices for all holdings from Yahoo Finance">↻ Update All Prices</button>
+    </div>
+    {% endif %}
+  </div>
+  {% if holdings_items %}
+    <div class="review-list">
+      {% for item in holdings_items %}
+        <section class="card position-entry-card">
+          <div class="section-header">
+            <div>
+              <h3>{{ item.account_name }}</h3>
+              <p>{{ item.provider }} · {{ item.wrapper_type }}</p>
+            </div>
+            <div class="badge-row">
+              <a class="badge" href="/accounts/{{ item.account_id }}">Open account</a>
+            </div>
+          </div>
+
+          {% set account_holdings = holdings_by_account.get(item.account_id, []) %}
+          {% if account_holdings %}
+            <div class="holding-update-list">
+              {% for holding in account_holdings %}
+                <form method="post" class="holding-update-row"
+                      data-ticker="{{ holding.ticker or '' }}">
+                  <input type="hidden" name="form_name" value="update_holding">
+                  <input type="hidden" name="month" value="{{ month_key }}">
+                  <input type="hidden" name="holding_id" value="{{ holding.id }}">
+                  <input type="hidden" name="account_id" value="{{ holding.account_id }}">
+                  <input type="hidden" name="holding_catalogue_id" value="{{ holding.holding_catalogue_id or '' }}">
+                  <input type="hidden" name="holding_name" value="{{ holding.holding_name }}">
+                  <input type="hidden" name="ticker" value="{{ holding.ticker or '' }}">
+                  <input type="hidden" name="asset_type" value="{{ holding.asset_type or '' }}">
+                  <input type="hidden" name="bucket" value="{{ holding.bucket or '' }}">
+                  <input type="hidden" name="notes" value="{{ holding.notes or '' }}">
+
+                  <div class="holding-update-meta">
+                    <strong>{{ holding.holding_name }}</strong>
+                    <span>{{ holding.bucket or 'Other' }}{% if holding.ticker %} · {{ holding.ticker }}{% endif %}</span>
+                  </div>
+
+                  <div class="holding-update-inputs">
+                    <label class="holding-update-field">
+                      <span>Units</span>
+                      <input type="number" step="any" name="units"
+                             value="{{ '{:.4f}'.format(holding.units) if holding.units else '' }}"
+                             class="hu-units">
+                    </label>
+                    <label class="holding-update-field">
+                      <span>Price</span>
+                      <div class="holding-price-wrap">
+                        <input type="number" step="any" name="price"
+                               value="{{ '{:.4f}'.format(holding.price) if holding.price else '' }}"
+                               class="hu-price">
+                        {% if holding.ticker %}
+                          <button type="button" class="hu-refresh" title="Fetch latest price">↻</button>
+                        {% endif %}
+                      </div>
+                    </label>
+                    <div class="holding-update-value">
+                      <span>Value</span>
+                      <strong class="hu-value">£{{ '{:,.2f}'.format(holding.value or 0) }}</strong>
+                    </div>
+                    <button type="submit" class="badge badge-primary-action hu-submit">Save</button>
+                  </div>
+                </form>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="helper-text">No holdings here yet. Add some in <a href="/accounts/" class="link-accent">Accounts</a> and they'll show up for your next update.</p>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">🐢</div>
+      <h3>No holdings-based accounts</h3>
+      <p>Shelly's got nothing to update here. Add a holdings-based account and it'll show up ready for your monthly check-in.</p>
+      <a href="/accounts/?mode=create" class="badge badge-primary-action">+ Add account</a>
+    </div>
+  {% endif %}
+</section>
+
+<script>
+/* ── Holding update logic ───────────────────────────────────────────── */
+function fmtGBP(n) {
+  return '£' + n.toLocaleString('en-GB', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+/* Collect all holding forms for the "Update All" feature */
+var holdingForms = [];
+
+document.querySelectorAll('.holding-update-row').forEach(function(form) {
+  var ticker   = form.dataset.ticker;
+  var unitsEl  = form.querySelector('.hu-units');
+  var priceEl  = form.querySelector('.hu-price');
+  var valueEl  = form.querySelector('.hu-value');
+  var refreshBtn = form.querySelector('.hu-refresh');
+  var submitBtn  = form.querySelector('.hu-submit');
+
+  function recalc() {
+    var units = parseFloat(unitsEl.value) || 0;
+    var price = parseFloat(priceEl.value) || 0;
+    valueEl.textContent = fmtGBP(units * price);
+  }
+
+  /* Build payload from hidden form fields for the save API */
+  function buildPayload(price) {
+    return {
+      holding_id: form.querySelector('[name="holding_id"]').value,
+      account_id: form.querySelector('[name="account_id"]').value,
+      holding_catalogue_id: (form.querySelector('[name="holding_catalogue_id"]') || {}).value || null,
+      holding_name: (form.querySelector('[name="holding_name"]') || {}).value || '',
+      ticker: (form.querySelector('[name="ticker"]') || {}).value || '',
+      asset_type: (form.querySelector('[name="asset_type"]') || {}).value || '',
+      bucket: (form.querySelector('[name="bucket"]') || {}).value || '',
+      notes: (form.querySelector('[name="notes"]') || {}).value || '',
+      units: parseFloat(unitsEl.value) || 0,
+      price: price,
+    };
+  }
+
+  /* Auto-save: persist the updated price without a full page reload */
+  async function autoSave(price) {
+    try {
+      await fetch('/holdings/api/save-price', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(buildPayload(price)),
+      });
+      if (submitBtn) {
+        submitBtn.textContent = 'Saved ✓';
+        setTimeout(function() { submitBtn.textContent = 'Save'; }, 1500);
+      }
+    } catch(e) {}
+  }
+
+  async function fetchLatestPrice() {
+    if (!ticker) return false;
+    if (refreshBtn) refreshBtn.textContent = '…';
+    var success = false;
+    try {
+      var resp = await fetch('/holdings/api/price?ticker=' + encodeURIComponent(ticker));
+      if (resp.ok) {
+        var data = await resp.json();
+        priceEl.value = data.price;
+        recalc();
+        await autoSave(data.price);
+        success = true;
+      }
+    } catch(e) {}
+    if (refreshBtn) refreshBtn.textContent = '↻';
+    return success;
+  }
+
+  /* Auto-fetch price when units field loses focus (if ticker available) */
+  unitsEl.addEventListener('change', function() {
+    if (ticker && (!priceEl.value || parseFloat(priceEl.value) === 0)) {
+      fetchLatestPrice();
+    } else {
+      recalc();
+    }
+  });
+
+  unitsEl.addEventListener('input', recalc);
+  priceEl.addEventListener('input', recalc);
+  if (refreshBtn) refreshBtn.addEventListener('click', fetchLatestPrice);
+
+  /* Register for "Update All" */
+  if (ticker) {
+    holdingForms.push({ ticker: ticker, fetchLatestPrice: fetchLatestPrice, refreshBtn: refreshBtn });
+  }
+});
+
+/* ── Update All Prices button ───────────────────────────────────────── */
+var updateAllBtn = document.getElementById('update-all-prices');
+if (updateAllBtn) {
+  updateAllBtn.addEventListener('click', async function() {
+    updateAllBtn.disabled = true;
+    updateAllBtn.textContent = '↻ Updating…';
+    var total = holdingForms.length;
+    var done = 0;
+
+    /* Process sequentially to avoid hammering Yahoo Finance */
+    for (var i = 0; i < holdingForms.length; i++) {
+      var hf = holdingForms[i];
+      if (hf.refreshBtn) hf.refreshBtn.textContent = '…';
+      await hf.fetchLatestPrice();
+      done++;
+      updateAllBtn.textContent = '↻ ' + done + '/' + total;
+    }
+
+    updateAllBtn.textContent = '✓ All updated';
+    updateAllBtn.disabled = false;
+    setTimeout(function() { updateAllBtn.textContent = '↻ Update All Prices'; }, 2500);
+  });
+}
+</script>
+
+<script>
+/* ── Guide toggle ─────────────────────────────────────────────────── */
+(function () {
+  var guideToggle = document.getElementById('guide-toggle');
+  var guidePanel  = document.getElementById('guide-panel');
+  if (guideToggle && guidePanel) {
+    guideToggle.addEventListener('click', function () {
+      var open = !guidePanel.classList.contains('hidden');
+      guidePanel.classList.toggle('hidden', open);
+      guideToggle.textContent = open ? 'Show' : 'Hide';
+    });
+  }
+}());
+</script>
+
+<script>
+/* ── Month navigation ◀ / ▶ ──────────────────────────────────────────── */
+(function() {
+  var MONTH = '{{ month_key }}';
+  function changeMonth(delta) {
+    var parts = MONTH.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1 + delta, 1);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    window.location.href = '/monthly-review/?month=' + y + '-' + m;
+  }
+  var prevBtn = document.querySelector('.review-prev-month');
+  var nextBtn = document.querySelector('.review-next-month');
+  if (prevBtn) prevBtn.addEventListener('click', function() { changeMonth(-1); });
+  if (nextBtn) nextBtn.addEventListener('click', function() { changeMonth(1); });
+}());
+
+/* ── Confirm dialog for Mark as Complete ─────────────────────────────── */
+(function() {
+  var btn    = document.getElementById('mark-complete-btn');
+  var dialog = document.getElementById('confirm-complete-dialog');
+  var form   = document.getElementById('mark-complete-form');
+  var yes    = document.getElementById('confirm-complete-yes');
+  var no     = document.getElementById('confirm-complete-no');
+  if (!btn || !dialog || !form) return;
+
+  btn.addEventListener('click', function() {
+    dialog.showModal();
+  });
+  yes.addEventListener('click', function() {
+    dialog.close();
+    form.submit();
+  });
+  no.addEventListener('click', function() {
+    dialog.close();
+  });
+  dialog.addEventListener('click', function(e) {
+    if (e.target === dialog) dialog.close();
+  });
+}());
+</script>
+
+<section class="card">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Manual</p>
+      <h2>Manual Accounts</h2>
+    </div>
+  </div>
+  {% if manual_items %}
+    <div class="review-list">
+      {% for item in manual_items %}
+        <form method="post" class="settings-form simple-list-item">
+          <input type="hidden" name="form_name" value="update_account_balance">
+          <input type="hidden" name="month" value="{{ month_key }}">
+          <input type="hidden" name="account_id" value="{{ item.account_id }}">
+          <div>
+            <strong>{{ item.account_name }}</strong>
+            <p>{{ item.provider }} · {{ item.wrapper_type }}</p>
+          </div>
+          <label>
+            <span>Current Balance</span>
+            <input type="number" step="0.01" name="current_value" value="{{ item.current_value or '' }}">
+          </label>
+          <button type="submit" class="badge badge-primary-action">Update</button>
+        </form>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="helper-text">No manual accounts to review this month. If you add any manual-value accounts, Shelly will prompt you to update them here.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Shortcut</p>
+      <h2>CSV Import</h2>
+    </div>
+    <div class="badge-row">
+      <button type="button" class="badge badge-meta" id="csv-import-toggle">Show</button>
+    </div>
+  </div>
+  <p class="helper-text">Got a lot of holdings to update? Shelly can read CSV exports from most UK brokers — or you can use his own template to update everything in one go. This is optional — if you've already updated your numbers above, you're all set.</p>
+  <div id="csv-import-panel" class="hidden">
+    <form method="post" action="/monthly-review/import-csv" enctype="multipart/form-data" class="csv-upload-form">
+      <label class="csv-upload-field">
+        <span>Platform</span>
+        <select name="platform" required>
+          <option value="" disabled selected>Select platform…</option>
+          <option value="trading212">Trading 212</option>
+          <option value="investengine">InvestEngine</option>
+          <option value="vanguard">Vanguard Investor</option>
+          <option value="hl">Hargreaves Lansdown</option>
+          <option value="ajbell">AJ Bell</option>
+          <option value="freetrade">Freetrade</option>
+          <option value="ii">Interactive Investor</option>
+          <option value="generic">Other (generic CSV)</option>
+        </select>
+      </label>
+      <label class="csv-upload-field">
+        <span>CSV File</span>
+        <input type="file" name="csv_file" accept=".csv,text/csv" required>
+      </label>
+      <div class="csv-upload-actions">
+        <button type="submit" class="badge badge-primary-action">Preview Import</button>
+        <button type="button" class="badge" id="csv-import-cancel">Cancel</button>
+      </div>
+    </form>
+    <div class="csv-help-panel mt-075">
+      <p class="helper-text"><strong>Where to find your CSV:</strong></p>
+
+      <details class="csv-help-details csv-help-recommended">
+        <summary>Shelly's template (recommended)</summary>
+        <p>The easiest way — especially if you use multiple providers or your broker doesn't offer CSV export. <a href="/static/shelly-holdings-template.csv" download class="link-accent">Download the template</a>, fill in your holdings from each app, and import it here. You can list holdings from <strong>all your accounts in one file</strong> — Shelly matches each row to your existing holdings by ticker or name, regardless of which account they belong to. Keep the file saved and just update the numbers each month. Columns: <em>name, ticker, units, price, value</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Trading 212</summary>
+        <p><strong>App:</strong> Menu → <strong>History</strong> → tap the <strong>Export</strong> button → select your date range (cover the full month so all buys and sells are captured) → choose which data to include (orders, transactions) → download as CSV. <strong>Website:</strong> same flow via the History section. Note: max 365 days per export. Shelly reads: <em>Action, Ticker, Name, No. of shares, Price / share, Time</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>InvestEngine</summary>
+        <p>Log in on the <strong>website</strong> (not available in the mobile app). Go to the <strong>Reports</strong> tab at the top → <strong>Create report</strong> → select <strong>Valuation statement</strong> → choose <strong>CSV</strong> format → pick the date and account → <strong>Continue</strong>. This gives you a snapshot of your current holdings and their values. Shelly reads: <em>ISIN, Description, Amount</em> and will match them to your existing holdings.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Vanguard Investor</summary>
+        <p>Log in on the website → <strong>My Portfolio</strong> → look for a <strong>Download</strong> or <strong>Export</strong> option. Vanguard UK's export options are limited — if you can't find a CSV download, use <a href="/static/shelly-holdings-template.csv" download class="link-accent">Shelly's template</a> and copy the values from your portfolio screen instead. Shelly looks for: <em>Investment name, Sedol/ISIN, Units, Price, Value</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Hargreaves Lansdown</summary>
+        <p>Log in on the <strong>website</strong> → <strong>My Accounts</strong> → select your account → look for <strong>Statements, valuations and pension illustrations</strong> → select an investment report → download as CSV. Note: HL exports cover transactions in 3-month blocks, not a live portfolio snapshot — and some fees may be missing from the CSV. If the export doesn't include your current units and prices, use <a href="/static/shelly-holdings-template.csv" download class="link-accent">Shelly's template</a> instead. Shelly looks for: <em>Stock, Sedol, Units held, Price, Value</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>AJ Bell</summary>
+        <p>Log in on the website → <strong>My Account</strong> → <strong>Portfolio</strong> → look for an <strong>Export</strong> or <strong>Download</strong> option. If no CSV is available for your current holdings, use <a href="/static/shelly-holdings-template.csv" download class="link-accent">Shelly's template</a>. Shelly looks for: <em>Investment, SEDOL, Quantity, Price, Value</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Freetrade</summary>
+        <p><strong>App:</strong> <strong>Activity</strong> tab → tap the <strong>download icon</strong> (↑) in the top right → select <strong>All Activity</strong> → export as CSV. <strong>Website:</strong> Profile → Settings → <strong>Export Data</strong> → download. This is a transaction history, so Shelly totals up buys and sells to work out your current position. Note: corporate actions (e.g. stock takeovers) may not be included. Columns: <em>Title, Ticker, Type, Quantity, Price per share</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Interactive Investor</summary>
+        <p>Interactive Investor does <strong>not currently offer a CSV export</strong> of your portfolio. The best approach is to use <a href="/static/shelly-holdings-template.csv" download class="link-accent">Shelly's template</a> — copy your holding names, units and prices from the ii website into the template and import it here. If ii adds a CSV export in future, Shelly looks for: <em>Holding, EPIC/Ticker, Quantity, Price, Value</em>.</p>
+      </details>
+
+      <details class="csv-help-details">
+        <summary>Other (generic CSV)</summary>
+        <p>Shelly can read any CSV with sensible column headers. He looks for columns named things like: <em>ticker</em> (or <em>symbol/sedol/isin</em>), <em>name</em> (or <em>holding/investment</em>), <em>units</em> (or <em>quantity/shares</em>), <em>price</em>, and optionally <em>value</em>. Headers are case-insensitive. Or just use <a href="/static/shelly-holdings-template.csv" download class="link-accent">the template</a>.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ── CSV import toggle ─────────────────────────────────────────────── */
+(function () {
+  var toggleBtn  = document.getElementById('csv-import-toggle');
+  var cancelBtn  = document.getElementById('csv-import-cancel');
+  var panel      = document.getElementById('csv-import-panel');
+
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener('click', function () {
+      var isHidden = panel.classList.toggle('hidden');
+      toggleBtn.textContent = isHidden ? 'Show' : 'Hide';
+    });
+  }
+  if (cancelBtn && panel) {
+    cancelBtn.addEventListener('click', function () {
+      panel.classList.add('hidden');
+      if (toggleBtn) toggleBtn.textContent = 'Show';
+    });
+  }
+}());
+</script>
+{% endblock %}

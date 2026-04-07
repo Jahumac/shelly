@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% block title %}Overview · Shelly{% endblock %}
+{% block content %}
+
+{# ── Onboarding state ────────────────────────────────────────────────────── #}
+{% set has_profile = assumptions and assumptions.date_of_birth %}
+{% set has_accounts = accounts | length > 0 %}
+{% set has_goal = metrics.goal_target > 0 %}
+{% set has_history = history_labels | length > 0 %}
+{% set steps_done = [has_profile, has_accounts, has_goal, has_history] | select | list | length %}
+
+{# ── Getting started (shown first for new users) ─────────────────────────── #}
+{% if steps_done < 4 %}
+<section class="card onboarding-welcome mb-1">
+  <div class="onboarding-hero">
+    <span class="onboarding-turtle turtle-hello">🐢</span>
+    <div>
+      <p class="eyebrow">Getting Started</p>
+      <h2 class="onboarding-title">Welcome to Shelly</h2>
+    </div>
+    <small class="text-muted onboarding-progress">{{ steps_done }}/4 complete</small>
+  </div>
+  <p class="helper-text mb-075">Hey! I'm Shelly — your personal finance companion. I'll help you track your savings, investments and goals. Let's get you set up — it only takes a couple of minutes.</p>
+  <div class="onboarding-steps">
+    <a href="/settings/?mode=edit" class="onboarding-step {% if has_profile %}onboarding-done{% endif %}">
+      <span class="onboarding-check">{% if has_profile %}✓{% else %}1{% endif %}</span>
+      <div>
+        <strong>Tell Shelly about yourself</strong>
+        <small>Date of birth, retirement age, salary day — so projections actually mean something.</small>
+      </div>
+    </a>
+    <a href="/accounts/?mode=create" class="onboarding-step {% if has_accounts %}onboarding-done{% endif %}">
+      <span class="onboarding-check">{% if has_accounts %}✓{% else %}2{% endif %}</span>
+      <div>
+        <strong>Add your first account</strong>
+        <small>ISA, pension, savings — anything you want to track.</small>
+      </div>
+    </a>
+    <a href="/goals/?mode=create" class="onboarding-step {% if has_goal %}onboarding-done{% endif %}">
+      <span class="onboarding-check">{% if has_goal %}✓{% else %}3{% endif %}</span>
+      <div>
+        <strong>Set a goal</strong>
+        <small>Give Shelly a target to aim for. Even a turtle needs a finish line.</small>
+      </div>
+    </a>
+    <a href="/monthly-review/" class="onboarding-step {% if has_history %}onboarding-done{% endif %}">
+      <span class="onboarding-check">{% if has_history %}✓{% else %}4{% endif %}</span>
+      <div>
+        <strong>Complete your first Monthly Update</strong>
+        <small>This is how Shelly tracks your progress over time.</small>
+      </div>
+    </a>
+  </div>
+</section>
+{% endif %}
+
+{# ── Hero ─────────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="hero-top" style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <p class="eyebrow">Total Net Worth</p>
+      <h2 class="hero-value hero-value-xl">£{{ '{:,.2f}'.format(metrics.invested_total) }}</h2>
+      <p class="hero-subtitle">{{ metrics.current_date }} · {{ metrics.current_time }}</p>
+    </div>
+    <div style="text-align:right;">
+      <p class="eyebrow">Tax Year {{ metrics.tax_year }}</p>
+      <p class="hero-subtitle" style="margin-top:0.25rem;">{{ metrics.tax_year_days_left }} days remaining</p>
+    </div>
+  </div>
+
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Monthly contributions</span>
+      <strong>£{{ '{:,.0f}'.format(metrics.monthly_total) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Projected at retirement</span>
+      <strong>£{{ '{:,.0f}'.format(metrics.projected_total) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Accounts tracked</span>
+      <strong>{{ accounts | length }}</strong>
+    </div>
+    {% if metrics.goal_target > 0 %}
+    <div class="hero-strip-stat">
+      <span>Goal progress</span>
+      <strong>{{ '{:.1f}'.format(metrics.goal_progress * 100) }}%</strong>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if history_labels | length >= 2 %}
+  <div class="mt-125">
+    <p class="chart-label">Net worth history</p>
+    <div class="chart-wrap chart-wrap-sm">
+      <canvas id="netWorthChart" role="img" aria-label="Net worth history chart"></canvas>
+    </div>
+  </div>
+  {% elif history_labels | length == 1 %}
+  <p class="helper-text mt-1">
+    One snapshot down — slow and steady. Complete next month's update and Shelly will start drawing your trend line.
+  </p>
+  {% else %}
+  <p class="helper-text mt-1">
+    Complete your first Monthly Update and Shelly will start tracking your net worth. Remember: slow and steady wins the race.
+  </p>
+  {% endif %}
+</section>
+
+{# ── Goal progress ────────────────────────────────────────────────────────── #}
+{% if metrics.goal_target > 0 %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Primary Goal</p>
+      <h2>£{{ '{:,.0f}'.format(metrics.invested_total) }} / £{{ '{:,.0f}'.format(metrics.goal_target) }}</h2>
+    </div>
+    <strong class="goal-progress-pct">{{ '{:.1f}'.format(metrics.goal_progress * 100) }}%</strong>
+  </div>
+  <div class="progress"><div class="progress-bar" style="width: {{ [metrics.goal_progress * 100, 100]|min }}%;"></div></div>
+  <small>£{{ '{:,.0f}'.format([metrics.goal_target - metrics.invested_total, 0]|max) }} remaining to goal</small>
+</section>
+{% endif %}
+
+{# ── ISA Allowances ───────────────────────────────────────────────────────── #}
+<section class="card-grid allowance-grid mb-1">
+  <div class="card allowance-card">
+    <h2>ISA Allowance {{ metrics.tax_year }}</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(metrics.isa_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (metrics.isa_progress * 100)|round(1) }}%;"></div></div>
+    <small>{{ '{:.1f}'.format(metrics.isa_progress * 100) }}% used · includes LISA · {{ metrics.tax_year_days_left }} days left in tax year</small>
+  </div>
+  <div class="card allowance-card">
+    <h2>LISA Allowance {{ metrics.tax_year }}</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.lisa_used) }} <span style="color:var(--muted); font-weight:400; font-size:0.95rem;">/ £{{ '{:,.0f}'.format(metrics.lisa_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (metrics.lisa_progress * 100)|round(1) }}%;"></div></div>
+    <small>{{ '{:.1f}'.format(metrics.lisa_progress * 100) }}% used</small>
+  </div>
+</section>
+
+{# ── Accounts ─────────────────────────────────────────────────────────────── #}
+<section class="card">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Breakdown</p>
+      <h2>Accounts</h2>
+    </div>
+    <small class="text-muted">{{ accounts|length }} active</small>
+  </div>
+  <div class="card-grid">
+    {% for account in accounts %}
+      <a class="card account-summary-card account-link" href="/accounts/{{ account.id }}">
+        <h2>{{ account.name }}</h2>
+        <p>£{{ '{:,.2f}'.format(metrics.effective_values[account.id]) }}</p>
+        <small>{{ account.provider }} · {{ account.wrapper_type }}</small>
+      </a>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">🐢</div>
+        <h3>Nothing in the shell yet</h3>
+        <p>Every journey starts with a single step — even for a turtle. Add your first account and Shelly will start crunching the numbers.</p>
+        <a href="/accounts/?mode=create" class="badge badge-primary-action">+ Add your first account</a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% if history_labels | length >= 2 %}
+<script>
+(function () {
+  var labels = {{ history_labels | tojson }};
+  var values = {{ history_values | tojson }};
+  var ctx = document.getElementById('netWorthChart').getContext('2d');
+  var S = getComputedStyle(document.documentElement);
+  var CSS = {
+    accent: S.getPropertyValue('--accent').trim(),
+    muted:  S.getPropertyValue('--muted').trim(),
+    grid:   S.getPropertyValue('--chart-grid').trim(),
+  };
+
+  var fmtLabels = labels.map(function(k) {
+    var parts = k.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+    return d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  });
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: fmtLabels,
+      datasets: [{
+        data: values,
+        borderColor: CSS.accent,
+        backgroundColor: CSS.accent + '14',
+        borderWidth: 2,
+        pointRadius: values.length <= 12 ? 4 : 2,
+        pointBackgroundColor: CSS.accent,
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: CSS.grid },
+          ticks: { color: CSS.muted, font: { size: 11 } }
+        },
+        y: {
+          grid: { color: CSS.grid },
+          ticks: {
+            color: CSS.muted,
+            font: { size: 11 },
+            callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); }
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% block title %}Projections · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/goals/">Goals</a>
+  <a href="/projections/" class="subnav-active">Projections</a>
+  <a href="/performance/">Performance</a>
+</nav>
+
+{# ── Header ───────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Projections</p>
+      <h2>Retirement Projections</h2>
+    </div>
+    <div class="badge-row">
+      <a class="badge" href="/projections/export.xlsx">↓ Download Excel</a>
+    </div>
+  </div>
+  <p class="helper-text">Compound interest: the one thing that moves slower than a turtle but somehow makes you rich. Based on your current balances and growth settings.</p>
+</section>
+
+{# ── Summary cards ────────────────────────────────────────────────────────── #}
+<section class="card-grid mb-1">
+  <div class="card stat-card">
+    <h2>Projected at Retirement</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.total_projected) }}</p>
+    <small>At age {{ metrics.retirement_age }} · {{ '{:.1f}'.format(metrics.growth_rate * 100) }}% annual growth</small>
+  </div>
+  <div class="card stat-card">
+    <h2>Current Total</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.total_current) }}</p>
+    <small>Across all active accounts today</small>
+  </div>
+  <div class="card stat-card">
+    <h2>Years to Go</h2>
+    <p>{{ '{:.0f}'.format(metrics.years_remaining) }}</p>
+    <small>Age {{ metrics.current_age }} → {{ metrics.retirement_age }}</small>
+  </div>
+  <div class="card stat-card">
+    <h2>Monthly Contributions</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.total_monthly) }}</p>
+    <small>Total across all accounts</small>
+  </div>
+  {% if metrics.total_fee_impact > 0 %}
+  <div class="card stat-card">
+    <h2>Lifetime Cost of Fees</h2>
+    <p style="color:#DC2626;">£{{ '{:,.0f}'.format(metrics.total_fee_impact) }}</p>
+    <small>Difference between gross and net growth</small>
+  </div>
+  {% endif %}
+</section>
+
+{# ── Per-account breakdown ────────────────────────────────────────────────── #}
+{% if account_rows %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Account breakdown</p>
+      <h2>Each Account at Retirement</h2>
+    </div>
+  </div>
+  <p class="helper-text">What each account could be worth at age {{ metrics.retirement_age }}, based on current balances and what goes into each pot every month (including tax relief, government bonuses, and employer contributions).</p>
+  <div class="budget-rows">
+    {% for row in account_rows %}
+    <div class="budget-row">
+      <div class="budget-row-left">
+        <span class="budget-row-name">{{ row.name }}</span>
+        <span class="budget-row-note">{{ row.wrapper_type }} · {{ '{:.1f}'.format(row.growth_rate * 100) }}% net
+          {%- if row.annual_fee_pct %} <span style="color:var(--muted);">({{ '{:.1f}'.format(row.gross_growth_rate * 100) }}% − {{ '{:.2f}'.format(row.annual_fee_pct) }}% fees{% if row.platform_fee_pct or row.platform_fee_flat %}: {{ '{:.2f}'.format(row.platform_fee_pct) }}% platform{% if row.platform_fee_flat %} + £{{ '{:,.0f}'.format(row.platform_fee_flat) }}/yr{% endif %}{% if row.fund_fee_pct %} + {{ '{:.2f}'.format(row.fund_fee_pct) }}% fund{% endif %}{% endif %})</span>{% endif %}
+          {%- if row.effective_contribution != row.monthly_contribution %} · you pay £{{ '{:,.0f}'.format(row.monthly_contribution) }} → £{{ '{:,.0f}'.format(row.effective_contribution) }}/mo into pot
+            {%- if row.tax_relief %} (incl. £{{ '{:,.0f}'.format(row.tax_relief) }} tax relief){% endif %}
+            {%- if row.government_bonus %} (incl. £{{ '{:,.0f}'.format(row.government_bonus) }} govt bonus){% endif %}
+            {%- if row.employer %} (incl. £{{ '{:,.0f}'.format(row.employer) }} employer){% endif %}
+          {%- else %} · £{{ '{:,.0f}'.format(row.monthly_contribution) }}/mo
+          {%- endif %}
+        </span>
+        {% if row.self_assessment > 0 %}
+        <span class="budget-row-note" style="color:var(--accent-3);">Plus £{{ '{:,.0f}'.format(row.self_assessment) }}/mo reclaimable via self-assessment</span>
+        {% endif %}
+        {% if row.fee_impact > 0 %}
+        <span class="budget-row-note" style="color:#DC2626;">Fees cost you £{{ '{:,.0f}'.format(row.fee_impact) }} over the period</span>
+        {% endif %}
+      </div>
+      <div class="budget-row-right" style="gap:1.5rem;">
+        <span class="muted-cell" style="font-size:0.82rem;">now £{{ '{:,.0f}'.format(row.current_value) }}</span>
+        <strong style="color:var(--accent-2);">£{{ '{:,.0f}'.format(row.projected_value) }}</strong>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="budget-row" style="border-top:1px solid var(--border); margin-top:0.25rem; padding-top:0.75rem;">
+      <div class="budget-row-left">
+        <span class="budget-row-name" style="font-weight:700;">Total</span>
+      </div>
+      <div class="budget-row-right" style="gap:1.5rem;">
+        <span class="muted-cell" style="font-size:0.82rem;">now £{{ '{:,.0f}'.format(metrics.total_current) }}</span>
+        <strong style="color:var(--accent-2);">£{{ '{:,.0f}'.format(metrics.total_projected) }}</strong>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ── Projection chart ─────────────────────────────────────────────────────── #}
+{% if chart_labels %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Growth curve</p>
+      <h2>Portfolio Trajectory</h2>
+    </div>
+  </div>
+  <p class="helper-text">Shelly's crystal ball — how your portfolio could grow year by year, based on what you're putting in today.</p>
+  <div class="chart-wrap-md">
+    <canvas id="projectionChart" role="img" aria-label="Projected portfolio growth chart"></canvas>
+  </div>
+</section>
+{% endif %}
+
+{# ── What-if ──────────────────────────────────────────────────────────────── #}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Scenario planner</p>
+      <h2>What If?</h2>
+    </div>
+    <button class="badge badge-meta" id="wi_reset" type="button">Reset to plan</button>
+  </div>
+  <p class="helper-text">Tweak the numbers and see what happens. Nothing is saved — Shelly doesn't judge your hypothetical early retirement fantasies.</p>
+
+  {# Global controls #}
+  <div class="form-grid settings-form mb-1">
+    <label>
+      <span>Retirement age</span>
+      <input type="number" id="wi_age" value="{{ metrics.retirement_age }}" min="40" max="80" step="1">
+    </label>
+    <label>
+      <span>Annual growth rate (%)</span>
+      <input type="number" id="wi_rate" value="{{ '{:.1f}'.format(metrics.growth_rate * 100) }}" min="0" max="20" step="0.1">
+    </label>
+  </div>
+
+  {# Per-account contributions #}
+  <p class="eyebrow mb-05">Monthly contributions per account</p>
+  <div class="wi-account-list" id="wi_accounts">
+    {% for row in account_rows %}
+    <div class="wi-account-row">
+      <div class="wi-account-info">
+        <strong>{{ row.name }}</strong>
+        <small>{{ row.wrapper_type }}{% if row.wrapper_type == 'Lifetime ISA' %} · contributions stop at 50{% endif %}</small>
+      </div>
+      <div class="wi-account-right">
+        <div class="wi-account-input-wrap">
+          <span class="wi-gbp">£</span>
+          <input type="number"
+                 class="wi-contrib-input"
+                 data-plan="{{ row.monthly_contribution }}"
+                 data-effective="{{ row.effective_contribution }}"
+                 data-employer="{{ row.employer }}"
+                 data-current="{{ row.current_value }}"
+                 data-rate="{{ row.growth_rate }}"
+                 data-wrapper="{{ row.wrapper_type }}"
+                 value="{{ row.monthly_contribution }}"
+                 step="10" min="0">
+        </div>
+        <span class="wi-account-projected" data-projected-label>—</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Summary #}
+  <div class="whatif-result mt-125" id="whatifResult">
+    <div class="whatif-result-item">
+      <span>Scenario total</span>
+      <strong id="wi_total">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>vs. your plan</span>
+      <strong id="wi_diff">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>Years to retirement</span>
+      <strong id="wi_years">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>Monthly total</span>
+      <strong id="wi_monthly">—</strong>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  // ── Projection chart ──────────────────────────────────────────────────────
+  {% if chart_labels %}
+  var chartLabels = {{ chart_labels | tojson }};
+  var chartValues = {{ chart_values | tojson }};
+  var ctx = document.getElementById('projectionChart').getContext('2d');
+  var S = getComputedStyle(document.documentElement);
+  var CSS = {
+    accent2: S.getPropertyValue('--accent-2').trim(),
+    muted:   S.getPropertyValue('--muted').trim(),
+    grid:    S.getPropertyValue('--chart-grid').trim(),
+  };
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        data: chartValues,
+        borderColor: CSS.accent2,
+        backgroundColor: CSS.accent2 + '12',
+        borderWidth: 2,
+        pointRadius: chartLabels.length <= 20 ? 3 : 0,
+        pointBackgroundColor: CSS.accent2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 }, maxTicksLimit: 10 } },
+        y: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 }, callback: function(v) { return '£' + (v/1000).toFixed(0) + 'k'; } } }
+      }
+    }
+  });
+  {% endif %}
+
+  // ── What-if calculator ────────────────────────────────────────────────────
+  var BASE_CURRENT_AGE = {{ '{:.10f}'.format(metrics.current_age_frac) }};
+  var BASE_RETIREMENT_AGE = {{ metrics.retirement_age }};
+  var BASE_YEARS_REMAINING = {{ '{:.10f}'.format(metrics.years_remaining) }};
+  var BASE_MONTHS_REMAINING = {{ '{:d}'.format((metrics.years_remaining * 12)|int) }};
+  var DEFAULT_RATE_PCT  = {{ '{:.1f}'.format(metrics.growth_rate * 100) }};
+
+  function fv(current, monthly, annualRate, years, months) {
+    var r = annualRate / 12;
+    var n = (typeof months === 'number') ? months : Math.floor(years * 12);
+    var fc = current * Math.pow(1 + r, n);
+    var fm = r === 0 ? monthly * n : monthly * ((Math.pow(1 + r, n) - 1) / r);
+    return fc + fm;
+  }
+
+  // Mirrors the Python projected_account_value logic, including LISA cap at 50.
+  // When the retirement age matches the plan we pass the server-computed month
+  // count directly so the result is identical to the Python figure.
+  function projectAccount(current, monthly, annualRate, retAge, isLISA) {
+    var onPlan = (retAge === BASE_RETIREMENT_AGE);
+    var years  = onPlan ? BASE_YEARS_REMAINING : Math.max(retAge - BASE_CURRENT_AGE, 0);
+    var months = onPlan ? BASE_MONTHS_REMAINING : undefined;
+    if (isLISA) {
+      var contribEndAge = Math.min(50, retAge);
+      var contribYears  = Math.max(contribEndAge - BASE_CURRENT_AGE, 0);
+      var frozenYears   = Math.max(years - contribYears, 0);
+      var valAtEnd = fv(current, monthly, annualRate, contribYears);
+      return fv(valAtEnd, 0, annualRate, frozenYears);
+    }
+    return fv(current, monthly, annualRate, years, months);
+  }
+
+  function fmt(v) {
+    return '£' + Math.round(v).toLocaleString('en-GB');
+  }
+
+  var inputs  = Array.from(document.querySelectorAll('.wi-contrib-input'));
+  var labels  = Array.from(document.querySelectorAll('[data-projected-label]'));
+
+  function recalc() {
+    var retAge      = parseFloat(document.getElementById('wi_age').value)  || {{ metrics.retirement_age }};
+    var globalPct   = parseFloat(document.getElementById('wi_rate').value) || 0;
+    var years       = (retAge === BASE_RETIREMENT_AGE)
+      ? BASE_YEARS_REMAINING
+      : Math.max(retAge - BASE_CURRENT_AGE, 0);
+    // Only use the global rate as an override when the user has actually changed it
+    var rateChanged = Math.abs(globalPct - DEFAULT_RATE_PCT) > 0.0001;
+
+    var scenarioTotal = 0;
+    var planTotal     = 0;
+    var totalMonthly  = 0;
+
+    inputs.forEach(function(inp, i) {
+      var current     = parseFloat(inp.dataset.current) || 0;
+      var personal    = parseFloat(inp.value) || 0;
+      var planPersonal= parseFloat(inp.dataset.plan) || 0;
+      var planEffective = parseFloat(inp.dataset.effective) || planPersonal;
+      var employer    = parseFloat(inp.dataset.employer) || 0;
+      var acctRate    = parseFloat(inp.dataset.rate) || 0;
+      var isLISA      = inp.dataset.wrapper === 'Lifetime ISA';
+
+      // Apply the same gross-up ratio when the user changes their personal contribution
+      var ratio = planPersonal > 0 ? (planEffective / planPersonal) : 1;
+      var monthly = personal * ratio;
+
+      // Default: use each account's own growth rate (matching the server).
+      // If the user changes the global rate input, apply it as a scenario override.
+      var useRate = rateChanged ? (globalPct / 100) : acctRate;
+
+      var proj = projectAccount(current, monthly, useRate, retAge, isLISA);
+      var plan = projectAccount(current, planEffective, useRate, retAge, isLISA);
+
+      scenarioTotal += proj;
+      planTotal     += plan;
+      totalMonthly  += personal;
+
+      if (labels[i]) {
+        labels[i].textContent = fmt(proj);
+      }
+    });
+
+    var diff    = scenarioTotal - planTotal;
+    var diffEl  = document.getElementById('wi_diff');
+    diffEl.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
+    diffEl.className   = diff >= 0 ? 'whatif-positive' : 'whatif-negative';
+
+    document.getElementById('wi_total').textContent   = fmt(scenarioTotal);
+    document.getElementById('wi_years').textContent   = Math.round(years) + ' years';
+    document.getElementById('wi_monthly').textContent = fmt(totalMonthly) + '/mo';
+  }
+
+  // Wire up all inputs
+  document.getElementById('wi_age').addEventListener('input', recalc);
+  document.getElementById('wi_rate').addEventListener('input', recalc);
+  inputs.forEach(function(inp) { inp.addEventListener('input', recalc); });
+
+  // Reset button
+  document.getElementById('wi_reset').addEventListener('click', function() {
+    document.getElementById('wi_age').value  = '{{ metrics.retirement_age }}';
+    document.getElementById('wi_rate').value = '{{ '{:.1f}'.format(metrics.growth_rate * 100) }}';
+    inputs.forEach(function(inp) { inp.value = inp.dataset.plan; });
+    recalc();
+  });
+
+  recalc();
+})();
+</script>
+{% endblock %}

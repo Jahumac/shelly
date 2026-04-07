@@ -1,0 +1,9 @@
+services:
+  finance-dashboard:
+    build: .
+    container_name: finance-dashboard
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

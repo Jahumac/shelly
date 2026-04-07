@@ -1,0 +1,1859 @@
+{% extends 'base.html' %}
+{% block title %}Accounts · Shelly{% endblock %}
+{% block content %}
+{% set page_mode = request.args.get('mode', 'list') %}
+
+{# ── Provider datalist — always rendered so edit mode can use it too ──────── #}
+<datalist id="provider-list">
+  {# ── Investment platforms ── #}
+  <option value="Hargreaves Lansdown">
+  <option value="AJ Bell">
+  <option value="AJ Bell Dodl">
+  <option value="Interactive Investor">
+  <option value="Fidelity">
+  <option value="Vanguard">
+  <option value="InvestEngine">
+  <option value="Freetrade">
+  <option value="Trading 212">
+  <option value="Bestinvest">
+  <option value="True Potential">
+  <option value="Charles Stanley Direct">
+  <option value="iWeb">
+  <option value="Close Brothers">
+  <option value="Saxo">
+  <option value="IG">
+  <option value="eToro">
+  <option value="Lightyear">
+  <option value="Stake">
+  <option value="Dodl by AJ Bell">
+  {# ── Robo-advisers / ISA apps ── #}
+  <option value="Nutmeg">
+  <option value="Wealthify">
+  <option value="Moneyfarm">
+  <option value="Moneybox">
+  <option value="Wealthsimple">
+  <option value="Plum">
+  <option value="Tickr">
+  <option value="Claro Money">
+  {# ── Pension providers ── #}
+  <option value="PensionBee">
+  <option value="Standard Life">
+  <option value="Standard Life (Workplace)">
+  <option value="Aviva">
+  <option value="Aviva (Workplace)">
+  <option value="Legal & General">
+  <option value="Scottish Widows">
+  <option value="Royal London">
+  <option value="Aegon">
+  <option value="Zurich">
+  <option value="Aon">
+  <option value="Mercer">
+  <option value="Willis Towers Watson">
+  <option value="Fidelity (Workplace)">
+  <option value="Hargreaves Lansdown (Workplace)">
+  <option value="Canada Life">
+  <option value="Phoenix Group">
+  <option value="Prudential">
+  <option value="Quilter">
+  <option value="St. James's Place">
+  {# ── Workplace pension only ── #}
+  <option value="NEST">
+  <option value="The People's Pension">
+  <option value="NOW: Pensions">
+  <option value="Smart Pension">
+  <option value="Cushon">
+  <option value="Salary Finance">
+  <option value="Salvus Master Trust">
+  {# ── High street banks ── #}
+  <option value="Barclays">
+  <option value="HSBC">
+  <option value="NatWest">
+  <option value="Lloyds">
+  <option value="Nationwide">
+  <option value="Santander">
+  <option value="Halifax">
+  <option value="TSB">
+  <option value="Metro Bank">
+  <option value="First Direct">
+  <option value="Virgin Money">
+  <option value="Co-operative Bank">
+  <option value="Clydesdale Bank">
+  {# ── Digital banks ── #}
+  <option value="Monzo">
+  <option value="Starling Bank">
+  <option value="Chase">
+  <option value="Revolut">
+  <option value="Zopa">
+  <option value="Atom Bank">
+  <option value="Tandem Bank">
+  {# ── Savings / cash ── #}
+  <option value="NS&I">
+  <option value="Marcus by Goldman Sachs">
+  <option value="Chip">
+  <option value="Aldermore">
+  <option value="Paragon Bank">
+  <option value="Shawbrook Bank">
+  <option value="OakNorth Bank">
+  <option value="Gatehouse Bank">
+  <option value="Raisin UK">
+  <option value="Flagstone">
+  {# ── Building societies ── #}
+  <option value="Skipton Building Society">
+  <option value="Yorkshire Building Society">
+  <option value="Coventry Building Society">
+  <option value="Leeds Building Society">
+  <option value="Nottingham Building Society">
+  <option value="Principality Building Society">
+  <option value="West Bromwich Building Society">
+  {# ── Crypto ── #}
+  <option value="Coinbase">
+  <option value="Kraken">
+  <option value="Binance">
+</datalist>
+
+{# ── Hero header ──────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Accounts</p>
+      <h2 class="hero-value">{{ accounts | length }} account{{ 's' if accounts | length != 1 }}</h2>
+      <p class="hero-subtitle">Everything Shelly's keeping an eye on — tap any account for the full picture</p>
+    </div>
+  </div>
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Total value</span>
+      <strong>£{{ '{:,.0f}'.format(total_value) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Monthly in</span>
+      <strong>£{{ '{:,.0f}'.format(total_monthly) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Holdings tracked</span>
+      <strong>{{ accounts | selectattr('valuation_mode', 'equalto', 'holdings') | list | length }}</strong>
+    </div>
+  </div>
+</section>
+
+{% if accounts | length > 0 %}
+<div class="row-end">
+  <a class="badge badge-primary-action" href="/accounts/?mode=create">+ Add account</a>
+</div>
+{% endif %}
+
+{# ── Account cards ────────────────────────────────────────────────────────── #}
+<div class="acct-grid">
+  {% for account in accounts %}
+  {% set val = effective_values[account.id] %}
+  {% set _wt = account.wrapper_type | lower %}
+  {% set pill_type = 'isa' if 'stocks' in _wt else ('cash-isa' if 'cash' in _wt else ('lisa' if 'lifetime' in _wt else ('sipp' if 'sipp' in _wt else ('pension' if 'pension' in _wt else ('gia' if 'general' in _wt else ''))))) %}
+  <a class="acct-card" href="/accounts/{{ account.id }}?mode=view">
+    <div class="acct-card-top">
+      <div class="acct-type-pill" data-type="{{ pill_type }}">{{ account.wrapper_type }}</div>
+      {% if account.growth_mode == 'custom' %}
+        <span class="acct-rate-chip">{{ '{:.1f}'.format(account.growth_rate_override * 100) if account.growth_rate_override else '' }}%</span>
+      {% endif %}
+    </div>
+    <div class="acct-card-mid">
+      <div class="acct-balance">£{{ '{:,.0f}'.format(val) }}</div>
+      <div class="acct-name">{{ account.name }}</div>
+      <div class="acct-provider">{{ account.provider }}</div>
+    </div>
+    <div class="acct-card-foot">
+      {% set cb = contrib_breakdowns.get(account.id, {}) %}
+      {% if cb.get('total_into_pot', 0) != (account.monthly_contribution or 0) and cb.get('total_into_pot', 0) > 0 %}
+      <span title="You pay £{{ '{:,.0f}'.format(account.monthly_contribution or 0) }} → £{{ '{:,.0f}'.format(cb.total_into_pot) }} goes into pot">£{{ '{:,.0f}'.format(cb.total_into_pot) }}/mo</span>
+      {% else %}
+      <span>£{{ '{:,.0f}'.format(account.monthly_contribution or 0) }}/mo</span>
+      {% endif %}
+      <span class="acct-mode-dot {% if account.valuation_mode == 'holdings' %}dot-positions{% else %}dot-manual{% endif %}"
+            title="{{ 'Built from holdings' if account.valuation_mode == 'holdings' else 'Manual' }}"></span>
+    </div>
+  </a>
+  {% else %}
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-state-icon">🐢</div>
+      <h3>No accounts yet</h3>
+      <p>Shelly can't track what Shelly can't see. Add your first account — ISA, pension, savings, the works — and let the slow, steady magic begin.</p>
+      <a href="/accounts/?mode=create" class="badge badge-primary-action">+ Add your first account</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if selected %}
+  {# ── Account detail view ──────────────────────────────────────────── #}
+  <section class="panel mt-1" data-focus-panel>
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">{{ selected.provider }} · {{ selected.wrapper_type }}</p>
+        <h2>{{ selected.name }}</h2>
+      </div>
+      <div class="badge-row">
+        {% if detail_mode != 'edit' %}<a class="badge" href="/accounts/{{ selected.id }}?mode=edit">Edit</a>{% endif %}
+        {% if detail_mode != 'edit' and selected.valuation_mode == 'holdings' %}<button type="button" class="badge" id="top-add-holding">+ Add holding</button>{% endif %}
+        <form method="post" class="form-reset" style="display:inline;">
+          <input type="hidden" name="form_name" value="delete_account">
+          <button type="submit" class="badge badge-danger"
+            data-confirm="This will permanently remove {{ selected.name }} and all its holdings. Shelly can't undo this one."
+            data-confirm-title="Delete {{ selected.name }}?"
+            data-confirm-ok="Yes, delete it"
+            data-confirm-cancel="Keep it">
+            Delete
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if detail_mode == 'edit' %}
+      <form method="post" class="settings-form mt-1">
+        <input type="hidden" name="form_name" value="account">
+        <section class="panel panel-sm">
+          <h3 class="section-title">Edit Account</h3>
+          <div class="form-grid">
+            <label><span>Name</span><input type="text" name="name" value="{{ selected.name }}"></label>
+            <label>
+              <span>Provider</span>
+              <input type="text" name="provider" value="{{ selected.provider }}" list="provider-list" autocomplete="off">
+            </label>
+            <label>
+              <span>Wrapper Type</span>
+              <select name="wrapper_type">
+                {% for option in wrapper_type_options %}
+                  <option value="{{ option }}" {% if selected.wrapper_type == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Category</span>
+              <select name="category">
+                {% for option in category_options %}
+                  <option value="{{ option }}" {% if selected.category == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="form-full-col">
+              <span>Tags</span>
+              <input type="hidden" name="tags" value="{{ selected.tags or '' }}" data-tags-hidden-input>
+              <div class="tag-picker">
+                {% for tag in tag_options %}
+                <label class="tag-chip">
+                  <input type="checkbox" value="{{ tag }}" data-tag-checkbox {% if tag in selected_tags %}checked{% endif %}>
+                  <span>{{ tag }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </label>
+            <label>
+              <span>Balance Method</span>
+              <select name="valuation_mode" data-valuation-mode>
+                <option value="manual" {% if selected.valuation_mode == 'manual' %}selected{% endif %}>Manual</option>
+                <option value="holdings" {% if selected.valuation_mode == 'holdings' %}selected{% endif %}>Built from holdings</option>
+              </select>
+            </label>
+            <label>
+              <span>Growth Mode</span>
+              <select name="growth_mode" data-growth-mode>
+                <option value="default" {% if selected.growth_mode == 'default' %}selected{% endif %}>Default investment growth</option>
+                <option value="custom" {% if selected.growth_mode == 'custom' %}selected{% endif %}>Custom rate / interest</option>
+              </select>
+            </label>
+            <div data-manual-fields class="form-contents" {% if selected.valuation_mode == 'holdings' %}hidden{% endif %}>
+              <label><span>Current Balance</span><input type="number" step="0.01" name="current_value" value="{{ selected.current_value if selected.current_value is not none else '' }}"></label>
+            </div>
+            <label data-custom-rate-field {% if selected.growth_mode != 'custom' %}class="hidden"{% endif %}>
+              <span>Custom Growth / Interest Rate (%)</span>
+              <input type="number" step="0.1" name="growth_rate_override" value="{{ '{:.1f}'.format(selected.growth_rate_override * 100) if selected.growth_rate_override else '' }}" placeholder="e.g. 4.5">
+              <small class="form-hint">Enter as a percentage — e.g. 4.5 for 4.5%, 3.6 for 3.6%</small>
+            </label>
+            <label>
+              <span>Your Monthly Contribution</span>
+              <input type="number" step="0.01" name="monthly_contribution" value="{{ selected.monthly_contribution or 0 }}">
+              {% set _wt_edit = (selected.wrapper_type or '') | lower %}
+              {% if 'sipp' in _wt_edit %}
+              <small class="form-hint">What you pay from your bank each month. Shelly adds 25% basic-rate tax relief on top — your provider claims it from HMRC automatically.</small>
+              {% elif 'workplace' in _wt_edit or 'pension' in _wt_edit %}
+              <small class="form-hint">Your share of the pension contribution — either from your net pay or salary sacrifice, depending on your scheme.</small>
+              {% elif 'lifetime' in _wt_edit %}
+              <small class="form-hint">What you pay in. The government adds a 25% bonus (up to £4,000/year contributions).</small>
+              {% else %}
+              <small class="form-hint">How much you put in each month. If you link a budget item to this account, Shelly uses this in your budget automatically.</small>
+              {% endif %}
+            </label>
+            {# ── Pension-specific fields ── #}
+            {% if 'workplace' in _wt_edit or 'pension' in _wt_edit %}
+            <label>
+              <span>Employer Contribution</span>
+              <input type="number" step="0.01" name="employer_contribution" value="{{ selected.employer_contribution or 0 }}">
+              <small class="form-hint">What your employer puts in each month on top of yours</small>
+            </label>
+            <label>
+              <span>Contribution Method</span>
+              {% set cm = selected.contribution_method if selected.contribution_method else 'standard' %}
+              <select name="contribution_method">
+                <option value="salary_sacrifice" {{ 'selected' if cm == 'salary_sacrifice' }}>Salary sacrifice</option>
+                <option value="relief_at_source" {{ 'selected' if cm == 'relief_at_source' or cm == 'standard' }}>Relief at source (e.g. NEST)</option>
+              </select>
+              <small class="form-hint">Salary sacrifice = pre-tax, no relief to claim. Relief at source = your provider claims 20% back from HMRC for you.</small>
+            </label>
+            {% endif %}
+            <label><span>Account Goal</span><input type="number" step="0.01" name="goal_value" value="{{ selected.goal_value or '' }}"></label>
+            <label class="form-full-col"><span>Notes</span><input type="text" name="notes" value="{{ selected.notes or '' }}"></label>
+          </div>
+          {# ── Advanced: Fees (below the main form grid) ─────────── #}
+          <details class="fee-details" style="margin-top:1rem;" {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}open{% endif %}>
+            <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
+            <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+              <label>
+                <span>Platform fee (%)</span>
+                <input type="number" step="0.01" name="platform_fee_pct" value="{{ selected.platform_fee_pct or '' }}" placeholder="e.g. 0.15" min="0" max="5">
+                <small class="form-hint">Broker's annual charge. E.g. Vanguard 0.15%, HL 0.45%.</small>
+              </label>
+              <label>
+                <span>Fee cap (£/year)</span>
+                <input type="number" step="1" name="platform_fee_cap" value="{{ selected.platform_fee_cap or '' }}" placeholder="e.g. 375" min="0">
+                <small class="form-hint">Cap on % fee. E.g. Vanguard £375/yr.</small>
+              </label>
+              <label>
+                <span>Flat fee (£/year)</span>
+                <input type="number" step="1" name="platform_fee_flat" value="{{ selected.platform_fee_flat or '' }}" placeholder="e.g. 144" min="0">
+                <small class="form-hint">Fixed annual amount. E.g. ii ~£144/yr.</small>
+              </label>
+              <label>
+                <span>Fund fee / OCF (%)</span>
+                <input type="number" step="0.01" name="fund_fee_pct" value="{{ selected.fund_fee_pct or '' }}" placeholder="e.g. 0.22" min="0" max="5">
+                <small class="form-hint">Fund ongoing charge. E.g. VWRP 0.22%.</small>
+              </label>
+            </div>
+            <input type="hidden" name="annual_fee_pct" value="0">
+            <small class="form-hint" style="color:var(--muted); display:block; margin-top:0.5rem;">All optional — Shelly combines these into one effective fee and subtracts it from your growth rate.</small>
+          </details>
+          <div class="badge-row mt-1">
+            <button type="submit">Save account</button>
+            <a class="badge" href="/accounts/{{ selected.id }}">Cancel</a>
+          </div>
+        </section>
+      </form>
+
+    {% elif detail_mode == 'edit_holding' and edit_holding %}
+      {# ── Edit holding ────────────────────────────────────────────────────── #}
+      <section class="panel panel-sm mt-1" id="holdings-section">
+        <div class="section-header mb-1">
+          <div>
+            <p class="eyebrow">Edit Holding</p>
+            <h3 class="section-title-sm">{{ edit_holding.holding_name }}{% if edit_holding.ticker %} <span class="ticker-sub">· {{ edit_holding.ticker }}</span>{% endif %}</h3>
+          </div>
+          <a class="badge" href="/accounts/{{ selected.id }}#holdings-section">← Cancel</a>
+        </div>
+        <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ edit_holding.id }}/edit" class="settings-form">
+          <div class="form-grid">
+            <label>
+              <span>Units</span>
+              <input type="number" step="any" name="units" value="{{ '{:.4f}'.format(edit_holding.units or 0) }}" required>
+            </label>
+            <label>
+              <span>Price (£)</span>
+              <input type="number" step="any" name="price" value="{{ '{:.4f}'.format(edit_holding.price or 0) }}" required>
+            </label>
+            <label class="form-full-col">
+              <span>Notes</span>
+              <input type="text" name="notes" value="{{ edit_holding.notes or '' }}" placeholder="Optional">
+            </label>
+          </div>
+          <div class="badge-row mt-1">
+            <button type="submit">Save holding</button>
+            <a class="badge" href="/accounts/{{ selected.id }}#holdings-section">Cancel</a>
+          </div>
+        </form>
+      </section>
+
+    {% else %}
+      {# ── View mode ──────────────────────────────────────────────────────── #}
+      <div class="acct-detail-stats">
+        <div class="acct-detail-stat">
+          <span>Balance</span>
+          <strong>£{{ '{:,.2f}'.format(effective_values[selected.id]) }}</strong>
+        </div>
+        <div class="acct-detail-stat">
+          {% set scb = contrib_breakdowns.get(selected.id, {}) %}
+          {% if scb.get('total_into_pot', 0) != (selected.monthly_contribution or 0) and scb.get('total_into_pot', 0) > 0 %}
+          <span>You pay</span>
+          <strong>£{{ '{:,.2f}'.format(selected.monthly_contribution or 0) }}</strong>
+        </div>
+        <div class="acct-detail-stat">
+          <span>Into pot</span>
+          <strong style="color:var(--accent-2)">£{{ '{:,.2f}'.format(scb.total_into_pot) }}</strong>
+          {% else %}
+          <span>Monthly</span>
+          <strong>£{{ '{:,.2f}'.format(selected.monthly_contribution or 0) }}</strong>
+          {% endif %}
+        </div>
+        <div class="acct-detail-stat">
+          <span>Growth rate</span>
+          <strong>
+            {% if selected.growth_mode == 'custom' and selected.growth_rate_override is not none %}
+              {{ '{:.2f}'.format(selected.growth_rate_override * 100) }}% (custom)
+            {% else %}
+              Default
+            {% endif %}
+          </strong>
+        </div>
+        {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}
+        <div class="acct-detail-stat">
+          <span>Platform fee</span>
+          <strong style="color:var(--danger, #f87171);">
+            {%- if selected.platform_fee_pct %}{{ '{:.2f}'.format(selected.platform_fee_pct) }}%{% if selected.platform_fee_cap %} (capped £{{ '{:,.0f}'.format(selected.platform_fee_cap) }}/yr){% endif %}{% endif %}
+            {%- if selected.platform_fee_flat %}{% if selected.platform_fee_pct %} + {% endif %}£{{ '{:,.0f}'.format(selected.platform_fee_flat) }}/yr{% endif %}
+            {%- if not selected.platform_fee_pct and not selected.platform_fee_flat %}0%{% endif %}
+          </strong>
+        </div>
+        <div class="acct-detail-stat">
+          <span>Fund fee (OCF)</span>
+          <strong style="color:var(--danger, #f87171);">{{ '{:.2f}'.format(selected.fund_fee_pct or 0) }}%</strong>
+        </div>
+        {% elif selected.annual_fee_pct %}
+        <div class="acct-detail-stat">
+          <span>Annual fee</span>
+          <strong style="color:var(--danger, #f87171);">{{ '{:.2f}'.format(selected.annual_fee_pct) }}%</strong>
+        </div>
+        {% endif %}
+        <div class="acct-detail-stat">
+          <span>Valuation</span>
+          <strong>{{ 'From holdings' if selected.valuation_mode == 'holdings' else 'Manual' }}</strong>
+        </div>
+        {% if selected.goal_value %}
+        <div class="acct-detail-stat">
+          <span>Account goal</span>
+          <strong>£{{ '{:,.0f}'.format(selected.goal_value) }}</strong>
+        </div>
+        {% endif %}
+        {% if selected.owner %}
+        <div class="acct-detail-stat">
+          <span>Owner</span>
+          <strong>{{ selected.owner }}</strong>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if selected.tags %}
+      <div class="badge-row mt-075">
+        {% for tag in selected.tags.split(',') %}
+          {% if tag.strip() %}<span class="badge badge-tag">{{ tag.strip() }}</span>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if selected.notes %}
+      <p class="mt-075 text-sm-2 text-muted">{{ selected.notes }}</p>
+      {% endif %}
+
+      {% if selected.valuation_mode == 'holdings' %}
+      <section class="panel mt-1">
+        <h3 class="section-title">Allocation Snapshot</h3>
+        {% if allocation_rows %}
+          {% set palette = ['#38bdf8', '#22c55e', '#f59e0b', '#f97316', '#a78bfa', '#ef4444', '#14b8a6', '#eab308'] %}
+          <div class="allocation-layout">
+            <div class="allocation-chart-card">
+              <canvas id="allocChart" width="210" height="210" role="img" aria-label="Allocation breakdown doughnut chart"></canvas>
+            </div>
+            <div class="allocation-list">
+              {% for row in allocation_rows %}
+              {% set color = palette[loop.index0 % (palette|length)] %}
+              <div class="allocation-item" data-index="{{ loop.index0 }}">
+                <div class="allocation-item-top">
+                  <div class="flex flex-center gap-05">
+                    <span class="alloc-dot" style="background:{{ color }};"></span>
+                    <strong>{{ row.bucket }}</strong>
+                  </div>
+                  <span>{{ '{:.1f}'.format(row.percentage) }}%</span>
+                </div>
+                <small>£{{ '{:,.2f}'.format(row.value) }}</small>
+                <div class="progress">
+                  <div class="progress-bar" style="width: {{ row.percentage }}%; background: {{ color }};"></div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <script>
+          (function() {
+            var palette = {{ palette | list | tojson }};
+            var labels   = {{ allocation_rows | map(attribute='bucket') | list | tojson }};
+            var values   = {{ allocation_rows | map(attribute='value') | list | tojson }};
+            var pcts     = {{ allocation_rows | map(attribute='percentage') | list | tojson }};
+            var total    = '£{{ "{:,.2f}".format(allocation_total) }}';
+            var colors   = labels.map(function(_, i) { return palette[i % palette.length]; });
+            var S = getComputedStyle(document.documentElement);
+            var CSS = {
+              textWhite: S.getPropertyValue('--text-white').trim(),
+              muted:     S.getPropertyValue('--muted').trim(),
+              chartBg:   S.getPropertyValue('--chart-bg-deep').trim(),
+            };
+
+            function fmtGBP(v) {
+              return '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+            }
+
+            /* Highlight the matching list row + dot; idx = -1 to clear */
+            function highlightListItem(idx) {
+              var items = document.querySelectorAll('.allocation-item[data-index]');
+              items.forEach(function(item) {
+                var i = parseInt(item.dataset.index);
+                var dot = item.querySelector('.alloc-dot');
+                if (idx >= 0 && i === idx) {
+                  var c = colors[i % colors.length];
+                  item.style.borderColor = c;
+                  item.style.boxShadow   = '0 0 0 1px ' + c + '55, 0 4px 22px ' + c + '30';
+                  item.style.transform   = 'translateX(4px)';
+                  if (dot) dot.style.boxShadow = '0 0 7px 2px ' + c + '99';
+                } else {
+                  item.style.borderColor = '';
+                  item.style.boxShadow   = '';
+                  item.style.transform   = '';
+                  if (dot) dot.style.boxShadow = '';
+                }
+              });
+            }
+
+            var centerPlugin = {
+              id: 'centerText',
+              afterDraw: function(chart) {
+                var ctx = chart.ctx;
+                var ca  = chart.chartArea;
+                var cx  = (ca.left + ca.right)  / 2;
+                var cy  = (ca.top  + ca.bottom) / 2;
+                var active = chart.getActiveElements();
+                ctx.save();
+                ctx.textAlign    = 'center';
+                ctx.textBaseline = 'middle';
+                if (active.length > 0) {
+                  var idx = active[0].index;
+                  var pct = pcts[idx].toFixed(1) + '%';
+                  var val = fmtGBP(values[idx]);
+                  /* Large % */
+                  ctx.font      = 'bold 26px Inter, system-ui, sans-serif';
+                  ctx.fillStyle = CSS.textWhite;
+                  ctx.fillText(pct, cx, cy - 9);
+                  /* Value below */
+                  ctx.font      = '600 12px Inter, system-ui, sans-serif';
+                  ctx.fillStyle = CSS.muted;
+                  ctx.fillText(val, cx, cy + 13);
+                } else {
+                  ctx.font      = 'bold 15px Inter, system-ui, sans-serif';
+                  ctx.fillStyle = CSS.textWhite;
+                  ctx.fillText(total, cx, cy - 8);
+                  ctx.font      = '10px Inter, system-ui, sans-serif';
+                  ctx.fillStyle = CSS.muted;
+                  ctx.fillText('TOTAL TRACKED', cx, cy + 10);
+                }
+                ctx.restore();
+              }
+            };
+
+            var canvas = document.getElementById('allocChart');
+            if (!canvas) return;
+            var allocChart = new Chart(canvas.getContext('2d'), {
+              type: 'doughnut',
+              plugins: [centerPlugin],
+              data: {
+                labels: labels,
+                datasets: [{
+                  data: values,
+                  backgroundColor: colors,
+                  hoverBackgroundColor: colors,
+                  borderWidth: 3,
+                  borderColor: CSS.chartBg,
+                  hoverBorderColor: CSS.textWhite,
+                  hoverBorderWidth: 2,
+                  hoverOffset: 8,
+                }]
+              },
+              options: {
+                cutout: '68%',
+                responsive: false,
+                /* padding prevents hoverOffset clipping at canvas edge */
+                layout: { padding: 14 },
+                animation: { animateRotate: true, duration: 700, easing: 'easeInOutQuart' },
+                plugins: {
+                  legend:  { display: false },
+                  tooltip: { enabled: false },
+                },
+                onHover: function(event, activeElements) {
+                  canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+                  highlightListItem(activeElements.length ? activeElements[0].index : -1);
+                }
+              }
+            });
+
+            /* Bidirectional: hovering a list row highlights the chart segment too */
+            var items = document.querySelectorAll('.allocation-item[data-index]');
+            items.forEach(function(item) {
+              item.addEventListener('mouseenter', function() {
+                var idx = parseInt(item.dataset.index);
+                highlightListItem(idx);
+                /* Activate the matching donut segment */
+                allocChart.setActiveElements([{ datasetIndex: 0, index: idx }]);
+                allocChart.update('none');
+              });
+              item.addEventListener('mouseleave', function() {
+                highlightListItem(-1);
+                allocChart.setActiveElements([]);
+                allocChart.update('none');
+              });
+            });
+          })();
+          </script>
+        {% else %}
+          <p class="helper-text">No allocation data yet. Add some holdings and Shelly will break down the numbers for you.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel mt-1" id="holdings-section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Positions</p>
+            <h3>Holdings</h3>
+          </div>
+        </div>
+        {% if positions %}
+          {# ── Desktop: full table ── #}
+          <div class="responsive-table-wrap mt-075 holdings-desktop">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Holding</th>
+                  <th>Bucket</th>
+                  <th class="num">Units</th>
+                  <th class="num">Price</th>
+                  <th class="num">Value</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for position in positions %}
+                <tr>
+                  <td>
+                    <strong class="text-sm-2">{{ position.holding_name }}</strong>
+                    {% if position.ticker %}<br><small class="text-muted">{{ position.ticker }}</small>{% endif %}
+                  </td>
+                  <td>{{ position.bucket or '' }}</td>
+                  <td class="num">{{ '{:,.4f}'.format(position.units or 0) }}</td>
+                  <td class="num">£{{ '{:,.4f}'.format(position.price or 0) }}</td>
+                  <td class="num">£{{ '{:,.2f}'.format(position.value or 0) }}</td>
+                  <td class="text-right text-nowrap">
+                    <div class="badge-row badge-row-end">
+                      <a href="/accounts/{{ selected.id }}?mode=edit_holding&holding_id={{ position.id }}#holdings-section"
+                         class="badge">Edit</a>
+                      <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
+                        <button type="submit"
+                                data-confirm="Remove {{ position.holding_name }} from this account?"
+                                data-confirm-title="Remove holding?"
+                                data-confirm-ok="Yes, remove it"
+                                data-confirm-cancel="Keep it"
+                                class="badge badge-danger">Remove</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {# ── Mobile: stacked cards ── #}
+          <div class="holdings-mobile mt-075">
+            {% for position in positions %}
+            <div class="holding-card">
+              <div class="holding-card-header">
+                <div>
+                  <strong>{{ position.holding_name }}</strong>
+                  {% if position.ticker %}<small class="text-muted">{{ position.ticker }}</small>{% endif %}
+                </div>
+                <span class="holding-card-value">£{{ '{:,.2f}'.format(position.value or 0) }}</span>
+              </div>
+              <div class="holding-card-stats">
+                <div><span>Units</span><strong>{{ '{:,.4f}'.format(position.units or 0) }}</strong></div>
+                <div><span>Price</span><strong>£{{ '{:,.4f}'.format(position.price or 0) }}</strong></div>
+                {% if position.bucket %}<div><span>Bucket</span><strong>{{ position.bucket }}</strong></div>{% endif %}
+              </div>
+              <div class="holding-card-actions">
+                <a href="/accounts/{{ selected.id }}?mode=edit_holding&holding_id={{ position.id }}#holdings-section"
+                   class="badge">Edit</a>
+                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
+                  <button type="submit"
+                          data-confirm="Remove {{ position.holding_name }} from this account?"
+                          data-confirm-title="Remove holding?"
+                          data-confirm-ok="Yes, remove it"
+                          data-confirm-cancel="Keep it"
+                          class="badge badge-danger">Remove</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {# ── Inline add-holding bar ──────────────────────────────────────── #}
+        <div class="add-holding-bar" id="add-holding-bar" style="display:none;">
+
+          {# Mode A: search by ticker #}
+          <div id="ah-mode-ticker">
+            <form method="post" action="/accounts/{{ selected.id }}/holdings/add" id="add-holding-form">
+              <div class="add-holding-fields">
+                <div class="add-holding-field">
+                  <label for="ah-ticker">Ticker</label>
+                  <input type="text" id="ah-ticker" name="ticker" class="input-standard"
+                         placeholder="e.g. VWRP" autocapitalize="characters" autocomplete="off">
+                </div>
+                <div class="add-holding-field">
+                  <label for="ah-units">Units</label>
+                  <input type="number" id="ah-units" name="units" class="input-standard" step="any" placeholder="e.g. 42.5">
+                </div>
+                <div class="add-holding-field add-holding-preview-wrap">
+                  <label>Est. value</label>
+                  <span id="ah-preview" class="add-holding-preview">—</span>
+                </div>
+                <button type="submit" class="badge badge-primary-action add-holding-submit">Add</button>
+              </div>
+              <p id="ah-status" class="text-sm" style="margin:0.4rem 0 0.2rem;min-height:1.25rem;"></p>
+            </form>
+            <button type="button" id="ah-switch-manual" class="btn-link text-sm text-muted">
+              No ticker / pension fund? Add manually →
+            </button>
+          </div>
+
+          {# Mode B: manual / custom holding #}
+          <div id="ah-mode-manual" class="hidden">
+            <form method="post" action="/accounts/{{ selected.id }}/holdings/add-manual" id="add-manual-form">
+              <div class="add-holding-fields" style="flex-wrap:wrap;gap:0.6rem;">
+                <div class="add-holding-field" style="flex:1;min-width:12rem;">
+                  <label for="am-name">Fund / holding name</label>
+                  <input type="text" id="am-name" name="name" class="input-full"
+                         placeholder="e.g. Nest Higher Risk Fund">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-ticker">Ticker (optional)</label>
+                  <input type="text" id="am-ticker" name="ticker" class="input-medium"
+                         placeholder="Leave blank if none" autocapitalize="characters">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-type">Type</label>
+                  <select id="am-type" name="asset_type">
+                    <option value="Pension Fund">Pension Fund</option>
+                    <option value="Fund">Fund</option>
+                    <option value="ETF">ETF</option>
+                    <option value="Share">Share</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bond">Bond</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-units">Units</label>
+                  <input type="number" id="am-units" name="units" class="input-narrow" step="any" placeholder="e.g. 100">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-price">Price (£/unit)</label>
+                  <input type="number" id="am-price" name="price" class="input-narrow" step="any" placeholder="e.g. 1.25">
+                </div>
+                <div class="add-holding-field add-holding-preview-wrap">
+                  <label>Est. value</label>
+                  <span id="am-preview" class="add-holding-preview">—</span>
+                </div>
+                <button type="submit" class="badge badge-primary-action add-holding-submit">Add</button>
+              </div>
+            </form>
+            <button type="button" id="ah-switch-ticker" class="btn-link text-sm text-muted" style="margin-top:0.5rem;">
+              ← Search by ticker instead
+            </button>
+          </div>
+          <div style="margin-top:0.5rem;">
+            <button type="button" id="ah-cancel" class="badge badge-meta">✕ Cancel</button>
+          </div>
+        </div>
+
+        <script>
+        (function() {
+          var bar         = document.getElementById('add-holding-bar');
+          var toggle      = document.getElementById('top-add-holding');
+          var cancelBtn   = document.getElementById('ah-cancel');
+          var modeTicker  = document.getElementById('ah-mode-ticker');
+          var modeManual  = document.getElementById('ah-mode-manual');
+          var toManual    = document.getElementById('ah-switch-manual');
+          var toTicker    = document.getElementById('ah-switch-ticker');
+
+          if (!toggle) return; /* not a holdings account */
+
+          function closeForm() {
+            bar.style.display = 'none';
+            toggle.textContent = '+ Add holding';
+          }
+
+          /* open/close from header button */
+          toggle.addEventListener('click', function() {
+            var open = bar.style.display !== 'none';
+            if (open) {
+              closeForm();
+            } else {
+              bar.style.display = 'block';
+              toggle.textContent = '✕ Cancel';
+              bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              document.getElementById('ah-ticker').focus();
+            }
+          });
+
+          /* cancel button inside the form */
+          cancelBtn.addEventListener('click', closeForm);
+
+          /* mode switch */
+          toManual.addEventListener('click', function() {
+            modeTicker.style.display = 'none';
+            modeManual.style.display = 'block';
+            document.getElementById('am-name').focus();
+          });
+          toTicker.addEventListener('click', function() {
+            modeManual.style.display = 'none';
+            modeTicker.style.display = 'block';
+            document.getElementById('ah-ticker').focus();
+          });
+
+          /* ── Ticker mode logic ── */
+          var ticker  = document.getElementById('ah-ticker');
+          var units   = document.getElementById('ah-units');
+          var preview = document.getElementById('ah-preview');
+          var status  = document.getElementById('ah-status');
+          var cachedPrice = null;
+          var lookupTimer = null;
+
+          function fmtGBP(v) {
+            return '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+          }
+
+          function updateTickerPreview() {
+            var u = parseFloat(units.value);
+            if (cachedPrice && u > 0) {
+              preview.textContent = fmtGBP(u * cachedPrice);
+              preview.style.color = 'var(--accent)';
+            } else {
+              preview.textContent = '—';
+              preview.style.color = 'var(--muted)';
+            }
+          }
+
+          function doLookup() {
+            var t = ticker.value.trim();
+            if (!t || t.length < 2) { cachedPrice = null; status.textContent = ''; updateTickerPreview(); return; }
+            status.textContent = 'Looking up…';
+            status.style.color = 'var(--muted)';
+            fetch('/holdings/api/price?ticker=' + encodeURIComponent(t))
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (d.price) {
+                  cachedPrice = d.price;
+                  status.textContent = '£' + d.price.toFixed(4) + '/unit' +
+                    (d.change_pct != null ? '  ' + (d.change_pct >= 0 ? '+' : '') + d.change_pct.toFixed(2) + '%' : '');
+                  status.style.color = '#86efac';
+                } else {
+                  cachedPrice = null;
+                  status.innerHTML = 'Not found on Yahoo Finance. <button type="button" onclick="document.getElementById(\'ah-switch-manual\').click()" ' +
+                    'style="color:#93c5fd;background:none;border:none;padding:0;cursor:pointer;font-size:inherit;text-decoration:underline;">' +
+                    'Add manually instead →</button>';
+                  status.style.color = '#fca5a5';
+                }
+                updateTickerPreview();
+              })
+              .catch(function() {
+                cachedPrice = null;
+                status.textContent = 'Price lookup failed — check connection';
+                status.style.color = '#fca5a5';
+              });
+          }
+
+          ticker.addEventListener('input', function() {
+            clearTimeout(lookupTimer);
+            cachedPrice = null; updateTickerPreview();
+            lookupTimer = setTimeout(doLookup, 700);
+          });
+          ticker.addEventListener('blur', function() { clearTimeout(lookupTimer); doLookup(); });
+          units.addEventListener('input', updateTickerPreview);
+
+          document.getElementById('add-holding-form').addEventListener('submit', function(e) {
+            if (!cachedPrice) {
+              e.preventDefault();
+              status.textContent = 'Wait for price lookup before adding';
+              status.style.color = '#fca5a5';
+            }
+          });
+
+          /* ── Manual mode live value preview ── */
+          var amUnits = document.getElementById('am-units');
+          var amPrice = document.getElementById('am-price');
+          var amPrev  = document.getElementById('am-preview');
+          function updateManualPreview() {
+            var u = parseFloat(amUnits.value);
+            var p = parseFloat(amPrice.value);
+            if (u > 0 && p > 0) {
+              amPrev.textContent = fmtGBP(u * p);
+              amPrev.style.color = 'var(--accent)';
+            } else {
+              amPrev.textContent = '—';
+              amPrev.style.color = 'var(--muted)';
+            }
+          }
+          amUnits.addEventListener('input', updateManualPreview);
+          amPrice.addEventListener('input', updateManualPreview);
+        })();
+        </script>
+      </section>
+      {% endif %}
+
+      {# ── Contribution overrides ──────────────────────────────────────────── #}
+      <section class="panel mt-1">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Life Happens</p>
+            <h3>Contribution Overrides</h3>
+          </div>
+        </div>
+        <p class="helper-text">Need to pause or adjust contributions for a while? Shelly will revert to your plan amount automatically when the override expires.</p>
+
+        {% if overrides %}
+        <div class="override-list mt-075">
+          {% for ov in overrides %}
+          <div class="override-item {% if ov.from_month <= current_month_key and ov.to_month >= current_month_key %}override-active{% endif %}">
+            <div class="override-item-info">
+              <strong>£{{ '{:,.2f}'.format(ov.override_amount) }}/mo</strong>
+              <small>{{ ov.from_month }} → {{ ov.to_month }}{% if ov.reason %} · {{ ov.reason }}{% endif %}</small>
+            </div>
+            <div class="flex flex-center gap-05">
+              {% if ov.from_month <= current_month_key and ov.to_month >= current_month_key %}
+                <span class="override-badge">Active</span>
+              {% endif %}
+              <form method="post" class="form-reset">
+                <input type="hidden" name="form_name" value="delete_override">
+                <input type="hidden" name="override_id" value="{{ ov.id }}">
+                <button type="submit" class="badge badge-danger badge-meta">Remove</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="helper-text">No overrides yet — Shelly's using your standard plan amounts.</p>
+        {% endif %}
+
+        <form method="post" class="settings-form mt-1">
+          <input type="hidden" name="form_name" value="add_override">
+          <div class="form-grid">
+            <label><span>From month</span><input type="month" name="from_month" required></label>
+            <label><span>To month</span><input type="month" name="to_month" required></label>
+            <label><span>Override amount (£/mo)</span><input type="number" step="0.01" name="override_amount" placeholder="e.g. 50" required></label>
+            <label><span>Reason (optional)</span><input type="text" name="reason" placeholder="e.g. Car repair, parental leave"></label>
+          </div>
+          <div class="badge-row mt-1">
+            <button type="submit">Add override</button>
+          </div>
+        </form>
+      </section>
+    {% endif %}
+  </section>
+
+{% elif page_mode == 'create' %}
+  <section class="panel mt-1" data-focus-panel>
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">New account</p>
+        <h2>Let's get you set up</h2>
+      </div>
+      <a class="badge" href="/accounts/" id="cw-cancel">Cancel</a>
+    </div>
+
+    <div class="settings-form" id="create-account-form">
+      <input type="hidden" name="tags" value="" data-tags-hidden-input>
+
+      {# ── Progress dots (visual only — not clickable) ────────────── #}
+      <div class="cw-progress" id="cw-progress"></div>
+
+      {# ── Step 1 · The basics ────────────────────────────────────── #}
+      <div class="cw-panel cw-visible" data-cw="1">
+        <h3 class="cw-title">What's this account called?</h3>
+        <p class="cw-hint">Every penny needs a home. Give Shelly a name for this one, tell him who it's with and what kind of wrapper it sits in — he'll take it from there.</p>
+        <div class="form-grid">
+          <label><span>Name</span><input type="text" name="name" id="cw-name" placeholder="e.g. My Stocks ISA" required></label>
+          <label>
+            <span>Provider</span>
+            <input type="text" name="provider" list="provider-list" placeholder="e.g. Hargreaves Lansdown" autocomplete="off">
+            <small class="form-hint">Start typing or pick from the list</small>
+          </label>
+          <label>
+            <span>Wrapper type</span>
+            <select name="wrapper_type" id="cw-wrapper">
+              {% for option in wrapper_type_options %}
+                <option value="{{ option }}">{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Category</span>
+            <select name="category" id="cw-category">
+              {% for option in category_options %}
+                <option value="{{ option }}">{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="cw-actions">
+          <span></span>
+          <button type="button" class="badge badge-accent" data-cw-next>Continue</button>
+        </div>
+      </div>
+
+      {# ── Step 2 · Balance & Growth ──────────────────────────────── #}
+      <div class="cw-panel" data-cw="2">
+        <h3 class="cw-title">How is this account valued?</h3>
+        <p class="cw-hint">Shelly needs to know how to track what this account is worth. If it holds investments, he can calculate the value from your holdings. Otherwise just tell him the balance and he'll keep things tidy.</p>
+        <div class="form-grid">
+          <label>
+            <span>Balance method</span>
+            <select name="valuation_mode" id="cw-valuation" data-valuation-mode>
+              <option value="manual">Manual — I'll enter the balance</option>
+              <option value="holdings">Built from holdings — units × price</option>
+            </select>
+          </label>
+          <label>
+            <span>Growth mode</span>
+            <select name="growth_mode" id="cw-growth-mode" data-growth-mode>
+              <option value="default">Use default growth rate (from Settings)</option>
+              <option value="custom">Custom rate</option>
+            </select>
+          </label>
+          <div data-manual-fields class="form-contents">
+            <label><span>Current balance</span><input type="number" step="0.01" name="current_value" placeholder="0.00"></label>
+          </div>
+          <label data-custom-rate-field style="display:none;">
+            <span>Custom growth rate (%)</span>
+            <input type="number" step="0.1" name="growth_rate_override" placeholder="e.g. 4.5">
+            <small class="form-hint">Enter as a percentage — 4.5 for 4.5%, 3.6 for 3.6%</small>
+          </label>
+        </div>
+        {# ── Advanced: Fees (collapsible, below the main grid) ────── #}
+        <details class="fee-details" style="margin-top:1rem;">
+          <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
+          <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+            <label>
+              <span>Platform fee (%)</span>
+              <input type="number" step="0.01" name="platform_fee_pct" placeholder="e.g. 0.15" min="0" max="5">
+              <small class="form-hint">Broker's annual charge. E.g. Vanguard 0.15%, HL 0.45%.</small>
+            </label>
+            <label>
+              <span>Fee cap (£/year)</span>
+              <input type="number" step="1" name="platform_fee_cap" placeholder="e.g. 375" min="0">
+              <small class="form-hint">Cap on % fee. E.g. Vanguard £375/yr.</small>
+            </label>
+            <label>
+              <span>Flat fee (£/year)</span>
+              <input type="number" step="1" name="platform_fee_flat" placeholder="e.g. 144" min="0">
+              <small class="form-hint">Fixed annual amount. E.g. ii ~£144/yr.</small>
+            </label>
+            <label>
+              <span>Fund fee / OCF (%)</span>
+              <input type="number" step="0.01" name="fund_fee_pct" placeholder="e.g. 0.22" min="0" max="5">
+              <small class="form-hint">Fund ongoing charge. E.g. VWRP 0.22%.</small>
+            </label>
+          </div>
+          <input type="hidden" name="annual_fee_pct" value="0">
+          <small class="form-hint" style="color:var(--muted); display:block; margin-top:0.5rem;">All optional — Shelly combines these into one effective fee. You can always add these later.</small>
+        </details>
+        <div class="cw-actions">
+          <button type="button" class="badge" data-cw-prev>Back</button>
+          <button type="button" class="badge badge-accent" data-cw-next>Continue</button>
+        </div>
+      </div>
+
+      {# ── Step 3 · Holdings (only for holdings accounts) ─────────── #}
+      <div class="cw-panel" data-cw="3">
+        <h3 class="cw-title">What's in this account?</h3>
+        <p class="cw-hint">Tell Shelly what you're holding — search by ticker, or add funds manually if there's no ticker. Don't worry about getting every last one right now; you can always add more later.</p>
+
+        <div id="cw-holdings-list"></div>
+        <p class="text-sm text-muted" id="cw-holdings-count" style="display:none;margin-bottom:0.75rem;"></p>
+
+        <div class="cw-holding-form" id="cw-ticker-form">
+          <div class="add-holding-fields">
+            <div class="add-holding-field">
+              <label>Ticker</label>
+              <input type="text" id="cw-h-ticker" class="input-standard" placeholder="e.g. VWRP" autocapitalize="characters" autocomplete="off">
+              <small class="form-hint">Shelly checks Yahoo Finance and prefers the London Stock Exchange listing. If the price looks wrong, try adding .L to the ticker (e.g. VWRP.L).</small>
+            </div>
+            <div class="add-holding-field">
+              <label>Units</label>
+              <input type="number" id="cw-h-units" class="input-standard" step="any" placeholder="e.g. 42.5">
+            </div>
+            <div class="add-holding-field add-holding-preview-wrap">
+              <label>Est. value</label>
+              <span id="cw-h-preview" class="add-holding-preview">—</span>
+            </div>
+            <button type="button" class="badge badge-accent add-holding-submit" id="cw-h-add">Add</button>
+          </div>
+          <p id="cw-h-status" class="text-sm" style="margin:0.4rem 0 0.2rem;min-height:1.25rem;"></p>
+          <button type="button" id="cw-h-switch-manual" class="btn-link text-sm text-muted">
+            No ticker / pension fund? Add manually →
+          </button>
+        </div>
+
+        <div class="cw-holding-form hidden" id="cw-manual-form">
+          <div class="add-holding-fields" style="flex-wrap:wrap;gap:0.6rem;">
+            <div class="add-holding-field" style="flex:1;min-width:12rem;">
+              <label>Fund / holding name</label>
+              <input type="text" id="cw-m-name" class="input-full" placeholder="e.g. Nest Higher Risk Fund">
+            </div>
+            <div class="add-holding-field">
+              <label>Ticker (optional)</label>
+              <input type="text" id="cw-m-ticker" class="input-medium" placeholder="Leave blank if none" autocapitalize="characters">
+            </div>
+            <div class="add-holding-field">
+              <label>Type</label>
+              <select id="cw-m-type">
+                <option value="Pension Fund">Pension Fund</option>
+                <option value="Fund">Fund</option>
+                <option value="ETF">ETF</option>
+                <option value="Share">Share</option>
+                <option value="Cash">Cash</option>
+                <option value="Bond">Bond</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="add-holding-field">
+              <label>Units</label>
+              <input type="number" id="cw-m-units" class="input-narrow" step="any" placeholder="e.g. 100">
+            </div>
+            <div class="add-holding-field">
+              <label>Price (£/unit)</label>
+              <input type="number" id="cw-m-price" class="input-narrow" step="any" placeholder="e.g. 1.25">
+            </div>
+            <button type="button" class="badge badge-accent add-holding-submit" id="cw-m-add">Add</button>
+          </div>
+          <p id="cw-m-status" class="text-sm" style="margin:0.4rem 0 0.2rem;min-height:1.25rem;"></p>
+          <button type="button" id="cw-h-switch-ticker" class="btn-link text-sm text-muted" style="margin-top:0.5rem;">
+            ← Search by ticker instead
+          </button>
+        </div>
+
+        <div class="cw-actions">
+          <button type="button" class="badge" data-cw-prev>Back</button>
+          <button type="button" class="badge badge-accent" data-cw-next>Continue</button>
+        </div>
+      </div>
+
+      {# ── Step 4 · Contributions ─────────────────────────────────── #}
+      <div class="cw-panel" data-cw="4">
+        <h3 class="cw-title">Monthly contributions</h3>
+        <p class="cw-hint" id="cw-hint-contrib">How much goes into this account each month? Shelly uses this to project where you'll be at retirement — even a rough number helps.</p>
+
+        <label id="cw-method-field" style="display:none;">
+          <span>Contribution method</span>
+          <select name="contribution_method" id="cw-method-select">
+            <option value="standard">My own contributions</option>
+            <option value="salary_sacrifice">Salary sacrifice</option>
+            <option value="relief_at_source">Relief at source (e.g. NEST)</option>
+          </select>
+          <small class="form-hint" id="cw-method-hint"></small>
+        </label>
+
+        <div class="form-grid" style="margin-top:0.75rem;">
+          <label>
+            <span id="cw-personal-label">Your monthly contribution</span>
+            <input type="number" step="0.01" name="monthly_contribution" id="cw-personal" placeholder="0.00">
+          </label>
+          <label id="cw-employer-field" style="display:none;">
+            <span>Employer contribution</span>
+            <input type="number" step="0.01" name="employer_contribution" id="cw-employer" placeholder="0.00">
+          </label>
+        </div>
+
+        <div id="cw-contrib-preview" class="cw-preview" style="display:none;">
+          <div class="cw-preview-row" id="cw-prev-personal" style="display:none;">
+            <span>You pay</span><strong id="cw-prev-personal-val"></strong>
+          </div>
+          <div class="cw-preview-row cw-preview-bonus" id="cw-prev-relief" style="display:none;">
+            <span id="cw-prev-relief-label">Tax relief</span><strong id="cw-prev-relief-val"></strong>
+          </div>
+          <div class="cw-preview-row cw-preview-bonus" id="cw-prev-employer" style="display:none;">
+            <span>Employer adds</span><strong id="cw-prev-employer-val"></strong>
+          </div>
+          <div class="cw-preview-total">
+            <span>Total into pot</span><strong id="cw-prev-total"></strong>
+          </div>
+          <div class="cw-preview-row cw-preview-selfassess" id="cw-prev-selfassess" style="display:none;">
+            <span id="cw-prev-selfassess-label">Extra via self-assessment</span>
+            <strong id="cw-prev-selfassess-val"></strong>
+          </div>
+          <p class="text-sm text-muted" id="cw-prev-selfassess-note" style="display:none;margin-top:0.4rem;"></p>
+        </div>
+
+        <div class="cw-actions">
+          <button type="button" class="badge" data-cw-prev>Back</button>
+          <button type="button" class="badge badge-accent" data-cw-next>Continue</button>
+        </div>
+      </div>
+
+      {# ── Step 5 · Finishing touches ─────────────────────────────── #}
+      <div class="cw-panel" data-cw="5">
+        <h3 class="cw-title">Finishing touches</h3>
+        <p class="cw-hint">Nearly there! Tags help Shelly group this account with your goals — and the rest is totally optional. You can always tweak these later.</p>
+        <div class="form-grid">
+          <label class="form-full-col">
+            <span>Tags</span>
+            <small class="form-hint" style="margin-bottom:0.35rem;">Tags connect accounts to goals — pick the ones that match what this money is for.</small>
+            <div class="tag-picker tag-picker-highlight">
+              {% for tag in tag_options %}
+              <label class="tag-chip">
+                <input type="checkbox" value="{{ tag }}" data-tag-checkbox>
+                <span>{{ tag }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </label>
+          <label><span>Account goal</span><input type="number" step="0.01" name="goal_value" placeholder="Optional target balance"></label>
+          <label class="form-full-col"><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
+        </div>
+        <div class="cw-actions">
+          <button type="button" class="badge" data-cw-prev>Back</button>
+          <button type="button" class="badge badge-accent" id="cw-create-btn">Create account</button>
+        </div>
+      </div>
+
+      {# ── Step 6 · All done! ─────────────────────────────────────── #}
+      <div class="cw-panel" data-cw="6">
+        <div class="cw-success">
+          <h3 class="cw-title" id="cw-success-title">You're all set!</h3>
+          <p class="cw-hint" id="cw-success-msg">Shelly's got your new account tucked away safe and sound. He's already keeping an eye on it — you'll see it on your dashboard and in projections straight away. Go on, have a look.</p>
+          <div class="cw-success-actions">
+            <a class="badge badge-accent" href="/accounts/">View your accounts</a>
+            <a class="badge" href="/accounts/?mode=create">Add another account</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+{% endif %}
+
+<script>
+(function() {
+  /* ═══════════════════════════════════════════════════════════════════════
+     Create-account wizard — unified step-by-step flow
+     Step order: 1 Name → 2 Valuation → 3 Holdings (conditional) →
+                 4 Contributions → 5 Finish + Create → 6 Success
+     Holdings are stored in memory, then batch-submitted on Create.
+     ═══════════════════════════════════════════════════════════════════════ */
+  var form = document.getElementById('create-account-form');
+  if (!form) return;
+
+  var current = 1;
+  var isHoldingsAccount = false;
+  var pendingHoldings = [];        /* [{type,ticker,name,units,price,asset_type}] */
+  var createdAccountId = null;
+
+  /* Tax band from user's Settings — drives higher-rate relief preview */
+  var TAX_BAND = '{{ tax_band | default("basic") }}';
+  var TAX_RATES = { basic: 0.20, higher: 0.40, additional: 0.45 };
+  var BAND_RATE = TAX_RATES[TAX_BAND] || 0.20;
+
+  /* The logical step sequence changes depending on holdings mode.
+     With holdings:  [1, 2, 3, 4, 5, 6]
+     Without:        [1, 2, 4, 5, 6]       (step 3 is skipped)
+     Success (6) never gets a dot. */
+  function stepSequence() {
+    return isHoldingsAccount ? [1,2,3,4,5] : [1,2,4,5];
+  }
+  function nextStep() {
+    var seq = stepSequence();
+    var idx = seq.indexOf(current);
+    return idx >= 0 && idx < seq.length - 1 ? seq[idx + 1] : null;
+  }
+  function prevStep() {
+    var seq = stepSequence();
+    var idx = seq.indexOf(current);
+    return idx > 0 ? seq[idx - 1] : null;
+  }
+
+  /* ── Progress dots (visual only, not clickable) ──────────────────── */
+  var progressBar = document.getElementById('cw-progress');
+
+  function buildDots() {
+    var seq = stepSequence();
+    progressBar.innerHTML = '';
+    for (var i = 0; i < seq.length; i++) {
+      if (i > 0) {
+        var line = document.createElement('div');
+        line.className = 'cw-line';
+        progressBar.appendChild(line);
+      }
+      var dot = document.createElement('div');
+      dot.className = 'cw-dot';
+      dot.setAttribute('data-cw-dot', seq[i]);
+      dot.innerHTML = '<span>' + (i + 1) + '</span>';
+      progressBar.appendChild(dot);
+    }
+    updateDots();
+  }
+
+  function updateDots() {
+    var seq = stepSequence();
+    var currentIdx = seq.indexOf(current);
+    progressBar.querySelectorAll('[data-cw-dot]').forEach(function(dot) {
+      var s = parseInt(dot.getAttribute('data-cw-dot'));
+      var dotIdx = seq.indexOf(s);
+      dot.classList.toggle('cw-dot-active', s === current);
+      dot.classList.toggle('cw-dot-done', dotIdx < currentIdx && dotIdx >= 0);
+    });
+  }
+
+  function refreshStepCount() {
+    var valMode = document.getElementById('cw-valuation');
+    isHoldingsAccount = valMode && valMode.value === 'holdings';
+    buildDots();
+  }
+  refreshStepCount();
+
+  /* ── Panel navigation with slide animation ───────────────────────── */
+  function goTo(n, direction) {
+    if (n < 1 || n > 6) return;
+    var outPanel = form.querySelector('[data-cw="' + current + '"]');
+    var inPanel  = form.querySelector('[data-cw="' + n + '"]');
+    if (!outPanel || !inPanel) return;
+
+    var slideOut = direction === 'back' ? 'cw-slide-right' : 'cw-slide-left';
+    var slideIn  = direction === 'back' ? 'cw-enter-left'  : 'cw-enter-right';
+
+    outPanel.classList.add(slideOut);
+    outPanel.classList.remove('cw-visible');
+
+    setTimeout(function() {
+      outPanel.classList.remove(slideOut);
+      inPanel.classList.add('cw-visible', slideIn);
+      setTimeout(function() { inPanel.classList.remove(slideIn); }, 300);
+    }, 250);
+
+    current = n;
+
+    /* Hide chrome on success screen */
+    progressBar.style.display = (n === 6) ? 'none' : '';
+    var cancelBtn = document.getElementById('cw-cancel');
+    if (cancelBtn) cancelBtn.style.display = (n === 6) ? 'none' : '';
+
+    updateDots();
+  }
+
+  /* Wire up Back / Continue buttons using the logical sequence */
+  form.querySelectorAll('[data-cw-next]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      /* If leaving the holdings step (3), auto-add any filled-in holding */
+      if (current === 3) {
+        autoHarvestHolding();
+      }
+      var n = nextStep();
+      if (n) goTo(n, 'forward');
+    });
+  });
+  form.querySelectorAll('[data-cw-prev]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var p = prevStep();
+      if (p) goTo(p, 'back');
+    });
+  });
+
+  /* ── Step 2 · Valuation mode toggle (manual fields) ───────────────── */
+  var manualFields = form.querySelector('[data-manual-fields]');
+  function toggleManualFields() {
+    var valMode = document.getElementById('cw-valuation');
+    if (manualFields && valMode) {
+      manualFields.style.display = valMode.value === 'manual' ? '' : 'none';
+    }
+  }
+  toggleManualFields();
+
+  /* ── Step 2 · Growth mode toggle ─────────────────────────────────── */
+  var growthModeEl    = document.getElementById('cw-growth-mode');
+  var customRateField = form.querySelector('[data-custom-rate-field]');
+
+  function toggleCustomRate() {
+    if (customRateField) {
+      customRateField.style.display = growthModeEl && growthModeEl.value === 'custom' ? '' : 'none';
+    }
+  }
+  if (growthModeEl) {
+    growthModeEl.addEventListener('change', toggleCustomRate);
+    toggleCustomRate();
+  }
+
+  /* ── Step 3 · Holdings — stored in memory, not POSTed yet ────────── */
+  var holdingsList  = document.getElementById('cw-holdings-list');
+  var holdingsCount = document.getElementById('cw-holdings-count');
+
+  function renderHoldings() {
+    holdingsList.innerHTML = '';
+    pendingHoldings.forEach(function(h, i) {
+      var chip = document.createElement('div');
+      chip.className = 'setup-holding-chip';
+      var valStr = h.value ? '£' + parseFloat(h.value).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : '';
+      chip.innerHTML = '<strong>' + (h.name || h.ticker) + '</strong>' +
+        '<span class="text-muted">' + parseFloat(h.units).toFixed(2) + ' units</span>' +
+        (valStr ? '<span>' + valStr + '</span>' : '') +
+        '<button type="button" class="badge badge-danger badge-meta cw-remove-holding" data-idx="' + i + '">×</button>';
+      holdingsList.appendChild(chip);
+    });
+    holdingsCount.style.display = pendingHoldings.length ? '' : 'none';
+    holdingsCount.textContent = pendingHoldings.length === 1
+      ? '1 holding added — add more or continue when you\'re ready.'
+      : pendingHoldings.length + ' holdings added — add more or continue when you\'re ready.';
+
+    /* Delegate remove */
+    holdingsList.querySelectorAll('.cw-remove-holding').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pendingHoldings.splice(parseInt(this.getAttribute('data-idx')), 1);
+        renderHoldings();
+      });
+    });
+  }
+
+  /* ── Ticker live-preview (debounced lookup as you type) ────────── */
+  var hTickerIn = document.getElementById('cw-h-ticker');
+  var hUnitsIn  = document.getElementById('cw-h-units');
+  var hPreview  = document.getElementById('cw-h-preview');
+  var hStatus   = document.getElementById('cw-h-status');
+  var hAddBtn   = document.getElementById('cw-h-add');
+  var hCachedPrice = null;
+  var hCachedName  = null;
+  var hCachedType  = null;
+  var hLookupTimer = null;
+
+  function fmtGBP(v) { return '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+  function updateTickerPreview() {
+    var u = parseFloat(hUnitsIn.value);
+    if (hCachedPrice && u > 0) {
+      hPreview.textContent = fmtGBP(u * hCachedPrice);
+      hPreview.style.color = 'var(--accent)';
+    } else {
+      hPreview.textContent = '—';
+      hPreview.style.color = 'var(--muted)';
+    }
+  }
+
+  function doTickerLookup() {
+    var t = hTickerIn.value.trim();
+    if (!t || t.length < 2) { hCachedPrice = null; hCachedName = null; hStatus.textContent = ''; updateTickerPreview(); return; }
+    hStatus.textContent = 'Looking up ' + t.toUpperCase() + '…';
+    hStatus.style.color = 'var(--muted)';
+
+    fetch('/holdings/api/price?ticker=' + encodeURIComponent(t))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.price) {
+          hCachedPrice = d.price;
+          var sym = d.yf_symbol || t.toUpperCase();
+          var symNote = sym !== t.toUpperCase() ? ' (matched as ' + sym + ')' : '';
+          hStatus.textContent = fmtGBP(d.price) + '/unit' +
+            (d.change_pct != null ? '  ' + (d.change_pct >= 0 ? '+' : '') + d.change_pct.toFixed(2) + '%' : '') +
+            symNote;
+          hStatus.style.color = '#86efac';
+        } else {
+          hCachedPrice = null; hCachedName = null;
+          hStatus.innerHTML = 'Not found on Yahoo Finance. <button type="button" style="color:#93c5fd;background:none;border:none;padding:0;cursor:pointer;font-size:inherit;text-decoration:underline;" onclick="document.getElementById(\'cw-h-switch-manual\').click()">Add manually instead →</button>';
+          hStatus.style.color = '#fca5a5';
+        }
+        updateTickerPreview();
+      })
+      .catch(function() {
+        hCachedPrice = null;
+        hStatus.textContent = 'Price lookup failed — check connection';
+        hStatus.style.color = '#fca5a5';
+        updateTickerPreview();
+      });
+  }
+
+  /* Also do a full instrument lookup (to get name + asset_type) for when we add */
+  function doFullLookup(ticker, callback) {
+    var fd = new FormData();
+    fd.append('ticker', ticker);
+    fetch('/accounts/api/ticker-lookup', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(data) { callback(data.ok ? data : null); })
+      .catch(function() { callback(null); });
+  }
+
+  hTickerIn.addEventListener('input', function() {
+    clearTimeout(hLookupTimer);
+    hCachedPrice = null; hCachedName = null; updateTickerPreview();
+    hLookupTimer = setTimeout(doTickerLookup, 700);
+  });
+  hTickerIn.addEventListener('blur', function() { clearTimeout(hLookupTimer); doTickerLookup(); });
+  hUnitsIn.addEventListener('input', updateTickerPreview);
+
+  /* Add by ticker — requires a successful price lookup first */
+  hAddBtn.addEventListener('click', function() {
+    var ticker = hTickerIn.value.trim().toUpperCase();
+    var units  = hUnitsIn.value.trim();
+    if (!ticker || !units || parseFloat(units) <= 0) {
+      hStatus.textContent = 'Pop in a ticker and the number of units.';
+      hStatus.style.color = '#fca5a5';
+      return;
+    }
+    if (!hCachedPrice) {
+      hStatus.textContent = 'Wait for the price lookup to finish first.';
+      hStatus.style.color = '#fca5a5';
+      return;
+    }
+
+    /* Do a full lookup to get the proper instrument name */
+    hAddBtn.disabled = true;
+    hStatus.textContent = 'Adding ' + ticker + '…';
+    hStatus.style.color = 'var(--muted)';
+
+    doFullLookup(ticker, function(info) {
+      hAddBtn.disabled = false;
+      var name = (info && info.name) || ticker;
+      var assetType = (info && info.asset_type) || 'ETF';
+      var value = (parseFloat(units) * hCachedPrice).toFixed(2);
+
+      pendingHoldings.push({
+        type: 'ticker', ticker: ticker, yf_symbol: (info && info.yf_symbol) || ticker,
+        name: name, asset_type: assetType,
+        units: units, price: hCachedPrice, value: value
+      });
+
+      hTickerIn.value = '';
+      hUnitsIn.value = '';
+      hCachedPrice = null; hCachedName = null;
+      hPreview.textContent = '—';
+      hStatus.textContent = name + ' added — ' + fmtGBP(parseFloat(value));
+      hStatus.style.color = '#86efac';
+      setTimeout(function() { hStatus.textContent = ''; }, 4000);
+      renderHoldings();
+    });
+  });
+
+  /* Add manually (stored locally) */
+  document.getElementById('cw-m-add').addEventListener('click', function() {
+    var name  = document.getElementById('cw-m-name').value.trim();
+    var ticker= document.getElementById('cw-m-ticker').value.trim().toUpperCase() || null;
+    var atype = document.getElementById('cw-m-type').value;
+    var units = document.getElementById('cw-m-units').value.trim();
+    var price = document.getElementById('cw-m-price').value.trim();
+    var status= document.getElementById('cw-m-status');
+    if (!name || !units || !price || parseFloat(units) <= 0 || parseFloat(price) <= 0) {
+      status.textContent = 'Shelly needs a name, units and price per unit.';
+      return;
+    }
+    var value = (parseFloat(units) * parseFloat(price)).toFixed(2);
+    pendingHoldings.push({ type: 'manual', name: name, ticker: ticker, asset_type: atype, units: units, price: price, value: value });
+    document.getElementById('cw-m-name').value = '';
+    document.getElementById('cw-m-ticker').value = '';
+    document.getElementById('cw-m-units').value = '';
+    document.getElementById('cw-m-price').value = '';
+    status.textContent = name + ' added!';
+    setTimeout(function() { status.textContent = ''; }, 3000);
+    renderHoldings();
+  });
+
+  /* Auto-harvest: if user filled in ticker+units or manual fields but
+     forgot to click Add, scoop them up before leaving the holdings step */
+  function autoHarvestHolding() {
+    /* Check which form is visible */
+    var tickerFormVisible = !document.getElementById('cw-ticker-form').classList.contains('hidden');
+
+    if (tickerFormVisible) {
+      var ticker = hTickerIn.value.trim().toUpperCase();
+      var units  = hUnitsIn.value.trim();
+      if (ticker && units && parseFloat(units) > 0) {
+        /* If we already have a cached price from the live lookup, use it */
+        if (hCachedPrice) {
+          var value = (parseFloat(units) * hCachedPrice).toFixed(2);
+          pendingHoldings.push({
+            type: 'ticker', ticker: ticker, yf_symbol: ticker,
+            name: ticker, asset_type: 'ETF',
+            units: units, price: hCachedPrice, value: value
+          });
+        } else {
+          /* No price yet — queue it anyway, the server will look it up */
+          pendingHoldings.push({
+            type: 'ticker', ticker: ticker, yf_symbol: ticker,
+            name: ticker, asset_type: 'ETF',
+            units: units, price: null, value: null
+          });
+        }
+        hTickerIn.value = '';
+        hUnitsIn.value = '';
+        hCachedPrice = null;
+        hPreview.textContent = '—';
+        renderHoldings();
+      }
+    } else {
+      /* Manual form */
+      var mName  = document.getElementById('cw-m-name').value.trim();
+      var mUnits = document.getElementById('cw-m-units').value.trim();
+      var mPrice = document.getElementById('cw-m-price').value.trim();
+      if (mName && mUnits && mPrice && parseFloat(mUnits) > 0 && parseFloat(mPrice) > 0) {
+        var mTicker = document.getElementById('cw-m-ticker').value.trim().toUpperCase() || null;
+        var mType   = document.getElementById('cw-m-type').value;
+        var mVal    = (parseFloat(mUnits) * parseFloat(mPrice)).toFixed(2);
+        pendingHoldings.push({
+          type: 'manual', name: mName, ticker: mTicker, asset_type: mType,
+          units: mUnits, price: mPrice, value: mVal
+        });
+        document.getElementById('cw-m-name').value = '';
+        document.getElementById('cw-m-ticker').value = '';
+        document.getElementById('cw-m-units').value = '';
+        document.getElementById('cw-m-price').value = '';
+        renderHoldings();
+      }
+    }
+  }
+
+  /* Toggle ticker / manual forms */
+  document.getElementById('cw-h-switch-manual').addEventListener('click', function() {
+    document.getElementById('cw-ticker-form').classList.add('hidden');
+    document.getElementById('cw-manual-form').classList.remove('hidden');
+  });
+  document.getElementById('cw-h-switch-ticker').addEventListener('click', function() {
+    document.getElementById('cw-manual-form').classList.add('hidden');
+    document.getElementById('cw-ticker-form').classList.remove('hidden');
+  });
+
+  /* ── Step 5 · "Create account" — AJAX create + batch holdings ────── */
+  var createBtn = document.getElementById('cw-create-btn');
+  createBtn.addEventListener('click', function() {
+    createBtn.textContent = 'Shelly\'s setting things up…';
+    createBtn.disabled = true;
+
+    /* Sync tag checkboxes */
+    var tagHidden = form.querySelector('[data-tags-hidden-input]');
+    if (tagHidden) {
+      var checked = [];
+      form.querySelectorAll('[data-tag-checkbox]:checked').forEach(function(cb) { checked.push(cb.value); });
+      tagHidden.value = checked.join(',');
+    }
+
+    /* Gather form fields */
+    var fd = new FormData();
+    form.querySelectorAll('input[name], select[name]').forEach(function(el) { fd.append(el.name, el.value); });
+
+    fetch('/accounts/api/create', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) throw new Error('Account creation failed');
+        createdAccountId = data.account_id;
+
+        /* Now batch-submit all pending holdings sequentially */
+        var chain = Promise.resolve();
+        pendingHoldings.forEach(function(h) {
+          chain = chain.then(function() {
+            var hfd = new FormData();
+            if (h.type === 'ticker') {
+              hfd.append('ticker', h.ticker);
+              hfd.append('units', h.units);
+              return fetch('/accounts/api/' + createdAccountId + '/holdings/add', { method: 'POST', body: hfd });
+            } else {
+              hfd.append('name', h.name);
+              hfd.append('ticker', h.ticker || '');
+              hfd.append('asset_type', h.asset_type || 'Fund');
+              hfd.append('units', h.units);
+              hfd.append('price', h.price);
+              return fetch('/accounts/api/' + createdAccountId + '/holdings/add-manual', { method: 'POST', body: hfd });
+            }
+          });
+        });
+
+        return chain.then(function() {
+          /* Personalise success screen */
+          var accName = document.getElementById('cw-name').value || 'your new account';
+          var title = document.getElementById('cw-success-title');
+          var msg   = document.getElementById('cw-success-msg');
+
+          if (pendingHoldings.length > 0) {
+            title.textContent = accName + ' is live!';
+            msg.textContent = 'Shelly\'s got ' + accName + ' all set up with ' +
+              pendingHoldings.length + (pendingHoldings.length === 1 ? ' holding' : ' holdings') +
+              '. He\'s already crunching the numbers — check your dashboard to see how things are shaping up.';
+          } else {
+            title.textContent = 'You\'re all set!';
+            msg.textContent = 'Shelly\'s got ' + accName + ' tucked away safe and sound. He\'s already keeping an eye on it — you\'ll see it on your dashboard and in your projections straight away. Go on, have a look.';
+          }
+
+          goTo(6, 'forward');
+        });
+      })
+      .catch(function(err) {
+        createBtn.textContent = 'Create account';
+        createBtn.disabled = false;
+        console.error('Wizard error:', err);
+      });
+  });
+
+  /* ── Wrapper-type configuration ───────────────────────────────────── */
+  var wrapperEl    = document.getElementById('cw-wrapper');
+  var categoryEl   = document.getElementById('cw-category');
+  var valModeEl    = document.getElementById('cw-valuation');
+  var employerEl   = document.getElementById('cw-employer-field');
+  var methodField  = document.getElementById('cw-method-field');
+  var methodSelect = document.getElementById('cw-method-select');
+  var methodHint   = document.getElementById('cw-method-hint');
+  var personalIn   = document.getElementById('cw-personal');
+  var personalLabel= document.getElementById('cw-personal-label');
+  var employerIn   = document.getElementById('cw-employer');
+  var previewBox   = document.getElementById('cw-contrib-preview');
+  var contribHint  = document.getElementById('cw-hint-contrib');
+
+  var prevPersonal    = document.getElementById('cw-prev-personal');
+  var prevPersonalVal = document.getElementById('cw-prev-personal-val');
+  var prevRelief      = document.getElementById('cw-prev-relief');
+  var prevReliefLabel = document.getElementById('cw-prev-relief-label');
+  var prevReliefVal   = document.getElementById('cw-prev-relief-val');
+  var prevEmployer    = document.getElementById('cw-prev-employer');
+  var prevEmployerVal = document.getElementById('cw-prev-employer-val');
+  var prevTotal       = document.getElementById('cw-prev-total');
+
+  var CFG = {
+    'Stocks & Shares ISA':       { cat: 'ISA',     bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Monthly contribution', hint: 'How much do you put into this ISA each month? Even a rough figure helps Shelly map out your future.' },
+    'Cash ISA':                   { cat: 'ISA',     bal: 'manual',   showEmployer: false, method: null, personalLabel: 'Monthly deposit', hint: 'How much do you stash away in this Cash ISA each month?' },
+    'Lifetime ISA':               { cat: 'ISA',     bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Your monthly contribution', hint: 'How much do you pay in each month? The government tops it up with a lovely 25% bonus (up to £1,000/year).' },
+    'SIPP':                       { cat: 'Pension', bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Your monthly contribution', hint: 'How much do you pay in? Your provider claims 25% tax relief from HMRC automatically — free money, basically.' },
+    'Workplace Pension':          { cat: 'Pension', bal: 'manual',   showEmployer: true,  method: ['salary_sacrifice','relief_at_source'], methodDefault: 'salary_sacrifice', personalLabel: 'Your employee contribution', hint: 'How is your workplace pension set up? Pick the method first — Shelly will work out the rest.', methodHints: { salary_sacrifice: 'Contributions come out of your pay before tax — no further relief needed.', relief_at_source: 'You pay from net pay; your provider claims 20% tax relief from HMRC (e.g. NEST).' } },
+    'General Investment Account': { cat: 'Taxable', bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Monthly investment', hint: 'How much do you invest into this account each month?' },
+    'Other':                      { cat: null,      bal: 'manual',   showEmployer: false, method: null, personalLabel: 'Monthly contribution', hint: 'How much goes in each month, if anything? No pressure — you can always update this later.' }
+  };
+  var currentWrapper = '';
+
+  function applyConfig() {
+    var w   = wrapperEl.value;
+    var cfg = CFG[w] || CFG['Other'];
+    currentWrapper = w;
+    if (cfg.cat && categoryEl) categoryEl.value = cfg.cat;
+    if (valModeEl) { valModeEl.value = cfg.bal; valModeEl.dispatchEvent(new Event('change')); }
+    if (contribHint) contribHint.textContent = cfg.hint;
+    if (personalLabel) personalLabel.textContent = cfg.personalLabel;
+
+    if (methodField) {
+      if (cfg.method) {
+        methodField.style.display = '';
+        methodSelect.innerHTML = '';
+        cfg.method.forEach(function(val) {
+          var opt = document.createElement('option');
+          opt.value = val;
+          opt.textContent = val === 'salary_sacrifice' ? 'Salary sacrifice' : val === 'relief_at_source' ? 'Relief at source (e.g. NEST)' : 'My own contributions';
+          methodSelect.appendChild(opt);
+        });
+        if (cfg.methodDefault) methodSelect.value = cfg.methodDefault;
+        updateMethodHint();
+      } else {
+        methodField.style.display = 'none';
+        methodSelect.innerHTML = '<option value="standard" selected>My own contributions</option>';
+      }
+    }
+    if (employerEl) employerEl.style.display = cfg.showEmployer ? '' : 'none';
+    refreshStepCount();
+    updatePreview();
+  }
+
+  function updateMethodHint() {
+    var cfg = CFG[wrapperEl.value] || CFG['Other'];
+    if (methodHint && cfg.methodHints && cfg.methodHints[methodSelect.value]) methodHint.textContent = cfg.methodHints[methodSelect.value];
+    else if (methodHint) methodHint.textContent = '';
+    updatePreview();
+  }
+
+  /* ── Live contribution preview ──────────────────────────────────── */
+  function fmt(v) { return '£' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  var prevSelfAssess     = document.getElementById('cw-prev-selfassess');
+  var prevSelfAssessLabel= document.getElementById('cw-prev-selfassess-label');
+  var prevSelfAssessVal  = document.getElementById('cw-prev-selfassess-val');
+  var prevSelfAssessNote = document.getElementById('cw-prev-selfassess-note');
+
+  function updatePreview() {
+    var personal = parseFloat(personalIn.value) || 0;
+    var employer = parseFloat(employerIn ? employerIn.value : 0) || 0;
+    var w = currentWrapper;
+    var method = methodSelect ? methodSelect.value : 'standard';
+
+    if (personal <= 0 && employer <= 0) { previewBox.style.display = 'none'; return; }
+
+    var relief = 0, reliefLabel = '', showRelief = false, showEmp = false;
+    var selfAssess = 0, showSelfAssess = false, selfAssessNote = '';
+
+    if (w === 'SIPP') {
+      relief = personal * 0.25;
+      reliefLabel = '+ basic-rate tax relief (25%)';
+      showRelief = true;
+      /* Higher/additional-rate: extra reclaimable via self-assessment */
+      if (BAND_RATE > 0.20) {
+        var gross = personal + relief;
+        selfAssess = gross * (BAND_RATE - 0.20);
+        showSelfAssess = true;
+        selfAssessNote = 'You\'re a ' + TAX_BAND + '-rate taxpayer (' + Math.round(BAND_RATE * 100) + '%). Your provider claims 20% automatically. You claim the extra ' + Math.round((BAND_RATE - 0.20) * 100) + '% back through your self-assessment tax return — it goes to you, not the pension.';
+      }
+    } else if (w === 'Workplace Pension') {
+      if (method === 'salary_sacrifice') {
+        /* Salary sacrifice: no relief to show, it's pre-tax */
+        if (employer > 0) showEmp = true;
+      } else {
+        relief = personal * 0.25;
+        reliefLabel = '+ basic-rate tax relief (25%)';
+        showRelief = true;
+        if (BAND_RATE > 0.20) {
+          var gross = personal + relief;
+          selfAssess = gross * (BAND_RATE - 0.20);
+          showSelfAssess = true;
+          selfAssessNote = 'As a ' + TAX_BAND + '-rate taxpayer, you can claim an extra ' + Math.round((BAND_RATE - 0.20) * 100) + '% back via self-assessment. This goes to you as a tax refund, not into the pension.';
+        }
+      }
+      if (employer > 0) showEmp = true;
+    } else if (w === 'Lifetime ISA') {
+      var eligible = Math.min(personal * 12, 4000);
+      relief = (eligible * 0.25) / 12;
+      reliefLabel = '+ government bonus (25%)';
+      showRelief = relief > 0;
+    }
+
+    var total = personal + relief + employer;
+    var hasExtra = showRelief || showEmp;
+
+    previewBox.style.display = (hasExtra || showSelfAssess) ? '' : 'none';
+    if (!hasExtra && !showSelfAssess) return;
+
+    prevPersonal.style.display = '';
+    prevPersonalVal.textContent = fmt(personal) + '/mo';
+    prevRelief.style.display = showRelief ? '' : 'none';
+    if (showRelief) {
+      prevReliefLabel.textContent = reliefLabel;
+      prevReliefVal.textContent = '+ ' + fmt(relief) + '/mo';
+    }
+    prevEmployer.style.display = showEmp ? '' : 'none';
+    if (showEmp) prevEmployerVal.textContent = fmt(employer) + '/mo';
+    prevTotal.textContent = fmt(total) + '/mo';
+
+    /* Self-assessment extra (shown below the total) */
+    prevSelfAssess.style.display = showSelfAssess ? '' : 'none';
+    prevSelfAssessNote.style.display = showSelfAssess ? '' : 'none';
+    if (showSelfAssess) {
+      prevSelfAssessLabel.textContent = '+ you claim back via self-assessment';
+      prevSelfAssessVal.textContent = '+ ' + fmt(selfAssess) + '/mo';
+      prevSelfAssessNote.textContent = selfAssessNote;
+    }
+  }
+
+  /* ── Wire up events ─────────────────────────────────────────────── */
+  if (valModeEl) { valModeEl.addEventListener('change', function() { refreshStepCount(); toggleManualFields(); toggleCustomRate(); }); }
+  if (wrapperEl) { wrapperEl.addEventListener('change', applyConfig); applyConfig(); }
+  if (growthModeEl) growthModeEl.addEventListener('change', toggleCustomRate);
+  if (methodSelect) methodSelect.addEventListener('change', updateMethodHint);
+  if (personalIn) { personalIn.addEventListener('input', updatePreview); personalIn.addEventListener('change', updatePreview); }
+  if (employerIn) { employerIn.addEventListener('input', updatePreview); employerIn.addEventListener('change', updatePreview); }
+})();
+</script>
+{% endblock %}

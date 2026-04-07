@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% block title %}Goals · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/goals/" class="subnav-active">Goals</a>
+  <a href="/projections/">Projections</a>
+  <a href="/performance/">Performance</a>
+</nav>
+
+{% set editing_goal = selected_goal is not none and page_mode == 'edit' %}
+{% set selected_goal_card = namespace(item=None) %}
+{% if selected_goal %}
+  {% for goal in goal_cards %}
+    {% if goal.id == selected_goal.id %}
+      {% set selected_goal_card.item = goal %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+<section class="card highlight mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Goals</p>
+      <h2>Tracked Goals</h2>
+    </div>
+    <div class="badge-row">
+      {% if page_mode == 'view' %}
+        <a class="badge" href="/goals/?mode=create">Create goal</a>
+      {% else %}
+        <a class="badge" href="/goals/">Back to goals</a>
+      {% endif %}
+    </div>
+  </div>
+  <p class="helper-text">Goals give Shelly something to aim for. Tag your accounts, set a target, and watch the progress bar crawl forward — turtle-style.</p>
+</section>
+
+{% if goal_cards %}
+<section class="card-grid goal-grid">
+  {% for goal in goal_cards %}
+    <a class="card goal-link-card" href="/goals/?mode=view&goal_id={{ goal.id }}">
+      <div class="section-header mb-075 flex-start">
+        <div>
+          <h2 class="goal-card-title">{{ goal.name }}</h2>
+          <p class="goal-card-meta">{{ goal.account_count }} account{{ '' if goal.account_count == 1 else 's' }} included</p>
+        </div>
+      </div>
+
+      <p>£{{ '{:,.2f}'.format(goal.current) }} / £{{ '{:,.2f}'.format(goal.target) }}</p>
+      <div class="progress"><div class="progress-bar" style="width: {{ (goal.progress * 100)|round(1) }}%;"></div></div>
+      <small>{{ '{:.1f}'.format(goal.progress * 100) }}% complete · £{{ '{:,.2f}'.format(goal.remaining) }} remaining</small>
+
+      {% if goal.selected_tags %}
+      <div class="badge-row mt-075">
+        {% for tag in goal.selected_tags %}
+          <span class="badge badge-tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if goal.notes %}<p class="helper-text mt-075">{{ goal.notes }}</p>{% endif %}
+    </a>
+  {% endfor %}
+</section>
+{% else %}
+<section class="card">
+  <div class="empty-state">
+    <div class="empty-state-icon">🐢</div>
+    <h3>No goals yet</h3>
+    <p>A turtle without a destination is just wandering. Set a goal, tag the right accounts, and Shelly will track your progress to the finish line.</p>
+    <a href="/goals/?mode=create" class="badge badge-primary-action">+ Create your first goal</a>
+  </div>
+</section>
+{% endif %}
+
+{% if page_mode == 'create' %}
+<section class="card mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Goal Detail</p>
+      <h2>Create Goal</h2>
+    </div>
+  </div>
+  <form method="post" class="settings-form">
+    <input type="hidden" name="form_name" value="create_goal">
+    <div class="form-grid">
+      <label>
+        <span>Goal name</span>
+        <input type="text" name="name" required>
+      </label>
+      <label>
+        <span>Target value</span>
+        <input type="number" step="0.01" name="target_value" required>
+      </label>
+      <label class="form-full-col">
+        <span>Include tags</span>
+        <input type="hidden" name="selected_tags" value="" data-tags-hidden-input>
+        <div class="tag-picker">
+          {% for tag in tag_options %}
+          <label class="tag-chip">
+            <input type="checkbox" value="{{ tag }}" data-tag-checkbox>
+            <span>{{ tag }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </label>
+      <label class="form-full-col">
+        <span>Notes</span>
+        <textarea name="notes" placeholder="Optional"></textarea>
+      </label>
+    </div>
+    <div class="badge-row mt-1">
+      <button type="submit">Create goal</button>
+      <a class="badge" href="/goals/">Cancel</a>
+    </div>
+  </form>
+</section>
+{% elif selected_goal and selected_goal_card.item %}
+<section class="card mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Goal Detail</p>
+      <h2>{{ selected_goal_card.item.name }}</h2>
+    </div>
+    <div class="badge-row">
+      {% if page_mode != 'edit' %}<a class="badge" href="/goals/?mode=edit&goal_id={{ selected_goal.id }}">Edit goal</a>{% endif %}
+      {% if page_mode != 'delete' %}<a class="badge badge-danger" href="/goals/?mode=delete&goal_id={{ selected_goal.id }}">Delete</a>{% endif %}
+    </div>
+  </div>
+
+  {% if page_mode == 'edit' %}
+    <form method="post" class="settings-form">
+      <input type="hidden" name="goal_id" value="{{ selected_goal.id }}">
+      <input type="hidden" name="form_name" value="update_goal">
+
+      <div class="form-grid">
+        <label>
+          <span>Goal name</span>
+          <input type="text" name="name" value="{{ selected_goal.name }}" required>
+        </label>
+        <label>
+          <span>Target value</span>
+          <input type="number" step="0.01" name="target_value" value="{{ selected_goal.target_value }}" required>
+        </label>
+        <label class="form-full-col">
+          <span>Include tags</span>
+          <input type="hidden" name="selected_tags" value="{{ selected_goal.selected_tags if selected_goal.selected_tags else '' }}" data-tags-hidden-input>
+          <div class="tag-picker">
+            {% for tag in tag_options %}
+            <label class="tag-chip">
+              <input type="checkbox" value="{{ tag }}" data-tag-checkbox {% if tag in selected_goal_tags %}checked{% endif %}>
+              <span>{{ tag }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </label>
+        <label class="form-full-col">
+          <span>Notes</span>
+          <textarea name="notes" placeholder="Optional">{{ selected_goal.notes or '' }}</textarea>
+        </label>
+      </div>
+
+      <div class="badge-row mt-1">
+        <button type="submit">Save goal</button>
+        <a class="badge" href="/goals/?mode=view&goal_id={{ selected_goal.id }}">Cancel</a>
+      </div>
+    </form>
+
+  {% elif page_mode == 'delete' %}
+    <p>This will remove <strong>{{ selected_goal_card.item.name }}</strong>. Do this only if you are sure.</p>
+    <form method="post" class="settings-form">
+      <input type="hidden" name="form_name" value="delete_goal">
+      <input type="hidden" name="goal_id" value="{{ selected_goal.id }}">
+      <div class="badge-row">
+        <button type="submit" class="button-danger">Yes, delete goal</button>
+        <a class="badge" href="/goals/?mode=view&goal_id={{ selected_goal.id }}">Cancel</a>
+      </div>
+    </form>
+
+  {% else %}
+    <p>£{{ '{:,.2f}'.format(selected_goal_card.item.current) }} / £{{ '{:,.2f}'.format(selected_goal_card.item.target) }}</p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (selected_goal_card.item.progress * 100)|round(1) }}%;"></div></div>
+    <small>{{ '{:.1f}'.format(selected_goal_card.item.progress * 100) }}% complete · £{{ '{:,.2f}'.format(selected_goal_card.item.remaining) }} remaining</small>
+
+    {% if selected_goal_card.item.selected_tags %}
+    <div class="badge-row mt-1">
+      {% for tag in selected_goal_card.item.selected_tags %}
+        <span class="badge badge-tag">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <p class="helper-text mt-1">Includes {{ selected_goal_card.item.account_count }} account{{ '' if selected_goal_card.item.account_count == 1 else 's' }}.</p>
+    {% if selected_goal_card.item.notes %}<p class="helper-text">{{ selected_goal_card.item.notes }}</p>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

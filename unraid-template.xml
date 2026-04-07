@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Shelly</Name>
+  <Repository>ghcr.io/jahumac/shelly:latest</Repository>
+  <Registry>https://github.com/jahumac/shelly/pkgs/container/shelly</Registry>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable release</TagDescription>
+  </Branch>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jahumac/shelly/issues</Support>
+  <Project>https://github.com/jahumac/shelly</Project>
+  <Overview>
+    Shelly is a self-hosted personal finance dashboard built for UK investors.
+    Track your accounts (ISA, SIPP, LISA, GIA, pensions), holdings with live
+    prices, monthly budgets, savings goals and retirement projections — all
+    from your own machine. Your data never leaves your network.
+
+    Features: broker CSV import (Trading 212, Vanguard, HL, AJ Bell, and more),
+    granular fee tracking, year-by-year and month-by-month projections,
+    Excel export, PWA mobile support.
+  </Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/jahumac/shelly/main/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jahumac/shelly/main/app/static/icons/icon-512.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web UI Port" Target="8000" Default="8000" Mode="tcp" Description="Port for the Shelly web interface." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Data Directory" Target="/app/data" Default="/mnt/user/appdata/shelly/data" Mode="rw" Description="Where Shelly stores its SQLite database and secret key. Back this up!" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/shelly/data</Config>
+</Container>

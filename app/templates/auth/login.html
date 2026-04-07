@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign In · Shelly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="auth-shell">
+    <div class="auth-container">
+
+    <!-- Left: branding panel -->
+    <div class="auth-brand">
+      <div class="auth-brand-logo">
+        <span class="auth-brand-hero turtle-bob">🐢</span>
+        <span class="auth-brand-name">Shelly</span>
+      </div>
+
+      <h1 class="auth-brand-headline">Slow and steady<br><span>wins the race.</span></h1>
+      <p class="auth-brand-sub">Shelly is your personal finance turtle — tracking investments, planning retirement, and keeping your budget in check. One month at a time.</p>
+
+      <ul class="auth-brand-features">
+        <li>Net worth &amp; investment tracking</li>
+        <li>Retirement projections by account</li>
+        <li>Monthly budget with carry-forward</li>
+        <li>ISA &amp; LISA allowance tracker</li>
+        <li>Works offline as a PWA</li>
+      </ul>
+    </div>
+
+    <!-- Right: form panel -->
+    <div class="auth-form-panel">
+      <div class="auth-form-inner">
+        <p class="eyebrow">Welcome back</p>
+        <h2>Sign in to Shelly</h2>
+        <p class="auth-hint">Shelly missed you. Let's see how the portfolio's doing.</p>
+
+        {% if error %}
+          <div class="auth-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="auth-submit">Sign in</button>
+        </form>
+      </div>
+    </div>
+
+    </div><!-- /.auth-container -->
+  </div>
+</body>
+</html>

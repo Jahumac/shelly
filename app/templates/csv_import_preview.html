@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block title %}CSV Import Preview · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/budget/">Budget Plan</a>
+  <a href="/monthly-review/" class="subnav-active">Monthly Update</a>
+</nav>
+
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">CSV Import</p>
+      <h2 class="hero-value">{{ platform_label }} Import</h2>
+      <p class="hero-subtitle">Shelly matched your CSV against existing holdings. Review what's below, tick the ones you want, and confirm.</p>
+    </div>
+    <a href="/monthly-review/" class="badge">Cancel</a>
+  </div>
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Matched</span>
+      <strong>{{ matched | length }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Unmatched in CSV</span>
+      <strong>{{ csv_only | length }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Not in CSV</span>
+      <strong>{{ db_only | length }}</strong>
+    </div>
+  </div>
+</section>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash flash-{{ category }} mb-1">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{# ── Matched holdings ── #}
+<form method="post" action="/monthly-review/confirm-import">
+
+  <section class="card mb-1">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Step 1</p>
+        <h2>Matched Holdings</h2>
+      </div>
+      {% if matched %}
+        <div class="badge-row">
+          <button type="button" class="badge badge-meta" id="select-all-btn">Select all</button>
+          <button type="button" class="badge badge-meta" id="deselect-all-btn">Deselect all</button>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if matched %}
+      <p class="helper-text">Shelly found these matches between your CSV and existing holdings. Tick the ones you want to update.</p>
+      <div class="csv-import-table-wrap">
+        <table class="csv-import-table">
+          <thead>
+            <tr>
+              <th class="col-check"></th>
+              <th>Holding</th>
+              <th>Account</th>
+              <th class="col-num">Old Units</th>
+              <th class="col-num">New Units</th>
+              <th class="col-num">Old Price</th>
+              <th class="col-num">New Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in matched %}
+              {% set h = m.holding %}
+              {% set c = m.csv %}
+              {% set hid = h.id | string %}
+              <tr class="import-row">
+                <td class="col-check">
+                  <input type="checkbox" name="apply_holding_id" value="{{ hid }}"
+                         class="import-checkbox" checked
+                         aria-label="Apply update for {{ h.holding_name }}">
+                </td>
+                <td>
+                  <strong>{{ h.holding_name }}</strong>
+                  {% if h.ticker %}<br><span class="import-ticker">{{ h.ticker }}</span>{% endif %}
+                </td>
+                <td>{{ h.account_name }}</td>
+                <td class="col-num muted">
+                  {{ '{:,.4f}'.format(h.units) if h.units else '—' }}
+                </td>
+                <td class="col-num">
+                  {% if c.units is not none %}
+                    <input type="number" step="any" name="units_{{ hid }}"
+                           value="{{ c.units }}"
+                           class="import-inline-input"
+                           aria-label="New units for {{ h.holding_name }}">
+                  {% else %}
+                    <span class="muted">—</span>
+                    <input type="hidden" name="units_{{ hid }}" value="">
+                  {% endif %}
+                </td>
+                <td class="col-num muted">
+                  {% if h.price %}£{{ '{:,.4f}'.format(h.price) }}{% else %}—{% endif %}
+                </td>
+                <td class="col-num">
+                  {% if c.price is not none %}
+                    <input type="number" step="any" name="price_{{ hid }}"
+                           value="{{ c.price }}"
+                           class="import-inline-input"
+                           aria-label="New price for {{ h.holding_name }}">
+                  {% else %}
+                    <span class="muted">—</span>
+                    <input type="hidden" name="price_{{ hid }}" value="">
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="import-confirm-bar">
+        <button type="submit" class="badge badge-primary-action">Apply Selected Updates</button>
+        <a href="/monthly-review/" class="badge">Cancel</a>
+      </div>
+
+    {% else %}
+      <p class="helper-text">Shelly couldn't match anything — make sure the tickers in your holdings match what's in the CSV.</p>
+    {% endif %}
+  </section>
+
+</form>
+
+{# ── Unmatched CSV rows ── #}
+{% if csv_only %}
+  <section class="card mb-1">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Not matched</p>
+        <h2>CSV Rows Without a Match</h2>
+      </div>
+    </div>
+    <p class="helper-text">Shelly spotted these in the CSV but couldn't match them to anything you're tracking. You can add them manually if needed.</p>
+    <div class="simple-list">
+      {% for row in csv_only %}
+        <div class="simple-list-item">
+          <div>
+            <strong>{{ row.name or row.ticker }}</strong>
+            {% if row.ticker and row.ticker != row.name %}
+              <p>{{ row.ticker }}</p>
+            {% endif %}
+          </div>
+          <div class="text-right">
+            {% if row.units is not none %}
+              <strong>{{ '{:,.4f}'.format(row.units) }} units</strong>
+              {% if row.price %}<br><span class="muted">@ £{{ '{:,.4f}'.format(row.price) }}</span>{% endif %}
+            {% elif row.value is defined %}
+              <strong>£{{ '{:,.2f}'.format(row.value) }}</strong>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{# ── Existing holdings not in CSV ── #}
+{% if db_only %}
+  <section class="card mb-1">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">Not in CSV</p>
+        <h2>Holdings Not Found in CSV</h2>
+      </div>
+    </div>
+    <p class="helper-text">These holdings weren't in the CSV, so Shelly's leaving them untouched.</p>
+    <div class="simple-list">
+      {% for h in db_only %}
+        <div class="simple-list-item">
+          <div>
+            <strong>{{ h.holding_name }}</strong>
+            <p>{{ h.account_name }}{% if h.ticker %} · {{ h.ticker }}{% endif %}</p>
+          </div>
+          <div class="text-right">
+            <strong>£{{ '{:,.2f}'.format(h.value or 0) }}</strong>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<script>
+(function () {
+  var selectBtn   = document.getElementById('select-all-btn');
+  var deselectBtn = document.getElementById('deselect-all-btn');
+
+  function setAll(checked) {
+    document.querySelectorAll('.import-checkbox').forEach(function (cb) {
+      cb.checked = checked;
+    });
+  }
+
+  if (selectBtn)   selectBtn.addEventListener('click',   function () { setAll(true); });
+  if (deselectBtn) deselectBtn.addEventListener('click', function () { setAll(false); });
+
+  // Dim row when unchecked
+  document.querySelectorAll('.import-checkbox').forEach(function (cb) {
+    function update() {
+      cb.closest('tr').classList.toggle('import-row-dim', !cb.checked);
+    }
+    cb.addEventListener('change', update);
+    update();
+  });
+}());
+</script>
+
+{% endblock %}

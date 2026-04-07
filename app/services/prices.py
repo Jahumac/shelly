@@ -1,0 +1,221 @@
+"""Live price fetching via yfinance (Yahoo Finance).
+
+Usage:
+    from app.services.prices import fetch_price, refresh_catalogue_prices
+
+fetch_price(ticker) tries the ticker as-is, then with a .L suffix for
+LSE-listed instruments, returning a dict or None if nothing is found.
+
+Install dependency:  pip install yfinance>=0.2.0
+"""
+from datetime import datetime, timezone
+
+YFINANCE_AVAILABLE = False
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    pass
+
+
+def _try_ticker(symbol: str):
+    """Return dict with price/currency/change_pct for a Yahoo Finance symbol, or None.
+
+    Uses three fallback strategies because yfinance can be flaky:
+      1. fast_info  — fastest, works for most tickers
+      2. .info dict — slower but richer, covers tickers fast_info misses
+      3. .history() — last resort, pulls recent price from historical data
+    """
+    if not YFINANCE_AVAILABLE:
+        return None
+    try:
+        t = yf.Ticker(symbol)
+
+        # ── Strategy 1: fast_info (fastest) ──────────────────────────
+        price = None
+        currency = None
+        prev_close = None
+        try:
+            fi = t.fast_info
+            price = getattr(fi, "last_price", None) or getattr(fi, "regularMarketPrice", None)
+            currency = getattr(fi, "currency", None)
+            prev_close = getattr(fi, "previous_close", None) or getattr(fi, "regularMarketPreviousClose", None)
+        except Exception:
+            pass
+
+        # ── Strategy 2: .info dict (slower, more reliable) ───────────
+        if not price:
+            try:
+                info = t.info
+                if info and isinstance(info, dict):
+                    price = info.get("regularMarketPrice") or info.get("previousClose") or info.get("navPrice")
+                    currency = currency or info.get("currency")
+                    prev_close = prev_close or info.get("regularMarketPreviousClose") or info.get("previousClose")
+            except Exception:
+                pass
+
+        # ── Strategy 3: recent history (last resort) ─────────────────
+        if not price:
+            try:
+                hist = t.history(period="5d")
+                if hist is not None and not hist.empty:
+                    price = float(hist["Close"].dropna().iloc[-1])
+                    if len(hist["Close"].dropna()) >= 2:
+                        prev_close = float(hist["Close"].dropna().iloc[-2])
+            except Exception:
+                pass
+
+        if not price:
+            return None
+
+        # Resolve currency if still unknown
+        if not currency:
+            try:
+                currency = (t.info or {}).get("currency", "GBP")
+            except Exception:
+                currency = "GBP"
+
+        change_pct = None
+        if prev_close and prev_close > 0:
+            change_pct = ((price - prev_close) / prev_close * 100)
+
+        return {
+            "price": round(float(price), 4),
+            "currency": currency,
+            "change_pct": round(float(change_pct), 2) if change_pct is not None else None,
+        }
+    except Exception:
+        return None
+
+
+def fetch_price(ticker: str):
+    """Fetch the current price for a ticker.
+
+    Strategy for a UK-focused dashboard:
+    1. Try the raw ticker as-is.
+    2. If it doesn't end with .L, also try ticker + ".L" (London Stock Exchange).
+    3. If both return results, prefer the .L version when it's priced in
+       GBP or GBp — that's almost certainly the one a UK user wants.
+    Returns a dict with keys: price, currency, change_pct, yf_symbol
+    or None if the price cannot be fetched.
+    """
+    if not ticker or not ticker.strip():
+        return None
+    ticker = ticker.strip().upper()
+
+    raw_result = _try_ticker(ticker)
+    lse_result = None
+
+    if not ticker.endswith(".L"):
+        lse_result = _try_ticker(ticker + ".L")
+
+    # Prefer the LSE version if it exists and is priced in GBP/GBp
+    if lse_result and lse_result.get("currency") in ("GBP", "GBp"):
+        lse_result["yf_symbol"] = ticker + ".L"
+        return lse_result
+
+    if raw_result:
+        raw_result["yf_symbol"] = ticker
+        return raw_result
+
+    # Fallback: return LSE even if not GBP (better than nothing)
+    if lse_result:
+        lse_result["yf_symbol"] = ticker + ".L"
+        return lse_result
+
+    return None
+
+
+def lookup_instrument(query: str):
+    """Look up an instrument by ticker or partial name via Yahoo Finance.
+
+    Returns a dict with keys: ticker, yf_symbol, name, price, price_gbp,
+    currency, change_pct, asset_type  — or None if nothing found.
+    """
+    if not YFINANCE_AVAILABLE or not query or not query.strip():
+        return None
+    query = query.strip()
+    price_data = fetch_price(query)
+    if not price_data:
+        return None
+
+    yf_symbol = price_data["yf_symbol"]
+    ticker_used = query.upper()
+
+    # Try to enrich with name / type from .info (best-effort, may be slow)
+    name = ticker_used
+    asset_type = "ETF"
+    try:
+        info = yf.Ticker(yf_symbol).info
+        name = info.get("longName") or info.get("shortName") or ticker_used
+        qt = (info.get("quoteType") or "").upper()
+        if qt == "MUTUALFUND":
+            asset_type = "Fund"
+        elif qt == "ETF":
+            asset_type = "ETF"
+        elif qt == "EQUITY":
+            asset_type = "Share"
+        else:
+            asset_type = "Other"
+    except Exception:
+        pass
+
+    price = price_data["price"]
+    currency = price_data["currency"]
+    price_gbp = price / 100.0 if currency == "GBp" else price
+
+    return {
+        "ticker": ticker_used,
+        "yf_symbol": yf_symbol,
+        "name": name,
+        "price": round(price, 4),
+        "price_gbp": round(price_gbp, 4),
+        "currency": currency,
+        "change_pct": price_data.get("change_pct"),
+        "asset_type": asset_type,
+    }
+
+
+def refresh_catalogue_prices(catalogue_rows):
+    """Fetch fresh prices for all catalogue items that have a ticker.
+
+    Returns a list of dicts: {id, name, ticker, success, price, currency,
+                               change_pct, error}
+    """
+    if not YFINANCE_AVAILABLE:
+        return [{"id": None, "error": "yfinance not installed — run: pip install yfinance", "success": False}]
+
+    results = []
+    now = datetime.now(timezone.utc).isoformat()
+
+    for row in catalogue_rows:
+        if not row["ticker"]:
+            continue
+        data = fetch_price(row["ticker"])
+        if data:
+            results.append({
+                "id": row["id"],
+                "name": row["holding_name"],
+                "ticker": row["ticker"],
+                "yf_symbol": data["yf_symbol"],
+                "price": data["price"],
+                "currency": data["currency"],
+                "change_pct": data["change_pct"],
+                "updated_at": now,
+                "success": True,
+                "error": None,
+            })
+        else:
+            results.append({
+                "id": row["id"],
+                "name": row["holding_name"],
+                "ticker": row["ticker"],
+                "price": None,
+                "currency": None,
+                "change_pct": None,
+                "updated_at": now,
+                "success": False,
+                "error": f"No data found for {row['ticker']} or {row['ticker']}.L",
+            })
+
+    return results

@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Performance{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/goals/">Goals</a>
+  <a href="/projections/">Projections</a>
+  <a href="/performance/" class="subnav-active">Performance</a>
+</nav>
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Performance</p>
+      {% if perf %}
+        <h2 class="hero-value {% if perf.annualised_return is not none %}{% if perf.annualised_return >= assumed_rate_pct %}perf-positive{% else %}perf-negative{% endif %}{% endif %}">
+          {% if perf.annualised_return is not none %}{{ '{:+.1f}'.format(perf.annualised_return) }}% annualised{% else %}—{% endif %}
+        </h2>
+        <p class="hero-subtitle">vs your {{ assumed_rate_pct }}% assumption · {{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked</p>
+      {% else %}
+        <h2 class="hero-value">No data yet</h2>
+        <p class="hero-subtitle">Shelly needs at least two monthly reviews before the maths kicks in</p>
+      {% endif %}
+    </div>
+  </div>
+  {% if perf %}
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Total return</span>
+      <strong class="{% if perf.total_return >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+        {{ '{:+.1f}'.format(perf.total_return) }}%
+      </strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Market gain</span>
+      <strong class="{% if perf.total_market_gain >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+        {% if perf.total_market_gain >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(perf.total_market_gain) }}
+      </strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>vs Plan</span>
+      <strong class="{% if perf.vs_plan >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+        {% if perf.vs_plan >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(perf.vs_plan) }}
+      </strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Contributed</span>
+      <strong>£{{ '{:,.0f}'.format(perf.total_contributed) }}</strong>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{% if not perf or perf.n_months < 1 %}
+<section class="card">
+  <div class="empty-state">
+    <div class="empty-state-icon">🐢</div>
+    <h3>Not enough data yet</h3>
+    <p>Even Shelly needs at least two data points to draw a line. Complete two monthly reviews and the performance charts will appear — patience is a virtue.</p>
+    <a href="/monthly-review/" class="badge badge-primary-action">Go to Monthly Update</a>
+  </div>
+</section>
+
+{% else %}
+
+
+{# ── Chart ─────────────────────────────────────────────────────── #}
+<div class="panel chart-wrap mb-15">
+  <div class="flex flex-between flex-center mb-1">
+    <h3 class="section-title-sm">Portfolio Value Over Time</h3>
+    <div class="perf-legend">
+      <span class="perf-legend-dot" style="background:var(--accent-2)"></span><span>Actual</span>
+      <span class="perf-legend-dot" style="background:var(--muted);opacity:0.6"></span><span>Plan</span>
+      {% if perf.benchmark_values %}<span class="perf-legend-dot" style="background:var(--accent)"></span><span>Benchmark</span>{% endif %}
+    </div>
+  </div>
+  <canvas id="perfChart" height="90" role="img" aria-label="Portfolio performance chart showing actual vs plan"></canvas>
+</div>
+
+{# ── Month-by-month table ──────────────────────────────────────── #}
+{% if perf.table_rows %}
+<div class="panel" style="overflow-x:auto;">
+  <h3 class="section-title">Month by Month</h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Month</th>
+        <th class="num">Opening</th>
+        <th class="num">Contributions</th>
+        <th class="num">Market Gain / Loss</th>
+        <th class="num">Closing</th>
+        <th class="num">Return</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in perf.table_rows %}
+      <tr>
+        <td>{{ row.month_key }}</td>
+        <td class="num">£{{ '{:,.0f}'.format(row.opening) }}</td>
+        <td class="num">+£{{ '{:,.0f}'.format(row.contribution) }}</td>
+        <td class="num {% if row.market_gain >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+          {% if row.market_gain >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(row.market_gain) }}
+        </td>
+        <td class="num">£{{ '{:,.0f}'.format(row.closing) }}</td>
+        <td class="num {% if row.return_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+          {{ '{:+.2f}'.format(row.return_pct) }}%
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  var labels  = {{ perf.labels | tojson }};
+  var actual  = {{ perf.actual_values | tojson }};
+  var plan    = {{ perf.projected_values | tojson }};
+  var bench   = {{ (perf.benchmark_values or []) | tojson }};
+  var S = getComputedStyle(document.documentElement);
+  var CSS = {
+    accent:   S.getPropertyValue('--accent').trim(),
+    accent2:  S.getPropertyValue('--accent-2').trim(),
+    muted:    S.getPropertyValue('--muted').trim(),
+    panel2:   S.getPropertyValue('--panel-2').trim(),
+    border:   S.getPropertyValue('--border').trim(),
+    gridAlt:  S.getPropertyValue('--chart-grid-alt').trim(),
+  };
+
+  var datasets = [
+    {
+      label: 'Actual',
+      data: actual,
+      borderColor: CSS.accent2,
+      backgroundColor: CSS.accent2 + '14',
+      fill: true,
+      tension: 0.35,
+      pointRadius: actual.length <= 24 ? 4 : 2,
+      pointHoverRadius: 6,
+      borderWidth: 2,
+    },
+    {
+      label: 'Plan (' + {{ assumed_rate_pct }} + '%)',
+      data: plan,
+      borderColor: CSS.muted + '80',
+      borderDash: [6, 4],
+      backgroundColor: 'transparent',
+      fill: false,
+      tension: 0.35,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderWidth: 1.5,
+    },
+  ];
+
+  if (bench.length) {
+    datasets.push({
+      label: 'Benchmark',
+      data: bench,
+      borderColor: CSS.accent,
+      backgroundColor: 'transparent',
+      fill: false,
+      tension: 0.35,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderWidth: 1.5,
+    });
+  }
+
+  new Chart(document.getElementById('perfChart'), {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: CSS.panel2,
+          borderColor: CSS.border,
+          borderWidth: 1,
+          callbacks: {
+            label: function(ctx) {
+              return ' ' + ctx.dataset.label + ': £' + Math.round(ctx.parsed.y).toLocaleString('en-GB');
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color: CSS.gridAlt },
+          ticks: { color: CSS.muted, maxRotation: 45 }
+        },
+        y: {
+          grid:  { color: CSS.gridAlt },
+          ticks: {
+            color: CSS.muted,
+            callback: function(v) { return '£' + Math.round(v).toLocaleString('en-GB'); }
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
+
+{% endif %}
+{% endblock %}

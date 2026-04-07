@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+{% block title %}Instruments · Shelly{% endblock %}
+{% block content %}
+{% set page_mode = request.args.get('mode', 'list') %}
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Instruments</p>
+      <h2 class="hero-value">{{ instruments_in_use | length }} in use</h2>
+      <p class="hero-subtitle">Shelly's master list — every ETF, fund, and pension across all your accounts</p>
+    </div>
+  </div>
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>ETFs</span>
+      <strong>{{ instruments_in_use | selectattr('asset_type', 'equalto', 'ETF') | list | length }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Funds</span>
+      <strong>{{ instruments_in_use | selectattr('asset_type', 'equalto', 'Fund') | list | length }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Pensions</span>
+      <strong>{{ instruments_in_use | selectattr('asset_type', 'equalto', 'Pension Fund') | list | length }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Live prices</span>
+      <strong>{{ instruments_in_use | selectattr('last_price') | list | length }}</strong>
+    </div>
+  </div>
+</section>
+
+{% if not selected and page_mode != 'create' %}
+
+{# ── My Instruments ──────────────────────────────────────────────────────── #}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Across your accounts</p>
+      <h3>My Instruments</h3>
+    </div>
+    <div class="badge-row">
+      {% if yfinance_available and instruments_in_use %}
+      <form method="post" class="form-reset">
+        <input type="hidden" name="form_name" value="refresh_all">
+        <button type="submit" class="badge badge-meta">↻ Refresh prices</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if instruments_in_use %}
+  <div class="responsive-table-wrap mt-075">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Instrument</th>
+          <th>Type</th>
+          <th class="num">Units held</th>
+          <th class="num">Price</th>
+          <th class="num">Day %</th>
+          <th class="num">Total value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in instruments_in_use %}
+        <tr>
+          <td>
+            <strong class="text-sm-2">{{ row.holding_name }}</strong>
+            {% if row.ticker %}<br><span class="holding-ticker">{{ row.ticker }}</span>{% endif %}
+          </td>
+          <td>
+            <span class="holding-type-pill holding-type-{{ row.asset_type | lower | replace(' ', '-') if row.asset_type else 'other' }}">
+              {{ row.asset_type or '—' }}
+            </span>
+          </td>
+          <td class="num">{{ '{:,.4f}'.format(row.total_units or 0) }}</td>
+          <td class="num">
+            {% if row.last_price %}
+              <strong>{% if row.price_currency == 'GBp' %}{{ '{:,.2f}p'.format(row.last_price) }}{% else %}£{{ '{:,.4f}'.format(row.last_price) }}{% endif %}</strong>
+            {% elif row.ticker %}
+              <span class="text-muted">—</span>
+            {% else %}
+              <span class="text-muted text-sm">n/a</span>
+            {% endif %}
+          </td>
+          <td class="num">
+            {% if row.price_change_pct is not none and row.last_price %}
+              <span class="{% if row.price_change_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %} text-bold">
+                {{ '{:+.2f}'.format(row.price_change_pct) }}%
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="num"><strong>£{{ '{:,.2f}'.format(row.total_value or 0) }}</strong></td>
+          <td class="text-right">
+            <a href="/holdings/{{ row.id }}" class="link-accent text-sm">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr class="table-total-row">
+          <td colspan="5" class="table-total-label">Total</td>
+          <td class="num"><strong>£{{ '{:,.2f}'.format(instruments_in_use | sum(attribute='total_value')) }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">🐢</div>
+    <h3>No instruments yet</h3>
+    <p>This is where Shelly keeps the master list. Add holdings to your accounts and they'll appear here — one tidy view of everything you own.</p>
+    <a href="/accounts/" class="badge badge-primary-action">Go to Accounts</a>
+  </div>
+  {% endif %}
+</section>
+
+{# ── Search & Add ────────────────────────────────────────────────────────── #}
+{% if yfinance_available %}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Add instrument</p>
+      <h3>Search by ticker</h3>
+    </div>
+  </div>
+  <p class="helper-text mt-05">Type a ticker (e.g. VWRP, 0P00013P6I.L) and Shelly will fetch it live from Yahoo Finance.</p>
+
+  <div class="instrument-search-bar">
+    <input type="text" id="instrument-search-input" placeholder="e.g. VWRP or SWDA" autocomplete="off" autocapitalize="characters">
+    <button type="button" id="instrument-search-btn" class="badge badge-primary-action">Look up</button>
+  </div>
+
+  <div id="instrument-search-result" class="hidden mt-1"></div>
+</section>
+{% else %}
+<section class="panel mb-1">
+  <p class="helper-text">Shelly wants to fetch live prices but needs <code>yfinance</code> installed first. Add it to your Docker image to unlock this feature.</p>
+</section>
+{% endif %}
+
+{% endif %}
+
+{# ── Instrument detail / edit ────────────────────────────────────────────── #}
+{% if selected %}
+  {% set detail_mode = request.args.get('mode', 'view') %}
+
+  <section class="panel mt-1">
+    <div class="section-header">
+      <div>
+        <p class="eyebrow">{{ selected.asset_type or 'Instrument' }}</p>
+        <h2>{{ selected.holding_name }}</h2>
+      </div>
+      <div class="badge-row">
+        {% if detail_mode != 'edit' %}<a class="badge" href="/holdings/{{ selected.id }}?mode=edit">Edit</a>{% endif %}
+        <a class="badge badge-danger" href="/holdings/{{ selected.id }}?mode=delete">Delete</a>
+        <a class="badge" href="/holdings/">← Back</a>
+      </div>
+    </div>
+
+    {% if detail_mode == 'delete' %}
+      <section class="panel mt-1 panel-compact border-danger">
+        <h3 class="section-title-sm">Delete instrument?</h3>
+        <p class="text-sm-2 text-muted">This removes <strong>{{ selected.holding_name }}</strong> from the catalogue. Existing account holdings are not affected.</p>
+        <form method="post" class="settings-form">
+          <input type="hidden" name="form_name" value="delete_catalogue_holding">
+          <div class="badge-row mt-1">
+            <button type="submit" class="button-danger">Yes, delete</button>
+            <a class="badge" href="/holdings/{{ selected.id }}">Cancel</a>
+          </div>
+        </form>
+      </section>
+
+    {% elif detail_mode == 'edit' %}
+      <form method="post" class="settings-form mt-1">
+        <input type="hidden" name="form_name" value="catalogue">
+        <div class="form-grid">
+          <label class="form-full-col"><span>Name</span><input type="text" name="catalogue_holding_name" value="{{ selected.holding_name }}"></label>
+          <label><span>Ticker</span><input type="text" name="catalogue_ticker" value="{{ selected.ticker or '' }}" placeholder="e.g. VWRP"></label>
+          <label>
+            <span>Asset Type</span>
+            <select name="catalogue_asset_type">
+              {% for option in asset_type_options %}
+                <option value="{{ option }}" {% if selected.asset_type == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span>Bucket</span>
+            <select name="catalogue_bucket">
+              {% for option in bucket_options %}
+                <option value="{{ option }}" {% if selected.bucket == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="form-full-col"><span>Notes</span><input type="text" name="catalogue_notes" value="{{ selected.notes or '' }}"></label>
+        </div>
+        <div class="badge-row">
+          <button type="submit">Save</button>
+          <a class="badge" href="/holdings/{{ selected.id }}">Cancel</a>
+        </div>
+      </form>
+
+    {% else %}
+      <div class="acct-detail-stats mt-1">
+        <div class="acct-detail-stat">
+          <span>Ticker</span>
+          <strong>{{ selected.ticker or '—' }}</strong>
+        </div>
+        <div class="acct-detail-stat">
+          <span>Asset Type</span>
+          <strong>{{ selected.asset_type or '—' }}</strong>
+        </div>
+        <div class="acct-detail-stat">
+          <span>Bucket</span>
+          <strong>{{ selected.bucket or '—' }}</strong>
+        </div>
+        {% if selected.last_price %}
+        <div class="acct-detail-stat">
+          <span>Current Price</span>
+          <strong>
+            {% if selected.price_currency == 'GBp' %}{{ '{:,.2f}p'.format(selected.last_price) }}{% else %}£{{ '{:,.4f}'.format(selected.last_price) }}{% endif %}
+            {% if selected.price_change_pct is not none %}
+              <span class="{% if selected.price_change_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %} text-sm" style="margin-left:0.3rem;">
+                {{ '{:+.2f}'.format(selected.price_change_pct) }}%
+              </span>
+            {% endif %}
+          </strong>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if selected.price_updated_at %}
+      <p class="mt-05 text-xs text-muted">Price updated: {{ selected.price_updated_at }}</p>
+      {% endif %}
+
+      {% if selected.ticker and yfinance_available %}
+      <form method="post" class="mt-075">
+        <input type="hidden" name="form_name" value="refresh_price">
+        <button type="submit" class="badge badge-meta">↻ Refresh price</button>
+      </form>
+      {% elif selected.ticker and not yfinance_available %}
+      <p class="mt-075 text-sm text-muted">Install <code>yfinance</code> to enable live price fetching.</p>
+      {% endif %}
+
+      {% if selected.notes %}
+      <p class="mt-075 text-sm-2 text-muted">{{ selected.notes }}</p>
+      {% endif %}
+
+      {# ── Add to account ──────────────────────────────────────────────────── #}
+      {% if all_accounts %}
+      <section class="panel mt-1 panel-compact">
+        <div class="section-header mb-1">
+          <div>
+            <p class="eyebrow">Portfolio</p>
+            <h3 class="section-title-sm">Add to Account</h3>
+          </div>
+        </div>
+        <form method="post" action="/holdings/{{ selected.id }}/add-to-account" class="settings-form">
+          <div class="form-grid">
+            <label>
+              <span>Account</span>
+              <select name="account_id" required>
+                <option value="">Select account…</option>
+                {% for acct in all_accounts %}
+                  <option value="{{ acct.id }}">{{ acct.name }} · {{ acct.wrapper_type }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Units</span>
+              <input type="number" step="any" name="units" placeholder="e.g. 100" required>
+            </label>
+            <label>
+              <span>Price (£)
+                {% if selected.last_price %}
+                  <span class="text-muted text-sm">
+                    — or leave blank to use catalogue price
+                    ({% if selected.price_currency == 'GBp' %}{{ '{:.4f}'.format(selected.last_price / 100) }}{% else %}{{ '{:.4f}'.format(selected.last_price) }}{% endif %})
+                  </span>
+                {% endif %}
+              </span>
+              <input type="number" step="any" name="price"
+                     placeholder="{{ 'Auto from catalogue' if selected.last_price else 'Required' }}">
+            </label>
+            <label class="form-full-col">
+              <span>Notes</span>
+              <input type="text" name="notes" placeholder="Optional">
+            </label>
+          </div>
+          <div class="badge-row mt-1">
+            <button type="submit">Add to account</button>
+          </div>
+        </form>
+      </section>
+      {% endif %}
+    {% endif %}
+  </section>
+
+{% endif %}
+
+<script>
+(function () {
+  var input   = document.getElementById('instrument-search-input');
+  var btn     = document.getElementById('instrument-search-btn');
+  var resultBox = document.getElementById('instrument-search-result');
+  if (!input) return;
+
+  var accounts = {{ all_accounts | tojson }};
+
+  function accountOptions() {
+    if (!accounts.length) return '<option value="">No accounts yet</option>';
+    return '<option value="">Select account…</option>' +
+      accounts.map(function(a) {
+        return '<option value="' + a.id + '">' + a.name + ' · ' + a.wrapper_type + '</option>';
+      }).join('');
+  }
+
+  function fmtPrice(price, currency, change_pct) {
+    var priceStr = currency === 'GBp'
+      ? price.toFixed(2) + 'p'
+      : '£' + price.toFixed(4);
+    var changeStr = '';
+    if (change_pct !== null && change_pct !== undefined) {
+      var cls = change_pct >= 0 ? 'perf-positive' : 'perf-negative';
+      changeStr = ' <span class="' + cls + '" style="font-size:0.8rem;">' +
+        (change_pct >= 0 ? '+' : '') + change_pct.toFixed(2) + '%</span>';
+    }
+    return priceStr + changeStr;
+  }
+
+  async function doSearch() {
+    var q = input.value.trim();
+    if (!q) return;
+    btn.textContent = '…';
+    btn.disabled = true;
+    resultBox.style.display = 'none';
+    resultBox.innerHTML = '';
+
+    try {
+      var resp = await fetch('/holdings/api/lookup?q=' + encodeURIComponent(q));
+      var data = await resp.json();
+
+      if (!resp.ok) {
+        resultBox.innerHTML = '<p style="color:#fca5a5;font-size:0.875rem;">⚠ ' + (data.error || 'Not found') + '</p>';
+        resultBox.style.display = 'block';
+        return;
+      }
+
+      var inCat = data.in_catalogue;
+
+      /* "Save to catalogue" button — hidden when already tracked */
+      var addToCatBtn = inCat ? '' :
+        '<form method="post" style="margin:0;">' +
+          '<input type="hidden" name="form_name" value="catalogue">' +
+          '<input type="hidden" name="catalogue_holding_name" value="' + data.name.replace(/"/g,'&quot;') + '">' +
+          '<input type="hidden" name="catalogue_ticker" value="' + data.ticker + '">' +
+          '<input type="hidden" name="catalogue_asset_type" value="' + data.asset_type + '">' +
+          '<input type="hidden" name="catalogue_bucket" value="Global Equity">' +
+          '<input type="hidden" name="catalogue_notes" value="">' +
+          '<button type="submit" class="badge badge-meta">+ Save to instruments</button>' +
+        '</form>';
+
+      var addAction = data.catalogue_id
+        ? '/holdings/' + data.catalogue_id + '/add-to-account'
+        : '/holdings/search/add-to-account';
+
+      var addToAcctForm =
+        '<form method="post" action="' + addAction + '" id="search-add-form" style="display:flex;align-items:flex-end;gap:0.6rem;flex-wrap:wrap;margin-top:0.75rem;">' +
+          '<input type="hidden" name="ticker" value="' + data.ticker + '">' +
+          '<input type="hidden" name="name" value="' + data.name.replace(/"/g,'&quot;') + '">' +
+          '<input type="hidden" name="asset_type" value="' + data.asset_type + '">' +
+          '<input type="hidden" name="price" value="' + data.price_gbp + '">' +
+          '<label style="display:flex;flex-direction:column;gap:0.2rem;">' +
+            '<span style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Account</span>' +
+            '<select name="account_id" required style="background:var(--panel-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0.35rem 0.6rem;font-size:0.875rem;">' +
+              accountOptions() +
+            '</select>' +
+          '</label>' +
+          '<label style="display:flex;flex-direction:column;gap:0.2rem;">' +
+            '<span style="font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">Units</span>' +
+            '<input type="number" name="units" step="any" placeholder="e.g. 42.5" required ' +
+              'style="width:8rem;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0.35rem 0.6rem;font-size:0.875rem;">' +
+          '</label>' +
+          '<button type="submit" class="badge badge-primary-action" style="align-self:flex-end;">Add to account</button>' +
+        '</form>';
+
+      /* "Already tracked" banner */
+      var trackedBanner = inCat
+        ? '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.6rem;' +
+            'padding:0.5rem 0.75rem;border-radius:8px;' +
+            'background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);">' +
+            '<span style="color:#86efac;font-size:1rem;">✓</span>' +
+            '<span style="font-size:0.875rem;color:#86efac;">Already in your instruments</span>' +
+          '</div>'
+        : '';
+
+      resultBox.innerHTML =
+        '<div class="instrument-result-card">' +
+          '<div style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;">' +
+            '<strong style="font-size:1rem;">' + data.name + '</strong>' +
+            '<span class="holding-ticker">' + data.ticker + '</span>' +
+            '<span class="holding-type-pill holding-type-' + (data.asset_type || 'other').toLowerCase().replace(' ','-') + '">' + data.asset_type + '</span>' +
+          '</div>' +
+          '<p style="margin:0.25rem 0 0;font-size:1rem;color:var(--text);">' + fmtPrice(data.price, data.currency, data.change_pct) + '</p>' +
+          trackedBanner +
+          (addToCatBtn ? '<div class="badge-row" style="margin-top:0.75rem;">' + addToCatBtn + '</div>' : '') +
+          addToAcctForm +
+        '</div>';
+
+      resultBox.style.display = 'block';
+    } catch(e) {
+      resultBox.innerHTML = '<p style="color:#fca5a5;font-size:0.875rem;">⚠ Request failed. Check your connection.</p>';
+      resultBox.style.display = 'block';
+    } finally {
+      btn.textContent = 'Look up';
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', doSearch);
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') doSearch(); });
+})();
+</script>
+
+{% endblock %}
