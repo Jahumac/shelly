@@ -19,6 +19,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 scheduler = None
+_lock_file = None  # Keep reference so fcntl lock isn't released by GC
 
 
 def init_scheduler(app):
@@ -29,7 +30,7 @@ def init_scheduler(app):
     environments like Gunicorn.
     """
     import sys
-    global scheduler
+    global scheduler, _lock_file
 
     print(f"[Shelly] init_scheduler called (pid={os.getpid()})", flush=True)
 
@@ -52,11 +53,11 @@ def init_scheduler(app):
     lock_path = os.path.join(data_dir, '.scheduler.lock')
     print(f"[Shelly] Attempting lock at: {lock_path}", flush=True)
     try:
-        lock_file = open(lock_path, 'w')
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_file = open(lock_path, 'w')
+        fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         print(f"[Shelly] Lock acquired!", flush=True)
     except (IOError, OSError) as e:
-        print(f"[Shelly] Lock failed: {e}", flush=True)
+        print(f"[Shelly] Lock failed (another worker has it): {e}", flush=True)
         return None
 
     scheduler = BackgroundScheduler(timezone='Europe/London')
