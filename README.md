@@ -71,8 +71,8 @@ Install Shelly as a phone app — visit the URL in your mobile browser and tap "
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/jahumac/shelly.git
-cd shelly
+git clone https://github.com/jahumac/shelly-finance.git
+cd shelly-finance
 
 # 2. Create a virtual environment
 python -m venv .venv

@@ -9,7 +9,7 @@ Shelly runs as a Docker container. Your data stays on your machine — nothing i
 ### Step 1 — Pull the image
 
 ```bash
-docker pull ghcr.io/jahumac/shelly:latest
+docker pull ghcr.io/jahumac/shelly-finance:latest
 ```
 
 ### Step 2 — Run the container
@@ -20,7 +20,7 @@ docker run -d \
   --restart unless-stopped \
   -p 8000:8000 \
   -v /path/to/shelly-data:/app/data \
-  ghcr.io/jahumac/shelly:latest
+  ghcr.io/jahumac/shelly-finance:latest
 ```
 
 Replace `/path/to/shelly-data` with wherever you want Shelly to store its database. For example:
@@ -48,7 +48,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   shelly:
-    image: ghcr.io/jahumac/shelly:latest
+    image: ghcr.io/jahumac/shelly-finance:latest
     container_name: shelly
     ports:
       - "8000:8000"
@@ -75,13 +75,13 @@ Search for **Shelly** in the Unraid Community Apps store and click Install. Set 
 
 ```bash
 ssh root@YOUR_UNRAID_IP
-docker pull ghcr.io/jahumac/shelly:latest
+docker pull ghcr.io/jahumac/shelly-finance:latest
 docker run -d \
   --name shelly \
   --restart unless-stopped \
   -p 8000:8000 \
   -v /mnt/user/appdata/shelly/data:/app/data \
-  ghcr.io/jahumac/shelly:latest
+  ghcr.io/jahumac/shelly-finance:latest
 ```
 
 Then open **http://YOUR_UNRAID_IP:8000** in your browser.
@@ -93,7 +93,7 @@ Then open **http://YOUR_UNRAID_IP:8000** in your browser.
 Pull the latest image and recreate the container:
 
 ```bash
-docker pull ghcr.io/jahumac/shelly:latest
+docker pull ghcr.io/jahumac/shelly-finance:latest
 docker stop shelly
 docker rm shelly
 docker run -d \
@@ -101,7 +101,7 @@ docker run -d \
   --restart unless-stopped \
   -p 8000:8000 \
   -v /path/to/shelly-data:/app/data \
-  ghcr.io/jahumac/shelly:latest
+  ghcr.io/jahumac/shelly-finance:latest
 ```
 
 Or with Docker Compose:
@@ -130,8 +130,8 @@ docker logs -f shelly
 If you prefer to build the image yourself rather than using the pre-built one:
 
 ```bash
-git clone https://github.com/Jahumac/shelly.git
-cd shelly
+git clone https://github.com/Jahumac/shelly-finance.git
+cd shelly-finance
 docker build -t shelly .
 docker run -d \
   --name shelly \
