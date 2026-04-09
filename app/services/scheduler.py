@@ -81,9 +81,13 @@ def init_scheduler(app):
 
 
 def _scheduled_check(app):
-    """Runs every 15 minutes. For each user, checks if the current UK time
-    falls within 15 minutes of their configured morning or evening update time.
-    If so, triggers a price update for that user (at most once per time slot per day).
+    """Runs every 15 minutes (6am-10pm UK). For each user with auto_update
+    enabled, triggers a price update if at least 4 hours have passed since
+    the last successful run.
+
+    This is more reliable than checking exact time windows because it
+    self-heals after restarts — if gunicorn restarts and misses a window,
+    the next 15-minute check will catch up automatically.
     """
     import pytz
 
@@ -92,10 +96,10 @@ def _scheduled_check(app):
 
         uk_tz = pytz.timezone('Europe/London')
         now = datetime.now(uk_tz)
-        now_minutes = now.hour * 60 + now.minute  # minutes since midnight
         today_str = now.strftime('%Y-%m-%d')
+        now_iso = now.strftime('%Y-%m-%d %H:%M:%S')
 
-        print(f"[Shelly] Scheduled check running at {now.strftime('%Y-%m-%d %H:%M:%S')} UK time", flush=True)
+        print(f"[Shelly] Scheduled check running at {now_iso} UK time", flush=True)
 
         try:
             users = fetch_all_users()
@@ -113,39 +117,46 @@ def _scheduled_check(app):
                 if not bool(assumptions.get("auto_update_prices", 1)):
                     continue
 
-                morning = assumptions.get("update_time_morning") or "08:30"
-                evening = assumptions.get("update_time_evening") or "18:00"
+                # Check last run time — skip if less than 4 hours ago
+                with get_connection() as conn:
+                    last_run = conn.execute(
+                        "SELECT run_date, slot FROM scheduler_runs "
+                        "WHERE user_id = ? ORDER BY rowid DESC LIMIT 1",
+                        (user_id,),
+                    ).fetchone()
 
-                for slot_name, time_str in [("morning", morning), ("evening", evening)]:
-                    try:
-                        h, m = [int(x) for x in time_str.split(":")]
-                        slot_minutes = h * 60 + m
-                    except (ValueError, AttributeError):
-                        continue
-
-                    # Check if we're within the 15-minute window after the configured time
-                    if 0 <= (now_minutes - slot_minutes) < 15:
-                        # Atomic check-and-claim: single connection to avoid race condition
-                        with get_connection() as conn:
-                            already = conn.execute(
-                                "SELECT 1 FROM scheduler_runs WHERE user_id = ? AND run_date = ? AND slot = ?",
-                                (user_id, today_str, slot_name),
-                            ).fetchone()
-                            if already:
-                                continue
-                            # Claim the slot *before* running the update so no other
-                            # worker can start the same job if this one is slow.
-                            conn.execute(
-                                "INSERT OR IGNORE INTO scheduler_runs (user_id, run_date, slot) VALUES (?, ?, ?)",
-                                (user_id, today_str, slot_name),
+                    if last_run:
+                        last_date = last_run["run_date"]
+                        last_slot = last_run["slot"] or ""
+                        # Parse last run timestamp
+                        try:
+                            last_dt = uk_tz.localize(
+                                datetime.strptime(last_date + " " + last_slot, "%Y-%m-%d %H:%M")
                             )
-                            conn.commit()
+                        except (ValueError, TypeError):
+                            # Fallback: assume it ran at start of that day
+                            last_dt = uk_tz.localize(
+                                datetime.strptime(last_date, "%Y-%m-%d")
+                            )
 
-                        print(f"[Shelly] Triggering {slot_name} price update for user {user_id} (scheduled {time_str})", flush=True)
-                        logger.info(f"Triggering {slot_name} update for user {user_id} (scheduled {time_str})")
-                        _run_price_update_for_user(app, user_id, slot_name)
+                        hours_since = (now - last_dt).total_seconds() / 3600
+                        if hours_since < 4:
+                            continue
+
+                    # Claim this run
+                    slot_time = now.strftime('%H:%M')
+                    conn.execute(
+                        "INSERT INTO scheduler_runs (user_id, run_date, slot) VALUES (?, ?, ?)",
+                        (user_id, today_str, slot_time),
+                    )
+                    conn.commit()
+
+                print(f"[Shelly] Triggering price update for user {user_id} at {now_iso}", flush=True)
+                logger.info(f"Triggering price update for user {user_id}")
+                _run_price_update_for_user(app, user_id, slot_name="auto")
 
             except Exception as e:
+                print(f"[Shelly] Scheduled check error for user {user_id}: {e}", flush=True)
                 logger.error(f"Scheduled check error for user {user_id}: {e}")
 
 
@@ -162,8 +173,10 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
         try:
             catalogue = fetch_holding_catalogue(user_id)
             if not catalogue:
+                print(f"[Shelly] No holdings in catalogue for user {user_id} — skipping", flush=True)
                 return
 
+            print(f"[Shelly] Fetching prices for {len(catalogue)} instruments...", flush=True)
             price_results = refresh_catalogue_prices(catalogue)
 
             with get_connection() as conn:
@@ -183,6 +196,8 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
                                 result.get("id"),
                             ),
                         )
+                    else:
+                        print(f"[Shelly]   ✗ {result.get('ticker')}: {result.get('error')}", flush=True)
                 conn.commit()
 
             accounts = fetch_all_accounts(user_id)
@@ -195,9 +210,12 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
             save_daily_snapshot(user_id, total_value)
 
             successful = sum(1 for r in price_results if r.get("success"))
+            failed = len(price_results) - successful
+            print(f"[Shelly] Price update complete: {successful} OK, {failed} failed — snapshot saved (£{total_value:,.2f})", flush=True)
             logger.info(f"Updated {successful}/{len(price_results)} holdings for user {user_id} ({slot_name or 'manual'})")
 
         except Exception as e:
+            print(f"[Shelly] Price update FAILED for user {user_id}: {e}", flush=True)
             logger.error(f"Price update failed for user {user_id}: {e}")
 
 
