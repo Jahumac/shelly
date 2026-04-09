@@ -363,7 +363,7 @@ def init_db():
                 if not any(row['name'] == col_name for row in info):
                     conn.execute(f"ALTER TABLE accounts ADD COLUMN {col_name} {col_def}")
             except Exception as e:
-                print(f"Migration error (accounts.{col_name}): {e}")
+                current_app.logger.error(f"Migration error (accounts.{col_name}): {e}")
 
         # ── Legacy column additions (other tables) ───────────────────────────
         for col_sql in [

@@ -9,6 +9,7 @@ This module handles:
 import logging
 from datetime import datetime, timezone
 import os
+from flask import current_app
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -162,14 +163,16 @@ def _scheduled_check(app):
 
 def _run_price_update_for_user(app, user_id, slot_name=None):
     """Fetch fresh prices and save a snapshot for a single user."""
-    from app.models import (
-        get_connection, fetch_holding_catalogue, fetch_all_accounts,
-        fetch_holding_totals_by_account, save_daily_snapshot
-    )
-    from app.calculations import effective_account_value
-    from app.services.prices import refresh_catalogue_prices
-
+    # Imports moved inside app_context
     with app.app_context():
+        from app.models import (
+            get_connection, fetch_holding_catalogue, fetch_all_accounts,
+            fetch_holding_totals_by_account, save_daily_snapshot,
+            sync_holding_prices_from_catalogue
+        )
+        from app.calculations import effective_account_value
+        from app.services.prices import refresh_catalogue_prices
+
         try:
             catalogue = fetch_holding_catalogue(user_id)
             if not catalogue:
@@ -196,8 +199,14 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
                                 result.get("id"),
                             ),
                         )
+                        # Propagate fresh price to all linked holdings in account pots
+                        sync_holding_prices_from_catalogue(
+                            result.get("id"),
+                            result.get("price"),
+                            result.get("currency")
+                        )
                     else:
-                        print(f"[Shelly]   ✗ {result.get('ticker')}: {result.get('error')}", flush=True)
+                        current_app.logger.error(f"[Shelly] ✗ {result.get('ticker')}: {result.get('error')}")
                 conn.commit()
 
             accounts = fetch_all_accounts(user_id)
@@ -215,7 +224,7 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
             logger.info(f"Updated {successful}/{len(price_results)} holdings for user {user_id} ({slot_name or 'manual'})")
 
         except Exception as e:
-            print(f"[Shelly] Price update FAILED for user {user_id}: {e}", flush=True)
+            current_app.logger.error(f"[Shelly] Price update FAILED for user {user_id}: {e}")
             logger.error(f"Price update failed for user {user_id}: {e}")
 
 
