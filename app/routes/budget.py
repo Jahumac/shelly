@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from io import BytesIO
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.models import (
@@ -214,6 +215,131 @@ def budget_quick_add():
         "sort_order": sort_order,
     }, uid)
     return jsonify({"ok": True, "item_id": item_id, "name": name})
+
+
+@budget_bp.route("/import", methods=["POST"])
+@login_required
+def budget_import():
+    """Import budget items and amounts from an uploaded .xlsx file.
+
+    Reads the Shelly export format:
+      Row 1: title
+      Row 2: generated date
+      Then repeating blocks of:
+        - Section header row (col A = section label, col C = "Amount")
+        - Item rows (col A = name, col B = notes, col C = amount)
+        - "Section total" row
+        - Blank rows
+      Finally summary rows (Total Income, Total Expenses, Surplus)
+    """
+    uid = current_user.id
+    month_key = request.form.get("month") or _default_month_key()
+
+    f = request.files.get("file")
+    if not f or not f.filename.endswith((".xlsx", ".xls")):
+        flash("Please upload an .xlsx file.", "error")
+        return redirect(url_for("budget.budget", month=month_key))
+
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(BytesIO(f.read()), data_only=True)
+        ws = wb.active
+    except Exception:
+        flash("Could not read the Excel file.", "error")
+        return redirect(url_for("budget.budget", month=month_key))
+
+    # Load existing sections and items for matching
+    db_sections = fetch_budget_sections(uid)
+    section_label_to_key = {s["label"].strip().lower(): s["key"] for s in db_sections}
+    existing_items = fetch_budget_items(uid)
+
+    current_section_key = None
+    items_imported = 0
+    sections_created = 0
+    skip_labels = {"total income", "total expenses", "surplus", "section total", ""}
+
+    for row in ws.iter_rows(min_row=1, values_only=False):
+        vals = [cell.value for cell in row]
+        col_a = str(vals[0] or "").strip()
+        col_b = str(vals[1] or "").strip()
+        col_c = vals[2] if len(vals) > 2 else None
+
+        # Skip title, date, and empty rows
+        if not col_a and not col_c:
+            continue
+
+        # Detect section header: col C is literally "Amount"
+        if isinstance(col_c, str) and col_c.strip().lower() == "amount":
+            label = col_a
+            label_lower = label.lower()
+            if label_lower in section_label_to_key:
+                current_section_key = section_label_to_key[label_lower]
+            else:
+                # Create a new section
+                new_key = create_budget_section(label, uid)
+                section_label_to_key[label_lower] = new_key
+                current_section_key = new_key
+                sections_created += 1
+                # Refresh sections
+                db_sections = fetch_budget_sections(uid)
+            continue
+
+        # Skip summary/total rows
+        if col_a.lower() in skip_labels or col_b.lower() == "section total":
+            continue
+
+        # Skip rows without a numeric amount
+        amount = None
+        if isinstance(col_c, (int, float)):
+            amount = float(col_c)
+        else:
+            try:
+                cleaned = str(col_c or "").replace("£", "").replace(",", "").strip()
+                amount = float(cleaned) if cleaned else None
+            except (ValueError, TypeError):
+                amount = None
+
+        if amount is None or not current_section_key or not col_a:
+            continue
+
+        # Find or create the budget item
+        item_name = col_a
+        notes = col_b if col_b else ""
+        matched_item = None
+        for it in existing_items:
+            if it["name"].strip().lower() == item_name.lower() and it["section"] == current_section_key:
+                matched_item = it
+                break
+
+        if not matched_item:
+            # Create a new item
+            sort_order = max(
+                (i["sort_order"] for i in existing_items if i["section"] == current_section_key),
+                default=-1,
+            ) + 1
+            item_id = create_budget_item({
+                "name": item_name,
+                "section": current_section_key,
+                "default_amount": amount,
+                "linked_account_id": None,
+                "notes": notes,
+                "sort_order": sort_order,
+            }, uid)
+            # Refresh items list
+            existing_items = fetch_budget_items(uid)
+        else:
+            item_id = matched_item["id"]
+
+        # Upsert the entry for this month
+        upsert_budget_entry(month_key, item_id, amount)
+        items_imported += 1
+
+    msg = f"Imported {items_imported} budget items"
+    if sections_created:
+        msg += f" and created {sections_created} new section{'s' if sections_created > 1 else ''}"
+    msg += f" for {_month_label(month_key)}."
+    flash(msg, "success")
+    return redirect(url_for("budget.budget", month=month_key))
 
 
 @budget_bp.route("/items/", methods=["GET", "POST"])

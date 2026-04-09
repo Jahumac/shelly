@@ -22,9 +22,6 @@
       <p class="hero-subtitle">Here's where the money goes — Shelly keeps score so you don't have to.</p>
       {% endif %}
     </div>
-    <div class="badge-row badge-row-end">
-      <a class="badge badge-sm" href="/budget/export.xlsx?month={{ month_key }}">↓ Export</a>
-    </div>
   </div>
   <div class="hero-strip">
     <div class="hero-strip-stat">
@@ -63,9 +60,19 @@
   </div>
 </section>
 
-{# ── Edit Budget button ──────────────────────────────────────────────────── #}
+{# ── Budget toolbar ──────────────────────────────────────────────────────── #}
 <div class="budget-toolbar">
-  <a class="badge" href="/budget/items/">Edit Budget</a>
+  <div class="badge-row">
+    <a class="badge" href="/budget/items/">Edit Budget</a>
+    <a class="badge badge-sm" href="/budget/export.xlsx?month={{ month_key }}">↓ Export</a>
+    <label class="badge badge-sm budget-import-label" title="Import budget from an Excel file">
+      ↑ Import
+      <form method="post" action="/budget/import" enctype="multipart/form-data" id="import-form" style="display:none">
+        <input type="hidden" name="month" value="{{ month_key }}">
+        <input type="file" name="file" accept=".xlsx,.xls" onchange="this.form.submit()">
+      </form>
+    </label>
+  </div>
   <p class="budget-linked-hint">Items marked <em>linked</em> sync from your account's monthly contribution.</p>
 </div>
 

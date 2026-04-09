@@ -135,6 +135,25 @@ nav a.active {
   padding: 2rem;
 }
 
+/* ── Flash messages ──────────────────────────────────────────────── */
+.flash-msg {
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+}
+.flash-success {
+  background: rgba(34,197,94,0.1);
+  color: var(--accent-2);
+  border-color: rgba(34,197,94,0.25);
+}
+.flash-error {
+  background: rgba(248,113,113,0.1);
+  color: var(--error);
+  border-color: rgba(248,113,113,0.25);
+}
+
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1917,15 +1936,20 @@ button.badge-like-button {
   border-top: 3px solid var(--sec-color, var(--accent));
 }
 
-/* ── Budget toolbar (Edit Budget button + hint) ──────────────────── */
+/* ── Budget toolbar (Edit Budget + Export + Import) ──────────────── */
 .budget-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 .budget-toolbar .budget-linked-hint {
   margin: 0;
+}
+.budget-import-label {
+  cursor: pointer;
 }
 
 /* ── Month colour accents ──────────────────────────────────────────── */
