@@ -1258,7 +1258,10 @@ button.badge-like-button {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
-  flex-wrap: wrap;
+}
+.hero-top > div:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .hero-value {
@@ -1366,7 +1369,7 @@ button.badge-like-button {
 
 @media (max-width: 768px) {
   .hero-top {
-    flex-direction: column;
+    flex-wrap: wrap;
   }
   .hero-stats {
     width: 100%;
@@ -2006,9 +2009,11 @@ button.badge-like-button {
 /* ── Hero turtle icons ──────────────────────────────────────────────── */
 .hero-turtle-wrap {
   flex-shrink: 0;
+  margin-left: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  align-self: flex-start;
 }
 .hero-turtle {
   width: 80px;
