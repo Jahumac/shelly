@@ -1951,6 +1951,11 @@ button.badge-like-button {
   border-color: var(--accent);
   background: rgba(56,189,248,0.06);
 }
+.budget-section-add-hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
 
 /* ── Budget toolbar (Edit Budget + Export + Import) ──────────────── */
 .budget-toolbar {

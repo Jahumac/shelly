@@ -414,6 +414,34 @@ def budget_items_view():
     page_mode = request.args.get("mode", "view" if selected_id else "list")
     section_options = [(s["key"], s["label"]) for s in db_sections]
 
+    # ── Month context (same hero + month strip as budget view) ────────────
+    month_key = request.args.get("month") or _default_month_key()
+    sections_data, summary = _build_monthly_data(month_key, uid)
+
+    saved_months = fetch_months_with_budget_entries(uid)
+    mk_parts = month_key.split("-")
+    mk_year, mk_month = int(mk_parts[0]), int(mk_parts[1])
+    ty_start_year = mk_year if mk_month >= 4 else mk_year - 1
+
+    month_strip = []
+    for i in range(12):
+        m = 4 + i
+        y = ty_start_year if m <= 12 else ty_start_year + 1
+        if m > 12:
+            m -= 12
+        mk = f"{y}-{m:02d}"
+        label_short = datetime.strptime(mk, "%Y-%m").strftime("%b")
+        month_strip.append({
+            "key": mk,
+            "label": label_short,
+            "has_data": mk in saved_months,
+            "is_current": mk == month_key,
+            "is_today": mk == _default_month_key(),
+            "month_num": m,
+        })
+
+    is_inherited = month_key not in saved_months
+
     return render_template(
         "budget_items.html",
         grouped=grouped,
@@ -422,6 +450,11 @@ def budget_items_view():
         selected=selected,
         page_mode=page_mode,
         active_page="budget",
+        month_key=month_key,
+        month_label=_month_label(month_key),
+        summary=summary,
+        month_strip=month_strip,
+        is_inherited=is_inherited,
     )
 
 
