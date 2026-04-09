@@ -51,7 +51,7 @@
         <span>Section</span>
         <select name="section">
           {% for key, label in section_options %}
-          <option value="{{ key }}">{{ label }}</option>
+          <option value="{{ key }}" {% if request.args.get('section') == key %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </label>

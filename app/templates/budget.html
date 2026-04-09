@@ -27,18 +27,6 @@
       <a class="badge badge-sm" href="/budget/items/">Manage items</a>
     </div>
   </div>
-
-  {# ── Budget usage bar ──────────────────────────────────────────────── #}
-  {% if summary.total_income > 0 %}
-  <div class="budget-bar-wrap">
-    <div class="budget-bar-track">
-      {% set expense_pct = [((summary.total_expenses / summary.total_income) * 100), 100] | min %}
-      <div class="budget-bar-fill {% if expense_pct > 90 %}budget-bar-danger{% elif expense_pct > 75 %}budget-bar-warn{% endif %}" style="width: {{ expense_pct | round(1) }}%"></div>
-    </div>
-    <span class="budget-bar-label">{{ expense_pct | round(0) | int }}% of income allocated</span>
-  </div>
-  {% endif %}
-
   <div class="hero-strip">
     <div class="hero-strip-stat">
       <span>Income</span>
@@ -142,11 +130,7 @@
   <p class="helper-text">Nothing here yet — add a budget item below and Shelly will start tracking it.</p>
   {% endif %}
 
-  {# ── Quick-add row ──────────────────────────────────────────────────── #}
-  <div class="budget-quick-add" data-section="{{ section.key }}">
-    <input type="text" class="budget-quick-add-input" placeholder="+ Add item to {{ section.label | lower }}…" maxlength="80">
-    <button type="button" class="budget-quick-add-btn" title="Add item" disabled>Add</button>
-  </div>
+  <a class="budget-add-link" href="/budget/items/?mode=create&section={{ section.key }}">+ Add item</a>
 </section>
 {% endfor %}
 
@@ -203,16 +187,6 @@
       ss.className   = surplus >= 0 ? 'stat-positive-text' : 'stat-negative-text';
     }
     if (sr) sr.textContent = savingsRate.toFixed(1) + '%';
-
-    /* Update usage bar */
-    var barFill = document.querySelector('.budget-bar-fill');
-    var barLabel = document.querySelector('.budget-bar-label');
-    if (barFill && income > 0) {
-      var pct = Math.min((expenses / income) * 100, 100);
-      barFill.style.width = pct.toFixed(1) + '%';
-      barFill.className = 'budget-bar-fill' + (pct > 90 ? ' budget-bar-danger' : pct > 75 ? ' budget-bar-warn' : '');
-      if (barLabel) barLabel.textContent = Math.round(pct) + '% of income allocated';
-    }
   }
 
   /* Save a single entry via AJAX */
@@ -293,81 +267,6 @@
   }
 
   document.querySelectorAll('.budget-amount-input').forEach(wireInput);
-
-  /* ── Quick-add item ──────────────────────────────────────────────────── */
-  document.querySelectorAll('.budget-quick-add').forEach(function(wrap) {
-    var inp = wrap.querySelector('.budget-quick-add-input');
-    var btn = wrap.querySelector('.budget-quick-add-btn');
-    var section = wrap.dataset.section;
-
-    inp.addEventListener('input', function() {
-      btn.disabled = !inp.value.trim();
-    });
-
-    inp.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && inp.value.trim()) {
-        e.preventDefault();
-        doAdd();
-      }
-    });
-
-    btn.addEventListener('click', doAdd);
-
-    function doAdd() {
-      var name = inp.value.trim();
-      if (!name) return;
-      btn.disabled = true;
-      inp.disabled = true;
-
-      fetch('/budget/api/quick-add', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'name=' + encodeURIComponent(name) + '&section=' + encodeURIComponent(section),
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.ok) {
-          /* Insert a new row into the DOM */
-          var rowsContainer = wrap.parentElement.querySelector('.budget-rows');
-          if (!rowsContainer) {
-            /* First item in section — create the rows container */
-            var emptyHint = wrap.parentElement.querySelector('.helper-text');
-            if (emptyHint) emptyHint.remove();
-            rowsContainer = document.createElement('div');
-            rowsContainer.className = 'budget-rows';
-            wrap.parentElement.insertBefore(rowsContainer, wrap);
-          }
-
-          var row = document.createElement('div');
-          row.className = 'budget-row budget-row-new';
-          row.innerHTML =
-            '<div class="budget-row-left">' +
-              '<span class="budget-row-name">' + name + '</span>' +
-              '<a class="budget-row-edit" href="/budget/items/?item_id=' + d.item_id + '&mode=edit" title="Edit ' + name + '">✎</a>' +
-            '</div>' +
-            '<div class="budget-row-right">' +
-              '<span class="budget-row-currency">£</span>' +
-              '<input type="number" step="0.01" class="budget-amount-input" data-item-id="' + d.item_id + '" data-section="' + section + '" value="0.00">' +
-              '<span class="budget-save-indicator" id="ind-' + d.item_id + '"></span>' +
-            '</div>';
-          rowsContainer.appendChild(row);
-
-          /* Wire up the new input */
-          wireInput(row.querySelector('.budget-amount-input'));
-
-          /* Focus the new amount input */
-          row.querySelector('.budget-amount-input').focus();
-        }
-        inp.value = '';
-        inp.disabled = false;
-        btn.disabled = true;
-      })
-      .catch(function() {
-        inp.disabled = false;
-        btn.disabled = false;
-      });
-    }
-  });
 
   /* ── Month navigation ◀ / ▶ ──────────────────────────────────────────── */
   function changeMonth(delta) {
