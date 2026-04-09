@@ -44,7 +44,12 @@
 
 {# ── How it's calculated ────────────────────────────────────────────────── #}
 <section class="card mb-1">
-  <h2>Breakdown</h2>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Contributions</p>
+      <h2>Breakdown</h2>
+    </div>
+  </div>
   <p class="helper-text" style="margin-bottom: 1rem;">
     Shelly calculates your ISA usage from {{ usage.months }} month{{ 's' if usage.months != 1 }} of regular contributions so far
     ({{ usage.total_months }} months in the full tax year)
@@ -54,11 +59,12 @@
     {% endif %}
   </p>
   {% if usage.breakdown %}
+  <div class="table-scroll">
   <table class="mini-table">
     <thead>
       <tr>
         <th>Account</th>
-        <th>Type</th>
+        <th style="text-align:center">Type</th>
         <th style="text-align:right">Monthly</th>
         <th style="text-align:right">× {{ usage.months }} mo</th>
         <th style="text-align:right">Top-ups</th>
@@ -69,7 +75,7 @@
       {% for b in usage.breakdown %}
       <tr>
         <td>{{ b.account_name }}</td>
-        <td><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
+        <td style="text-align:center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
         <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_contribution) }}</td>
         <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
         <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
@@ -85,6 +91,7 @@
       </tr>
     </tfoot>
   </table>
+  </div>
   {% else %}
   <p class="helper-text">No ISA accounts found. Add a Stocks &amp; Shares ISA, Cash ISA, or Lifetime ISA account to start tracking.</p>
   {% endif %}
@@ -92,35 +99,42 @@
 
 {# ── Record a top-up ────────────────────────────────────────────────────── #}
 <section class="card mb-1" id="topup">
-  <h2>Record a Top-up</h2>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Ad-hoc Transfer</p>
+      <h2>Record a Top-up</h2>
+    </div>
+  </div>
   <p class="helper-text" style="margin-bottom: 1rem;">
     Made a one-off transfer into an ISA outside your regular monthly contribution? Log it here so Shelly can keep your allowance accurate.
   </p>
   {% if isa_accounts %}
-  <form method="post" action="/allowance/add" class="form-grid">
-    <label>
-      <span>Account</span>
-      <select name="account_id" required>
-        <option value="">Choose an ISA account…</option>
-        {% for acc in isa_accounts %}
-        <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.wrapper_type }})</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label>
-      <span>Amount (£)</span>
-      <input type="number" name="amount" step="0.01" min="0.01" placeholder="200.00" required>
-    </label>
-    <label>
-      <span>Date</span>
-      <input type="date" name="contribution_date" value="{{ today }}">
-    </label>
-    <label class="form-full-col">
+  <form method="post" action="/allowance/add" class="allowance-form">
+    <div class="allowance-form-row">
+      <label class="allowance-form-field allowance-form-field-grow">
+        <span>Account</span>
+        <select name="account_id" required>
+          <option value="">Choose an ISA account…</option>
+          {% for acc in isa_accounts %}
+          <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.wrapper_type }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="allowance-form-field">
+        <span>Amount (£)</span>
+        <input type="number" name="amount" step="0.01" min="0.01" placeholder="200.00" required>
+      </label>
+      <label class="allowance-form-field">
+        <span>Date</span>
+        <input type="date" name="contribution_date" value="{{ today }}">
+      </label>
+    </div>
+    <label class="allowance-form-field" style="margin-top: 0.75rem;">
       <span>Note (optional)</span>
       <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
     </label>
-    <div class="form-full-col">
-      <button type="submit" class="badge" style="cursor:pointer;">Record Top-up</button>
+    <div style="margin-top: 1rem;">
+      <button type="submit" class="badge badge-primary-action" style="cursor:pointer;">Record Top-up</button>
     </div>
   </form>
   {% else %}
@@ -131,7 +145,12 @@
 {# ── Top-up history ─────────────────────────────────────────────────────── #}
 {% if contributions %}
 <section class="card mb-1">
-  <h2>Top-up History ({{ tax_year }})</h2>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">History</p>
+      <h2>Top-up History ({{ tax_year }})</h2>
+    </div>
+  </div>
   <table class="mini-table">
     <thead>
       <tr>

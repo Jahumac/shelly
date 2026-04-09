@@ -4135,6 +4135,10 @@ a.link-accent:hover {
 }
 
 /* ── Mini table (allowance breakdown, contribution history) ──────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .mini-table {
   width: 100%;
   border-collapse: collapse;
@@ -4144,16 +4148,47 @@ a.link-accent:hover {
   text-align: left;
   color: var(--muted);
   font-weight: 500;
-  padding: 0.4rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .mini-table td {
-  padding: 0.5rem 0.5rem;
+  padding: 0.6rem 0.75rem;
   border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .mini-table tbody tr:last-child td { border-bottom: none; }
 .mini-table tfoot td {
-  padding-top: 0.6rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--border);
   font-weight: 600;
+}
+
+/* ── Allowance form ────────────────────────────────────────────────────── */
+.allowance-form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 1rem;
+  align-items: end;
+}
+.allowance-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.allowance-form-field > span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.allowance-form-field-grow { flex: 1; }
+
+@media (max-width: 640px) {
+  .allowance-form-row {
+    grid-template-columns: 1fr;
+  }
 }
