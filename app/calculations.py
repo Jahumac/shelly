@@ -709,10 +709,16 @@ def calculate_isa_usage(accounts, ad_hoc_contributions, today=None, salary_day=0
     breakdown = []
 
     for acc in accounts:
-        wt = acc.get("wrapper_type") or ""
+        try:
+            wt = acc["wrapper_type"] or ""
+        except (KeyError, TypeError):
+            wt = ""
         if wt not in ISA_WRAPPER_TYPES:
             continue
-        monthly = float(acc.get("monthly_contribution") or 0)
+        try:
+            monthly = float(acc["monthly_contribution"] or 0)
+        except (KeyError, TypeError):
+            monthly = 0.0
         total = monthly * months
         projected = monthly * total_months
         entry = {
@@ -737,7 +743,10 @@ def calculate_isa_usage(accounts, ad_hoc_contributions, today=None, salary_day=0
     adhoc_lisa = 0.0
     for c in ad_hoc_contributions:
         amt = float(c["amount"])
-        wt = c.get("wrapper_type") or ""
+        try:
+            wt = c["wrapper_type"] or ""
+        except (KeyError, TypeError):
+            wt = ""
         adhoc_isa += amt
         if wt in LISA_WRAPPER_TYPES:
             adhoc_lisa += amt
