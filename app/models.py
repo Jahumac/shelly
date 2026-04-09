@@ -617,6 +617,28 @@ def init_db():
         except Exception:
             pass
 
+        # ── Scheduler run tracking ────────────────────────────────────────────
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS scheduler_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                run_date TEXT NOT NULL,
+                slot TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(user_id, run_date, slot)
+            )
+        """)
+
+        # ── Configurable price update times ──────────────────────────────────
+        for col in [
+            "update_time_morning TEXT DEFAULT '08:30'",
+            "update_time_evening TEXT DEFAULT '18:00'",
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
+            except Exception:
+                pass
+
         # ── Custom tags per user ─────────────────────────────────────────────
         conn.execute("""
             CREATE TABLE IF NOT EXISTS custom_tags (
@@ -877,6 +899,8 @@ def update_assumptions(payload, user_id):
                 retirement_date_mode = ?,
                 tax_band = ?,
                 auto_update_prices = ?,
+                update_time_morning = ?,
+                update_time_evening = ?,
                 updated_at = ?
             WHERE user_id = ?
             """,
@@ -896,6 +920,8 @@ def update_assumptions(payload, user_id):
                 payload.get("retirement_date_mode", "birthday"),
                 payload.get("tax_band", "basic"),
                 payload.get("auto_update_prices", 1),
+                payload.get("update_time_morning", "08:30"),
+                payload.get("update_time_evening", "18:00"),
                 payload["updated_at"],
                 user_id,
             ),

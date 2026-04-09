@@ -70,10 +70,31 @@
       </label>
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
-        <input type="checkbox" name="auto_update_prices" value="1" {{ 'checked' if not assumptions or assumptions.auto_update_prices != 0 else '' }}>
+        <input type="checkbox" name="auto_update_prices" value="1" id="auto-update-toggle" {{ 'checked' if not assumptions or assumptions.auto_update_prices != 0 else '' }}>
         <span style="font-weight:600; font-size:0.95rem;">Auto-update portfolio prices</span>
-        <small class="form-hint" style="margin-top:-0.25rem;">Shelly will automatically fetch fresh prices at 7:00 AM and 5:00 PM UK time every day</small>
+        <small class="form-hint" style="margin-top:-0.25rem;">Shelly will automatically fetch fresh prices at the times below (UK time)</small>
       </label>
+      <div id="update-times-row" style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; padding-left:1.5rem;">
+        <label>
+          <span>Morning update</span>
+          <input type="time" name="update_time_morning" value="{{ assumptions.update_time_morning if assumptions and assumptions.update_time_morning else '08:30' }}">
+          <small class="form-hint">After UK market opens (8:00 AM)</small>
+        </label>
+        <label>
+          <span>Evening update</span>
+          <input type="time" name="update_time_evening" value="{{ assumptions.update_time_evening if assumptions and assumptions.update_time_evening else '18:00' }}">
+          <small class="form-hint">After UK market closes (4:30 PM)</small>
+        </label>
+      </div>
+      <script>
+        (function() {
+          var toggle = document.getElementById('auto-update-toggle');
+          var timesRow = document.getElementById('update-times-row');
+          function sync() { timesRow.style.display = toggle.checked ? '' : 'none'; }
+          toggle.addEventListener('change', sync);
+          sync();
+        })();
+      </script>
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
         <span style="font-weight:600; font-size:0.95rem;">Monthly Update Timing</span>
