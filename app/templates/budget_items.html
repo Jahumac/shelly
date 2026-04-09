@@ -212,9 +212,22 @@
       <h3>{{ group.label }}</h3>
     </div>
     <div class="badge-row">
-      <a class="badge badge-sm" href="/budget/items/?mode=edit_section&section_key={{ group.key }}&section_label={{ group.label | urlencode }}">Rename / delete</a>
+      <a class="badge" href="/budget/items/?mode=edit_section&section_key={{ group.key }}&section_label={{ group.label | urlencode }}">Rename / delete</a>
     </div>
   </div>
+
+  {# Section description hints (same as budget view) #}
+  {% if loop.first %}
+  <p class="helper-text helper-text-section">Your take-home pay and any side income — Shelly uses this to work out how much you've got to play with.</p>
+  {% elif 'debt' in group.key %}
+  <p class="helper-text helper-text-section">Minimum payments and extra chunks you're throwing at debt — every pound here gets you closer to freedom.</p>
+  {% elif 'invest' in group.key or 'saving' in group.key %}
+  <p class="helper-text helper-text-section">Pay yourself first! Items marked <em>linked</em> pull their amount from your account's monthly contribution automatically.</p>
+  {% elif 'fixed' in group.key or 'expense' in group.key %}
+  <p class="helper-text helper-text-section">The essentials — bills, rent, subscriptions. These tend to stay steady month to month.</p>
+  {% elif 'discretionary' in group.key or 'variable' in group.key or 'personal' in group.key %}
+  <p class="helper-text helper-text-section">The flexible stuff — eating out, hobbies, shopping. Shelly won't judge, but he will keep count.</p>
+  {% endif %}
 
   {% if group.rows %}
   <div class="budget-rows">
@@ -238,11 +251,14 @@
     </div>
     {% endfor %}
   </div>
-  {% endif %}
-
   <p class="budget-section-add-hint">
     <a href="/budget/items/?mode=create&section={{ group.key }}" class="link-accent">+ Add another item</a> to {{ group.label | lower }}
   </p>
+  {% else %}
+  <p class="budget-section-add-hint">
+    Nothing here yet — <a href="/budget/items/?mode=create&section={{ group.key }}" class="link-accent">+ Add an item</a> and Shelly will start tracking it.
+  </p>
+  {% endif %}
 </section>
 {% endfor %}
 

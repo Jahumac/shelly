@@ -132,7 +132,7 @@ def export_projections():
     _set_col_width(ws, 3, 18)
     _set_col_width(ws, 4, 24)
 
-    _title_cell(ws, 1, "Shelly — Retirement Projections", 4)
+    _title_cell(ws, 1, "Shelly Finance — Retirement Projections", 4)
     cell = ws.cell(row=2, column=1, value=f"Generated {datetime.now().strftime('%d %b %Y at %H:%M')}")
     cell.font = _SUBTITLE_FONT
 
@@ -190,7 +190,7 @@ def export_projections():
 
     # ── Sheet 2: Year by year ─────────────────────────────────────────────────
     ws2 = wb.create_sheet("Year by Year")
-    _title_cell(ws2, 1, "Shelly — Year-by-Year Projection", 3)
+    _title_cell(ws2, 1, "Shelly Finance — Year-by-Year Projection", 3)
     _header_row(ws2, 3, ["Age", "Year", "Projected Total"])
     _set_col_width(ws2, 1, 10)
     _set_col_width(ws2, 2, 10)
@@ -217,7 +217,7 @@ def export_projections():
 
     # ── Sheet 3: Month by month (total portfolio) ────────────────────────────
     ws3 = wb.create_sheet("Month by Month")
-    _title_cell(ws3, 1, "Shelly — Monthly Projection", 3)
+    _title_cell(ws3, 1, "Shelly Finance — Monthly Projection", 3)
     _header_row(ws3, 3, ["Month", "Projected Total"])
     _set_col_width(ws3, 1, 16)
     _set_col_width(ws3, 2, 22)
@@ -260,7 +260,7 @@ def export_projections():
         acc_breakdown = contribution_breakdown(acc, assumptions)
         has_fees = acc_fee_pct > 0
 
-        _title_cell(ws_acc, 1, f"Shelly — {acc['name']}", 7 if has_fees else 5)
+        _title_cell(ws_acc, 1, f"Shelly Finance — {acc['name']}", 7 if has_fees else 5)
         sub = ws_acc.cell(row=2, column=1, value=f"{acc['wrapper_type']} · {acc.get('provider') or ''}")
         sub.font = _SUBTITLE_FONT
 
@@ -422,7 +422,7 @@ def export_budget():
     _set_col_width(ws, 2, 20)
     _set_col_width(ws, 3, 16)
 
-    _title_cell(ws, 1, f"Shelly — Budget for {month_label}", 3)
+    _title_cell(ws, 1, f"Shelly Finance — Budget for {month_label}", 3)
     cell = ws.cell(row=2, column=1, value=f"Generated {datetime.now().strftime('%d %b %Y at %H:%M')}")
     cell.font = _SUBTITLE_FONT
 
