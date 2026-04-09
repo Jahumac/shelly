@@ -35,6 +35,8 @@ def _try_ticker(symbol: str):
         price = None
         currency = None
         prev_close = None
+        name = None
+        quote_type = None
         try:
             fi = t.fast_info
             price = getattr(fi, "last_price", None) or getattr(fi, "regularMarketPrice", None)
@@ -51,6 +53,19 @@ def _try_ticker(symbol: str):
                     price = info.get("regularMarketPrice") or info.get("previousClose") or info.get("navPrice")
                     currency = currency or info.get("currency")
                     prev_close = prev_close or info.get("regularMarketPreviousClose") or info.get("previousClose")
+                    name = info.get("longName") or info.get("shortName")
+                    quote_type = info.get("quoteType")
+            except Exception:
+                pass
+
+        # If we got price from fast_info, still try .info for the name
+        if price and not name:
+            try:
+                info = t.info
+                if info and isinstance(info, dict):
+                    name = info.get("longName") or info.get("shortName")
+                    quote_type = quote_type or info.get("quoteType")
+                    currency = currency or info.get("currency")
             except Exception:
                 pass
 
@@ -83,6 +98,8 @@ def _try_ticker(symbol: str):
             "price": round(float(price), 4),
             "currency": currency,
             "change_pct": round(float(change_pct), 2) if change_pct is not None else None,
+            "name": name,
+            "quote_type": quote_type,
         }
     except Exception:
         return None
@@ -142,23 +159,19 @@ def lookup_instrument(query: str):
     yf_symbol = price_data["yf_symbol"]
     ticker_used = query.upper()
 
-    # Try to enrich with name / type from .info (best-effort, may be slow)
-    name = ticker_used
-    asset_type = "ETF"
-    try:
-        info = yf.Ticker(yf_symbol).info
-        name = info.get("longName") or info.get("shortName") or ticker_used
-        qt = (info.get("quoteType") or "").upper()
-        if qt == "MUTUALFUND":
-            asset_type = "Fund"
-        elif qt == "ETF":
-            asset_type = "ETF"
-        elif qt == "EQUITY":
-            asset_type = "Share"
-        else:
-            asset_type = "Other"
-    except Exception:
-        pass
+    # Use name/type already fetched by _try_ticker (avoids a second .info call)
+    name = price_data.get("name") or ticker_used
+    qt = (price_data.get("quote_type") or "").upper()
+    if qt == "MUTUALFUND":
+        asset_type = "Fund"
+    elif qt == "ETF":
+        asset_type = "ETF"
+    elif qt == "EQUITY":
+        asset_type = "Share"
+    elif qt:
+        asset_type = "Other"
+    else:
+        asset_type = "ETF"
 
     price = price_data["price"]
     currency = price_data["currency"]
