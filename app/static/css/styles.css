@@ -400,6 +400,30 @@ nav a.active {
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.15), inset 0 0 8px rgba(56, 189, 248, 0.05);
 }
 
+.tag-chip .tag-delete {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: var(--danger, #f87171);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0;
+}
+.tag-chip:hover .tag-delete {
+  opacity: 1;
+}
+
 /* subtle pulse on the tag picker in create mode to draw the eye */
 .tag-picker-highlight {
   animation: tags-attention 3s ease-in-out 1s 1;

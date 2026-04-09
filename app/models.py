@@ -617,6 +617,16 @@ def init_db():
         except Exception:
             pass
 
+        # ── Custom tags per user ─────────────────────────────────────────────
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS custom_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                tag TEXT NOT NULL,
+                UNIQUE(user_id, tag)
+            )
+        """)
+
         conn.commit()
 
 
@@ -1402,7 +1412,7 @@ CATEGORY_OPTIONS = [
     "Other",
 ]
 
-TAG_OPTIONS = [
+DEFAULT_TAG_OPTIONS = [
     "Retirement",
     "Emergency Fund",
     "Accessible Investing",
@@ -1412,6 +1422,63 @@ TAG_OPTIONS = [
     "Long-Term",
     "Other",
 ]
+
+# Keep old name for backwards compat
+TAG_OPTIONS = DEFAULT_TAG_OPTIONS
+
+
+def fetch_user_tags(user_id):
+    """Return merged list: default tags + user's custom tags (de-duped, ordered)."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT tag FROM custom_tags WHERE user_id = ? ORDER BY tag",
+            (user_id,),
+        ).fetchall()
+    custom = [r["tag"] for r in rows]
+    # Defaults first, then any custom ones not already in defaults
+    merged = list(DEFAULT_TAG_OPTIONS)
+    for tag in custom:
+        if tag not in merged:
+            merged.append(tag)
+    return merged
+
+
+def fetch_custom_tags(user_id):
+    """Return just the user's custom tags."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT tag FROM custom_tags WHERE user_id = ? ORDER BY tag",
+            (user_id,),
+        ).fetchall()
+    return [r["tag"] for r in rows]
+
+
+def add_custom_tag(user_id, tag):
+    """Add a custom tag for a user. Returns True if added, False if duplicate."""
+    tag = tag.strip()
+    if not tag:
+        return False
+    with get_connection() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO custom_tags (user_id, tag) VALUES (?, ?)",
+                (user_id, tag),
+            )
+            conn.commit()
+            return True
+        except Exception:
+            return False
+
+
+def delete_custom_tag(user_id, tag):
+    """Remove a custom tag. Returns True if deleted."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            "DELETE FROM custom_tags WHERE user_id = ? AND tag = ?",
+            (user_id, tag),
+        )
+        conn.commit()
+        return cur.rowcount > 0
 
 DEFAULT_HOLDING_CATALOGUE = [  # kept for reference only — no longer auto-seeded
     # ── Global equity ETFs ─────────────────────────────────────────────────

@@ -237,13 +237,20 @@
             <label class="form-full-col">
               <span>Tags</span>
               <input type="hidden" name="tags" value="{{ selected.tags or '' }}" data-tags-hidden-input>
-              <div class="tag-picker">
+              <div class="tag-picker" data-tag-picker>
                 {% for tag in tag_options %}
                 <label class="tag-chip">
                   <input type="checkbox" value="{{ tag }}" data-tag-checkbox {% if tag in selected_tags %}checked{% endif %}>
                   <span>{{ tag }}</span>
+                  {% if tag in custom_tags %}
+                  <button type="button" class="tag-delete" data-delete-tag="{{ tag }}" title="Remove custom tag">&times;</button>
+                  {% endif %}
                 </label>
                 {% endfor %}
+              </div>
+              <div class="tag-add-row" style="margin-top:0.4rem; display:flex; gap:0.4rem; align-items:center;">
+                <input type="text" data-new-tag-input placeholder="Add custom tag…" style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
+                <button type="button" class="badge badge-outline" data-add-tag-btn style="white-space:nowrap;">+ Add</button>
               </div>
             </label>
             <label>
@@ -308,7 +315,7 @@
             <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
               <label>
                 <span>Platform fee (%)</span>
-                <input type="number" step="0.01" name="platform_fee_pct" value="{{ selected.platform_fee_pct or '' }}" placeholder="e.g. 0.15" min="0" max="5">
+                <input type="number" step="0.001" name="platform_fee_pct" value="{{ selected.platform_fee_pct or '' }}" placeholder="e.g. 0.15" min="0" max="5">
                 <small class="form-hint">Broker's annual charge. E.g. Vanguard 0.15%, HL 0.45%.</small>
               </label>
               <label>
@@ -323,7 +330,7 @@
               </label>
               <label>
                 <span>Fund fee / OCF (%)</span>
-                <input type="number" step="0.01" name="fund_fee_pct" value="{{ selected.fund_fee_pct or '' }}" placeholder="e.g. 0.22" min="0" max="5">
+                <input type="number" step="0.001" name="fund_fee_pct" value="{{ selected.fund_fee_pct or '' }}" placeholder="e.g. 0.22" min="0" max="5">
                 <small class="form-hint">Fund ongoing charge. E.g. VWRP 0.22%.</small>
               </label>
             </div>
@@ -404,19 +411,19 @@
         <div class="acct-detail-stat">
           <span>Platform fee</span>
           <strong style="color:var(--danger, #f87171);">
-            {%- if selected.platform_fee_pct %}{{ '{:.2f}'.format(selected.platform_fee_pct) }}%{% if selected.platform_fee_cap %} (capped £{{ '{:,.0f}'.format(selected.platform_fee_cap) }}/yr){% endif %}{% endif %}
+            {%- if selected.platform_fee_pct %}{{ '{:.3f}'.format(selected.platform_fee_pct) }}%{% if selected.platform_fee_cap %} (capped £{{ '{:,.0f}'.format(selected.platform_fee_cap) }}/yr){% endif %}{% endif %}
             {%- if selected.platform_fee_flat %}{% if selected.platform_fee_pct %} + {% endif %}£{{ '{:,.0f}'.format(selected.platform_fee_flat) }}/yr{% endif %}
             {%- if not selected.platform_fee_pct and not selected.platform_fee_flat %}0%{% endif %}
           </strong>
         </div>
         <div class="acct-detail-stat">
           <span>Fund fee (OCF)</span>
-          <strong style="color:var(--danger, #f87171);">{{ '{:.2f}'.format(selected.fund_fee_pct or 0) }}%</strong>
+          <strong style="color:var(--danger, #f87171);">{{ '{:.3f}'.format(selected.fund_fee_pct or 0) }}%</strong>
         </div>
         {% elif selected.annual_fee_pct %}
         <div class="acct-detail-stat">
           <span>Annual fee</span>
-          <strong style="color:var(--danger, #f87171);">{{ '{:.2f}'.format(selected.annual_fee_pct) }}%</strong>
+          <strong style="color:var(--danger, #f87171);">{{ '{:.3f}'.format(selected.annual_fee_pct) }}%</strong>
         </div>
         {% endif %}
         <div class="acct-detail-stat">
@@ -1045,7 +1052,7 @@
           <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
             <label>
               <span>Platform fee (%)</span>
-              <input type="number" step="0.01" name="platform_fee_pct" placeholder="e.g. 0.15" min="0" max="5">
+              <input type="number" step="0.001" name="platform_fee_pct" placeholder="e.g. 0.15" min="0" max="5">
               <small class="form-hint">Broker's annual charge. E.g. Vanguard 0.15%, HL 0.45%.</small>
             </label>
             <label>
@@ -1060,7 +1067,7 @@
             </label>
             <label>
               <span>Fund fee / OCF (%)</span>
-              <input type="number" step="0.01" name="fund_fee_pct" placeholder="e.g. 0.22" min="0" max="5">
+              <input type="number" step="0.001" name="fund_fee_pct" placeholder="e.g. 0.22" min="0" max="5">
               <small class="form-hint">Fund ongoing charge. E.g. VWRP 0.22%.</small>
             </label>
           </div>
@@ -1208,13 +1215,20 @@
           <label class="form-full-col">
             <span>Tags</span>
             <small class="form-hint" style="margin-bottom:0.35rem;">Tags connect accounts to goals — pick the ones that match what this money is for.</small>
-            <div class="tag-picker tag-picker-highlight">
+            <div class="tag-picker tag-picker-highlight" data-tag-picker>
               {% for tag in tag_options %}
               <label class="tag-chip">
                 <input type="checkbox" value="{{ tag }}" data-tag-checkbox>
                 <span>{{ tag }}</span>
+                {% if tag in custom_tags %}
+                <button type="button" class="tag-delete" data-delete-tag="{{ tag }}" title="Remove custom tag">&times;</button>
+                {% endif %}
               </label>
               {% endfor %}
+            </div>
+            <div class="tag-add-row" style="margin-top:0.4rem; display:flex; gap:0.4rem; align-items:center;">
+              <input type="text" data-new-tag-input placeholder="Add custom tag…" style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
+              <button type="button" class="badge badge-outline" data-add-tag-btn style="white-space:nowrap;">+ Add</button>
             </div>
           </label>
           <label><span>Account goal</span><input type="number" step="0.01" name="goal_value" placeholder="Optional target balance"></label>
@@ -1854,6 +1868,71 @@
   if (methodSelect) methodSelect.addEventListener('change', updateMethodHint);
   if (personalIn) { personalIn.addEventListener('input', updatePreview); personalIn.addEventListener('change', updatePreview); }
   if (employerIn) { employerIn.addEventListener('input', updatePreview); employerIn.addEventListener('change', updatePreview); }
+
+  /* ── Custom tag management ──────────────────────────────────────── */
+  document.querySelectorAll('[data-add-tag-btn]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var row = btn.closest('.tag-add-row');
+      var input = row.querySelector('[data-new-tag-input]');
+      var tagName = (input.value || '').trim();
+      if (!tagName) return;
+
+      var fd = new FormData();
+      fd.append('tag', tagName);
+      fetch('/accounts/api/tags', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.ok) { alert(data.error || 'Failed to add tag'); return; }
+          // Add the new tag chip to the picker
+          var picker = row.previousElementSibling;
+          while (picker && !picker.hasAttribute('data-tag-picker')) picker = picker.previousElementSibling;
+          if (!picker) picker = btn.closest('.form-full-col').querySelector('[data-tag-picker]');
+          if (picker) {
+            var lbl = document.createElement('label');
+            lbl.className = 'tag-chip';
+            lbl.innerHTML = '<input type="checkbox" value="' + data.tag + '" data-tag-checkbox checked>' +
+              '<span>' + data.tag + '</span>' +
+              '<button type="button" class="tag-delete" data-delete-tag="' + data.tag + '" title="Remove custom tag">&times;</button>';
+            picker.appendChild(lbl);
+            // Wire up the delete button
+            lbl.querySelector('.tag-delete').addEventListener('click', handleDeleteTag);
+          }
+          input.value = '';
+        });
+    });
+
+    // Also allow pressing Enter in the input
+    var input = btn.closest('.tag-add-row').querySelector('[data-new-tag-input]');
+    if (input) {
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); btn.click(); }
+      });
+    }
+  });
+
+  function handleDeleteTag(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var tagName = e.currentTarget.getAttribute('data-delete-tag');
+    if (!confirm('Remove the "' + tagName + '" tag?')) return;
+
+    var fd = new FormData();
+    fd.append('tag', tagName);
+    fetch('/accounts/api/tags/delete', { method: 'POST', body: fd })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) { alert(data.error || 'Cannot delete this tag'); return; }
+        // Remove all chips with this tag value across all pickers
+        document.querySelectorAll('[data-delete-tag="' + tagName + '"]').forEach(function(btn) {
+          var chip = btn.closest('.tag-chip');
+          if (chip) chip.remove();
+        });
+      });
+  }
+
+  document.querySelectorAll('.tag-delete').forEach(function(btn) {
+    btn.addEventListener('click', handleDeleteTag);
+  });
 })();
 </script>
 {% endblock %}

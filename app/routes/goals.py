@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 
 from app.calculations import effective_account_value, progress_to_goal, remaining_to_goal
 from app.models import (
-    TAG_OPTIONS,
+    fetch_user_tags,
     create_goal,
     delete_goal,
     fetch_all_accounts,
@@ -100,7 +100,7 @@ def goals():
         goal_cards=goal_cards,
         selected_goal=selected_goal,
         selected_goal_tags=selected_goal_tags,
-        tag_options=TAG_OPTIONS,
+        tag_options=fetch_user_tags(current_user.id),
         page_mode=page_mode,
         active_page="goals",
     )

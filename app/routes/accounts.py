@@ -6,22 +6,26 @@ from flask_login import current_user, login_required
 from app.calculations import contribution_breakdown, effective_account_value
 from app.models import (
     CATEGORY_OPTIONS,
-    TAG_OPTIONS,
+    DEFAULT_TAG_OPTIONS,
     WRAPPER_TYPE_OPTIONS,
+    add_custom_tag,
     add_holding,
     add_holding_catalogue_item,
     create_account,
     create_contribution_override,
     delete_account,
     delete_contribution_override,
+    delete_custom_tag,
     delete_holding,
     fetch_account,
     fetch_all_accounts,
     fetch_catalogue_with_prices,
     fetch_contribution_overrides,
+    fetch_custom_tags,
     fetch_holding_catalogue,
     fetch_holding_totals_by_account,
     fetch_holdings_for_account,
+    fetch_user_tags,
     reconnect_holdings_to_catalogue,
     sync_holding_prices_from_catalogue,
     fetch_assumptions,
@@ -136,7 +140,9 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
         active_page="accounts",
         wrapper_type_options=WRAPPER_TYPE_OPTIONS,
         category_options=CATEGORY_OPTIONS,
-        tag_options=TAG_OPTIONS,
+        tag_options=fetch_user_tags(uid),
+        custom_tags=fetch_custom_tags(uid),
+        default_tags=DEFAULT_TAG_OPTIONS,
         selected_tags=_split_tags(selected['tags']) if selected and 'tags' in selected.keys() else [],
         positions=positions,
         catalogue_rows=catalogue_rows,
@@ -181,10 +187,38 @@ def accounts():
         active_page="accounts",
         wrapper_type_options=WRAPPER_TYPE_OPTIONS,
         category_options=CATEGORY_OPTIONS,
-        tag_options=TAG_OPTIONS,
+        tag_options=fetch_user_tags(uid),
+        custom_tags=fetch_custom_tags(uid),
+        default_tags=DEFAULT_TAG_OPTIONS,
         selected_tags=[],
         tax_band=assumptions["tax_band"] if assumptions and "tax_band" in assumptions.keys() else "basic",
     )
+
+
+@accounts_bp.route("/api/tags", methods=["POST"])
+@login_required
+def api_add_tag():
+    """JSON API: add a custom tag for the current user."""
+    tag = (request.form.get("tag") or "").strip()
+    if not tag:
+        return jsonify({"ok": False, "error": "Tag cannot be empty"}), 400
+    if len(tag) > 50:
+        return jsonify({"ok": False, "error": "Tag too long (max 50 chars)"}), 400
+    added = add_custom_tag(current_user.id, tag)
+    return jsonify({"ok": True, "added": added, "tag": tag})
+
+
+@accounts_bp.route("/api/tags/delete", methods=["POST"])
+@login_required
+def api_delete_tag():
+    """JSON API: delete a custom tag for the current user."""
+    tag = (request.form.get("tag") or "").strip()
+    if not tag:
+        return jsonify({"ok": False, "error": "Tag cannot be empty"}), 400
+    if tag in DEFAULT_TAG_OPTIONS:
+        return jsonify({"ok": False, "error": "Cannot delete default tags"}), 400
+    deleted = delete_custom_tag(current_user.id, tag)
+    return jsonify({"ok": True, "deleted": deleted, "tag": tag})
 
 
 @accounts_bp.route("/api/create", methods=["POST"])
