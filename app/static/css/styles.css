@@ -1912,35 +1912,20 @@ button.badge-like-button {
   color: var(--muted);
 }
 
-/* ── Per-row edit pencil ──────────────────────────────────────────── */
-.budget-row-edit {
-  font-size: 0.78rem;
-  color: var(--muted);
-  text-decoration: none;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-  flex-shrink: 0;
-  line-height: 1;
-}
-.budget-row:hover .budget-row-edit { opacity: 1; }
-.budget-row-edit:hover { color: var(--accent); }
-
 /* ── Section colour accent strip ─────────────────────────────────── */
 .budget-section-panel {
   border-top: 3px solid var(--sec-color, var(--accent));
 }
 
-/* ── Add-item link at bottom of each section ─────────────────────── */
-.budget-add-link {
-  display: inline-block;
-  margin-top: 0.6rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 0.15s;
+/* ── Budget toolbar (Edit Budget button + hint) ──────────────────── */
+.budget-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
-.budget-add-link:hover {
-  color: var(--accent);
+.budget-toolbar .budget-linked-hint {
+  margin: 0;
 }
 
 /* ── Month colour accents ──────────────────────────────────────────── */
@@ -2307,9 +2292,7 @@ button.badge-like-button {
     justify-content: flex-end;
   }
 
-  .budget-row-edit {
-    opacity: 1;
-  }
+
 
   .budget-year-strip {
     padding: 0.45rem 0.25rem;

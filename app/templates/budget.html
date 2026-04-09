@@ -17,14 +17,13 @@
       {% if is_inherited %}
       <p class="hero-subtitle budget-inherited-note">Shelly carried everything forward from your last saved month — tweak any number to make this month your own.</p>
       {% elif sections | length == 0 %}
-      <p class="hero-subtitle">Your budget is a blank canvas! Head to <a href="/budget/items/?mode=create" class="link-accent">Manage items</a> to tell Shelly what to track.</p>
+      <p class="hero-subtitle">Your budget is a blank canvas! Head to <a href="/budget/items/" class="link-accent">Edit Budget</a> to tell Shelly what to track.</p>
       {% else %}
       <p class="hero-subtitle">Here's where the money goes — Shelly keeps score so you don't have to.</p>
       {% endif %}
     </div>
     <div class="badge-row badge-row-end">
       <a class="badge badge-sm" href="/budget/export.xlsx?month={{ month_key }}">↓ Export</a>
-      <a class="badge badge-sm" href="/budget/items/">Manage items</a>
     </div>
   </div>
   <div class="hero-strip">
@@ -64,7 +63,11 @@
   </div>
 </section>
 
-<p class="budget-linked-hint">Tip: items marked <em>linked</em> sync their amount from your account's monthly contribution — edit the account to change them.</p>
+{# ── Edit Budget button ──────────────────────────────────────────────────── #}
+<div class="budget-toolbar">
+  <a class="badge" href="/budget/items/">Edit Budget</a>
+  <p class="budget-linked-hint">Items marked <em>linked</em> sync from your account's monthly contribution.</p>
+</div>
 
 {# ── Section colour map ──────────────────────────────────────────────────── #}
 {% set section_colors = {
@@ -108,7 +111,6 @@
     <div class="budget-row">
       <div class="budget-row-left">
         <span class="budget-row-name">{{ item.name }}</span>
-        <a class="budget-row-edit" href="/budget/items/?item_id={{ item.id }}&mode=edit" title="Edit {{ item.name }}">✎</a>
         {% if item.linked %}<span class="budget-pill" title="Amount synced from your account's monthly contribution — edit the account to change it">linked</span>{% endif %}
         {% if item.source == 'inherited' %}<span class="budget-row-source" data-source="inherited" title="Carried forward from the last month you edited">prev month</span>{% endif %}
         {% if item.source == 'default' %}<span class="budget-row-source" data-source="default" title="Using the default amount — change it to save for this month">default</span>{% endif %}
@@ -127,10 +129,8 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="helper-text">Nothing here yet — add a budget item below and Shelly will start tracking it.</p>
+  <p class="helper-text">Nothing here yet — use <a href="/budget/items/?mode=create" class="link-accent">Edit Budget</a> to add items.</p>
   {% endif %}
-
-  <a class="budget-add-link" href="/budget/items/?mode=create&section={{ section.key }}">+ Add item</a>
 </section>
 {% endfor %}
 
@@ -138,7 +138,7 @@
 (function() {
   var MONTH      = '{{ month_key }}';
   var INCOME_KEY = '{{ income_key }}';
-  var SAVE_KEYS  = ['invest', 'saving'];  // section keys that count toward savings rate
+  var SAVE_KEYS  = ['invest', 'saving'];
 
   function fmtGBP(v, showSign) {
     var s = Math.abs(v).toLocaleString('en-GB', {minimumFractionDigits:0, maximumFractionDigits:0});
@@ -146,7 +146,6 @@
     return '£' + s;
   }
 
-  /* Recalculate one section's total and update header */
   function recalcSection(sectionKey) {
     var inputs = document.querySelectorAll('.budget-amount-input[data-section="' + sectionKey + '"]');
     var total = 0;
@@ -156,9 +155,7 @@
     return total;
   }
 
-  /* Recalculate hero strip */
   function recalcSummary() {
-    /* collect all section totals */
     var sectionTotals = {};
     document.querySelectorAll('.budget-amount-input').forEach(function(inp) {
       var k = inp.dataset.section;
@@ -189,7 +186,6 @@
     if (sr) sr.textContent = savingsRate.toFixed(1) + '%';
   }
 
-  /* Save a single entry via AJAX */
   function saveEntry(itemId, amount, ind) {
     fetch('/budget/api/entry', {
       method:  'POST',
@@ -222,21 +218,16 @@
     });
   }
 
-  /* Wire up existing budget inputs */
-  function wireInput(input) {
+  document.querySelectorAll('.budget-amount-input').forEach(function(input) {
     var debounceTimer = null;
     var ind = document.getElementById('ind-' + input.dataset.itemId);
     var row = input.closest('.budget-row');
     var isLinked = !!row.querySelector('.budget-pill');
     var linkedNotified = false;
-
-    /* Hide source badge once the user starts editing */
     var sourceBadge = row.querySelector('.budget-row-source');
 
-    /* Live recalc on every keystroke */
     input.addEventListener('input', function() {
       if (sourceBadge) { sourceBadge.style.display = 'none'; sourceBadge = null; }
-      /* Show a one-time hint when overriding a linked item */
       if (isLinked && !linkedNotified) {
         linkedNotified = true;
         if (ind) {
@@ -259,14 +250,11 @@
       }, 900);
     });
 
-    /* Definitive save on blur */
     input.addEventListener('blur', function() {
       clearTimeout(debounceTimer);
       saveEntry(input.dataset.itemId, input.value, ind);
     });
-  }
-
-  document.querySelectorAll('.budget-amount-input').forEach(wireInput);
+  });
 
   /* ── Month navigation ◀ / ▶ ──────────────────────────────────────────── */
   function changeMonth(delta) {
