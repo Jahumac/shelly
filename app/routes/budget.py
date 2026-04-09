@@ -102,13 +102,12 @@ def _build_monthly_data(month_key, user_id):
     total_income = section_totals.get(income_key, 0)
     total_expenses = sum(v for k, v in section_totals.items() if k != income_key)
     surplus = total_income - total_expenses
-    savings_rate = 0.0
+    savings_total = 0.0
     for sec in db_sections:
         k = sec["key"]
         if k != income_key and ("invest" in k or "saving" in k):
-            if total_income > 0:
-                savings_rate = section_totals.get(k, 0) / total_income * 100
-            break
+            savings_total += section_totals.get(k, 0)
+    savings_rate = (savings_total / total_income * 100) if total_income > 0 else 0.0
 
     summary = {
         "total_income": total_income,
@@ -190,6 +189,31 @@ def budget_save_entry():
     if item_id:
         upsert_budget_entry(month_key, item_id, amount)
     return jsonify({"ok": True})
+
+
+@budget_bp.route("/api/quick-add", methods=["POST"])
+@login_required
+def budget_quick_add():
+    """AJAX endpoint — add a new budget item from the budget view."""
+    uid = current_user.id
+    name = (request.form.get("name") or "").strip()
+    section = (request.form.get("section") or "").strip()
+    if not name or not section:
+        return jsonify({"ok": False, "error": "Name and section required"}), 400
+
+    existing = fetch_budget_items(uid)
+    sort_order = max(
+        (i["sort_order"] for i in existing if i["section"] == section), default=-1
+    ) + 1
+    item_id = create_budget_item({
+        "name": name,
+        "section": section,
+        "default_amount": 0.0,
+        "linked_account_id": None,
+        "notes": "",
+        "sort_order": sort_order,
+    }, uid)
+    return jsonify({"ok": True, "item_id": item_id, "name": name})
 
 
 @budget_bp.route("/items/", methods=["GET", "POST"])
