@@ -30,7 +30,10 @@ def allowance_overview():
     accounts = fetch_all_accounts(uid)
     assumptions = fetch_assumptions(uid)
 
-    salary_day = int(assumptions["salary_day"]) if assumptions and assumptions.get("salary_day") else 0
+    try:
+        salary_day = int(assumptions["salary_day"]) if assumptions and assumptions["salary_day"] else 0
+    except (KeyError, TypeError):
+        salary_day = 0
     ty_start = uk_tax_year_start(now_date).isoformat()
     ty_end = uk_tax_year_end(now_date).isoformat()
     ad_hoc = fetch_isa_contributions(uid, ty_start, ty_end)

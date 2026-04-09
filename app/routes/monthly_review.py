@@ -126,7 +126,10 @@ def monthly_review():
     assumptions = fetch_assumptions(uid)
 
     # Calculate the smart review-ready date for this month
-    salary_day = int(assumptions["salary_day"]) if assumptions and assumptions.get("salary_day") else 0
+    try:
+        salary_day = int(assumptions["salary_day"]) if assumptions and assumptions["salary_day"] else 0
+    except (KeyError, TypeError):
+        salary_day = 0
     mk_year, mk_month = [int(x) for x in month_key.split("-")]
     ready_date = calc_review_ready_date(mk_year, mk_month, salary_day) if salary_day else None
 
