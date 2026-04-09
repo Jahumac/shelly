@@ -4081,3 +4081,33 @@ a.link-accent:hover {
 .danger-eyebrow {
   color: #f87171 !important;
 }
+
+/* ── Monthly review nudge ────────────────────────────────────────────── */
+.review-nudge {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, transparent 100%);
+}
+
+/* ── Mini table (allowance breakdown, contribution history) ──────────── */
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.mini-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.mini-table td {
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.mini-table tbody tr:last-child td { border-bottom: none; }
+.mini-table tfoot td {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  font-weight: 600;
+}

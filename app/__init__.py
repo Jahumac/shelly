@@ -18,6 +18,7 @@ from .routes.monthly_review import monthly_review_bp
 from .routes.budget import budget_bp
 from .routes.export import export_bp
 from .routes.performance import performance_bp
+from .routes.allowance import allowance_bp
 
 
 def create_app():
@@ -55,6 +56,7 @@ def create_app():
     app.register_blueprint(budget_bp, url_prefix="/budget")
     app.register_blueprint(export_bp)
     app.register_blueprint(performance_bp, url_prefix="/performance")
+    app.register_blueprint(allowance_bp, url_prefix="/allowance")
 
     # ── Service worker (must be served from / for full scope) ──────────────
     @app.route('/sw.js')

@@ -5,16 +5,30 @@ from flask_login import current_user, login_required
 
 from app.calculations import (
     allowance_progress,
+    calculate_isa_usage,
     effective_account_value,
+    is_review_due,
     progress_to_goal,
     projected_total_retirement_value,
+    review_ready_date,
     tag_totals,
     total_invested,
     total_monthly_contributions,
     uk_tax_year_label,
+    uk_tax_year_start,
+    uk_tax_year_end,
     days_until_tax_year_end,
 )
-from app.models import fetch_all_accounts, fetch_allowance_tracking, fetch_assumptions, fetch_holding_totals_by_account, fetch_net_worth_history, fetch_primary_goal, fetch_daily_snapshots
+from app.models import (
+    fetch_all_accounts,
+    fetch_assumptions,
+    fetch_holding_totals_by_account,
+    fetch_isa_contributions,
+    fetch_net_worth_history,
+    fetch_or_create_monthly_review,
+    fetch_primary_goal,
+    fetch_daily_snapshots,
+)
 
 overview_bp = Blueprint("overview", __name__)
 
@@ -26,7 +40,6 @@ def overview():
     raw_accounts = fetch_all_accounts(uid)
     assumptions = fetch_assumptions(uid)
     goal = fetch_primary_goal(uid)
-    allowance = fetch_allowance_tracking(uid)
     holdings_totals = fetch_holding_totals_by_account(uid)
 
     accounts = []
@@ -43,13 +56,14 @@ def overview():
     goal_progress = progress_to_goal(invested_total, goal_target)
 
     current_tax_year = uk_tax_year_label()
-    if allowance and allowance["tax_year"] == current_tax_year:
-        base_isa_used = float(allowance["isa_used"])
-        lisa_used = float(allowance["lisa_used"])
-        isa_used = base_isa_used + lisa_used
-    else:
-        isa_used = 0
-        lisa_used = 0
+    now_date = datetime.now().date()
+    salary_day = int(assumptions["salary_day"]) if assumptions and assumptions.get("salary_day") else 0
+    ty_start = uk_tax_year_start(now_date).isoformat()
+    ty_end = uk_tax_year_end(now_date).isoformat()
+    ad_hoc = fetch_isa_contributions(uid, ty_start, ty_end)
+    isa_usage = calculate_isa_usage(raw_accounts, ad_hoc, now_date, salary_day)
+    isa_used = isa_usage["isa_used"]
+    lisa_used = isa_usage["lisa_used"]
 
     now = datetime.now()
 
@@ -68,10 +82,24 @@ def overview():
         "lisa_allowance": float(assumptions["lisa_allowance"]) if assumptions else 0,
         "isa_used": isa_used,
         "lisa_used": lisa_used,
+        "projected_isa": isa_usage["projected_isa"],
+        "projected_lisa": isa_usage["projected_lisa"],
         "isa_progress": allowance_progress(isa_used, float(assumptions["isa_allowance"]) if assumptions else 0),
         "lisa_progress": allowance_progress(lisa_used, float(assumptions["lisa_allowance"]) if assumptions else 0),
         "effective_values": {account["id"]: effective_account_value(account, holdings_totals) for account in accounts},
     }
+
+    # ── Monthly review nudge ──────────────────────────────────────────────────
+    current_month_key = now_date.strftime("%Y-%m")
+    review_nudge = False
+    review_ready = None
+    if salary_day:
+        review_due = is_review_due(now_date, salary_day)
+        if review_due:
+            review = fetch_or_create_monthly_review(current_month_key, uid)
+            if review["status"] != "complete":
+                review_nudge = True
+                review_ready = review_ready_date(now_date.year, now_date.month, salary_day)
 
     history = fetch_net_worth_history(uid)
     history_labels = [h[0] for h in history]
@@ -93,5 +121,7 @@ def overview():
         daily_labels=daily_labels,
         daily_values=daily_values,
         last_snapshot_date=last_snapshot_date,
+        review_nudge=review_nudge,
+        review_ready=review_ready,
         active_page="overview",
     )

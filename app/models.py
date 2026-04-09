@@ -177,6 +177,16 @@ CREATE TABLE IF NOT EXISTS contribution_overrides (
     FOREIGN KEY(account_id) REFERENCES accounts(id)
 );
 
+CREATE TABLE IF NOT EXISTS isa_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    amount REAL NOT NULL,
+    contribution_date TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     name TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -766,6 +776,52 @@ def fetch_allowance_tracking(user_id=None):
         return conn.execute(
             "SELECT * FROM allowance_tracking ORDER BY id DESC LIMIT 1"
         ).fetchone()
+
+
+# ── ISA ad-hoc contributions ─────────────────────────────────────────────────
+
+def add_isa_contribution(user_id, account_id, amount, contribution_date, note=None):
+    """Record an ad-hoc contribution to an ISA account."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO isa_contributions (user_id, account_id, amount, contribution_date, note)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, account_id, amount, contribution_date, note),
+        )
+        conn.commit()
+
+
+def fetch_isa_contributions(user_id, tax_year_start, tax_year_end):
+    """Return all ad-hoc ISA contributions for a user within a tax year window.
+
+    tax_year_start / tax_year_end are ISO date strings (YYYY-MM-DD),
+    e.g. '2026-04-06' / '2027-04-05'.
+    """
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT c.*, a.name AS account_name, a.wrapper_type
+            FROM isa_contributions c
+            JOIN accounts a ON a.id = c.account_id
+            WHERE c.user_id = ?
+              AND c.contribution_date >= ?
+              AND c.contribution_date <= ?
+            ORDER BY c.contribution_date DESC
+            """,
+            (user_id, tax_year_start, tax_year_end),
+        ).fetchall()
+
+
+def delete_isa_contribution(contribution_id, user_id):
+    """Delete an ad-hoc ISA contribution (only if it belongs to the user)."""
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM isa_contributions WHERE id = ? AND user_id = ?",
+            (contribution_id, user_id),
+        )
+        conn.commit()
 
 
 def fetch_or_create_monthly_review(month_key, user_id):

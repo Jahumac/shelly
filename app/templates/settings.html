@@ -98,27 +98,17 @@
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
         <span style="font-weight:600; font-size:0.95rem;">Monthly Update Timing</span>
-        <small class="form-hint" style="margin-top:-0.25rem;">Shelly uses these dates to nudge you at the right time</small>
+        <small class="form-hint" style="margin-top:-0.25rem;">Shelly uses this to calculate when your investments have settled and it's time to review</small>
       </label>
       <label>
-        <span>Salary day of month</span>
+        <span>Investment day of month</span>
         <select name="salary_day">
           <option value="0" {{ 'selected' if not assumptions or not assumptions.salary_day }}>Not set</option>
           {% for d in range(1, 32) %}
           <option value="{{ d }}" {{ 'selected' if assumptions and assumptions.salary_day == d }}>{{ d }}{{ 'st' if d in [1,21,31] else ('nd' if d in [2,22] else ('rd' if d in [3,23] else 'th')) }}</option>
           {% endfor %}
         </select>
-        <small class="form-hint">When does your salary arrive?</small>
-      </label>
-      <label>
-        <span>Best day to update</span>
-        <select name="update_day">
-          <option value="0" {{ 'selected' if not assumptions or not assumptions.update_day }}>Auto (salary + 5 days)</option>
-          {% for d in range(1, 32) %}
-          <option value="{{ d }}" {{ 'selected' if assumptions and assumptions.update_day == d }}>{{ d }}{{ 'st' if d in [1,21,31] else ('nd' if d in [2,22] else ('rd' if d in [3,23] else 'th')) }}</option>
-          {% endfor %}
-        </select>
-        <small class="form-hint">Leave on "Auto" and Shelly will calculate it from your salary day, or pick your own</small>
+        <small class="form-hint">The day your ISA contributions and standing orders go out — usually when your salary arrives or a day after. Shelly will figure out settlement times and weekends automatically.</small>
       </label>
     </div>
     <div class="badge-row mt-1">
@@ -164,12 +154,8 @@
       <strong>£{{ '{:,.0f}'.format(assumptions.lisa_allowance if assumptions else 4000) }}</strong>
     </div>
     <div class="hero-strip-stat">
-      <span>Salary day</span>
+      <span>Investment day</span>
       <strong>{{ (assumptions.salary_day ~ ('st' if assumptions.salary_day in [1,21,31] else ('nd' if assumptions.salary_day in [2,22] else ('rd' if assumptions.salary_day in [3,23] else 'th')))) if assumptions and assumptions.salary_day else 'Not set' }}</strong>
-    </div>
-    <div class="hero-strip-stat">
-      <span>Update day</span>
-      <strong>{{ (assumptions.update_day ~ ('st' if assumptions.update_day in [1,21,31] else ('nd' if assumptions.update_day in [2,22] else ('rd' if assumptions.update_day in [3,23] else 'th')))) if assumptions and assumptions.update_day else 'Not set' }}</strong>
     </div>
   </div>
 </section>

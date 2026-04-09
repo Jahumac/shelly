@@ -81,8 +81,8 @@
         <div class="guide-step-num">1</div>
         <div>
           <strong>Wait for investments to settle</strong>
-          <p>After your salary arrives{% if assumptions and assumptions.salary_day %} (around the {{ assumptions.salary_day }}{{ 'st' if assumptions.salary_day in [1,21,31] else ('nd' if assumptions.salary_day in [2,22] else ('rd' if assumptions.salary_day in [3,23] else 'th')) }}){% endif %}, give your regular investments 2–3 working days to settle before updating.
-          {% if assumptions and assumptions.update_day %} <strong>Your ideal update day: the {{ assumptions.update_day }}{{ 'st' if assumptions.update_day in [1,21,31] else ('nd' if assumptions.update_day in [2,22] else ('rd' if assumptions.update_day in [3,23] else 'th')) }}.</strong>{% endif %}</p>
+          <p>After your contributions go in{% if assumptions and assumptions.salary_day %} (around the {{ assumptions.salary_day }}{{ 'st' if assumptions.salary_day in [1,21,31] else ('nd' if assumptions.salary_day in [2,22] else ('rd' if assumptions.salary_day in [3,23] else 'th')) }}){% endif %}, Shelly allows a couple of business days for settlement.
+          {% if review_ready_date %} <strong>This month you're good to update from {{ review_ready_date.strftime('%-d %B') }}.</strong>{% endif %}</p>
         </div>
       </div>
       <div class="guide-step">
@@ -109,7 +109,7 @@
     </div>
     {% if not assumptions or not assumptions.salary_day %}
     <p class="helper-text mt-075">
-      <strong>Tip:</strong> Tell Shelly when your salary arrives in <a href="/settings/?mode=edit" class="link-accent">Settings</a> and he'll suggest the best day to do your monthly update.
+      <strong>Tip:</strong> Tell Shelly your investment day in <a href="/settings/?mode=edit" class="link-accent">Settings</a> and he'll figure out when your investments have settled and nudge you to do your monthly update.
     </p>
     {% endif %}
   </div>

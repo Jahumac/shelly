@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 
 def age_from_dob(dob_str, today=None):
@@ -568,3 +568,195 @@ def uk_tax_year_end(today=None):
 def days_until_tax_year_end(today=None):
     today = today or date.today()
     return max((uk_tax_year_end(today) - today).days, 0)
+
+
+def uk_tax_year_start(today=None):
+    """Return the start date (April 6) of the current UK tax year."""
+    today = today or date.today()
+    start_year = today.year if (today.month > 4 or (today.month == 4 and today.day >= 6)) else today.year - 1
+    return date(start_year, 4, 6)
+
+
+def months_in_tax_year(today=None, salary_day=0):
+    """Return the number of monthly ISA contributions that have gone through
+    in the current UK tax year.
+
+    salary_day: day of month when salary/contributions go in (1-28).
+        If >= 6: April's contribution falls in the new tax year.
+        If < 6 (or 0/unset): April's contribution is in the OLD tax year,
+        so the first new-year contribution is May.
+        Also, the current month only counts if salary_day has passed.
+
+    E.g. salary_day=15, today=9 Apr 2026 → 0 (April contribution hasn't
+    gone through yet).
+    salary_day=1, today=9 Apr 2026 → 0 (April 1 was still old tax year).
+    salary_day=10, today=15 Apr 2026 → 1 (April 10 is new tax year & has passed).
+    """
+    today = today or date.today()
+    start = uk_tax_year_start(today)
+    contribution_day = salary_day if salary_day >= 1 else 1
+
+    # Determine the first month whose contribution belongs to this tax year
+    if contribution_day >= 6:
+        first_year, first_month = start.year, start.month  # April
+    else:
+        # Contribution on 1st-5th April belongs to OLD tax year → starts May
+        first_year = start.year
+        first_month = start.month + 1
+        if first_month > 12:
+            first_month = 1
+            first_year += 1
+
+    count = 0
+    y, m = first_year, first_month
+    while (y < today.year) or (y == today.year and m <= today.month):
+        if y < today.year or (y == today.year and m < today.month):
+            # Past month — contribution definitely happened
+            count += 1
+        elif y == today.year and m == today.month:
+            # Current month — only count if contribution day has passed
+            if today.day >= contribution_day:
+                count += 1
+        # Advance to next month
+        if m == 12:
+            y, m = y + 1, 1
+        else:
+            m += 1
+
+    return count
+
+
+def full_year_contribution_months(salary_day=0):
+    """Return the number of monthly contributions in a full tax year (11 or 12).
+
+    If salary_day < 6: April's contribution belongs to the old tax year,
+    so only 11 contribution months fall in the new year (May-March).
+    Otherwise 12 (April-March).
+    """
+    contribution_day = salary_day if salary_day >= 1 else 1
+    return 12 if contribution_day >= 6 else 11
+
+
+def review_ready_date(year, month, salary_day=0):
+    """Calculate the date when investments should be settled and the monthly
+    review is ready to do, for a given month.
+
+    Logic:
+    1. Start with the salary/investment day for that month.
+    2. If it falls on a weekend, shift to the preceding Friday
+       (banks pay early, standing orders move earlier).
+    3. Add 2 business days for settlement.
+
+    Returns a date object.
+    """
+    import calendar
+
+    contribution_day = salary_day if salary_day >= 1 else 1
+    # Clamp to actual days in the month (e.g. Feb 28)
+    max_day = calendar.monthrange(year, month)[1]
+    contribution_day = min(contribution_day, max_day)
+
+    d = date(year, month, contribution_day)
+
+    # If salary day is on a weekend, shift to the preceding Friday
+    wd = d.weekday()  # 0=Mon .. 6=Sun
+    if wd == 5:       # Saturday → Friday
+        d = d - timedelta(days=1)
+    elif wd == 6:     # Sunday → Friday
+        d = d - timedelta(days=2)
+
+    # Add 2 business days for settlement
+    days_added = 0
+    while days_added < 2:
+        d = d + timedelta(days=1)
+        if d.weekday() < 5:  # Mon-Fri
+            days_added += 1
+
+    return d
+
+
+def is_review_due(today, salary_day=0):
+    """Check whether the monthly review is due for the current month.
+
+    Returns True if today is on or after the review-ready date.
+    """
+    ready = review_ready_date(today.year, today.month, salary_day)
+    return today >= ready
+
+
+ISA_WRAPPER_TYPES = {"Stocks & Shares ISA", "Cash ISA", "Lifetime ISA"}
+LISA_WRAPPER_TYPES = {"Lifetime ISA"}
+
+
+def calculate_isa_usage(accounts, ad_hoc_contributions, today=None, salary_day=0):
+    """Auto-calculate ISA and LISA usage for the current tax year.
+
+    accounts: list of account dicts (need wrapper_type, monthly_contribution)
+    ad_hoc_contributions: list of isa_contributions rows (need wrapper_type, amount)
+    salary_day: day of month when contributions go in (affects April handling)
+
+    Returns dict with keys: isa_used, lisa_used, monthly_isa, monthly_lisa,
+    adhoc_isa, adhoc_lisa, projected_isa, projected_lisa, breakdown.
+    """
+    today = today or date.today()
+    months = months_in_tax_year(today, salary_day)
+    total_months = full_year_contribution_months(salary_day)
+
+    monthly_isa = 0.0
+    monthly_lisa = 0.0
+    projected_monthly_isa = 0.0
+    projected_monthly_lisa = 0.0
+    breakdown = []
+
+    for acc in accounts:
+        wt = acc.get("wrapper_type") or ""
+        if wt not in ISA_WRAPPER_TYPES:
+            continue
+        monthly = float(acc.get("monthly_contribution") or 0)
+        total = monthly * months
+        projected = monthly * total_months
+        entry = {
+            "account_id": acc["id"],
+            "account_name": acc["name"],
+            "wrapper_type": wt,
+            "monthly_contribution": monthly,
+            "months": months,
+            "monthly_total": total,
+            "adhoc_total": 0.0,
+            "projected_total": projected,
+        }
+        monthly_isa += total
+        projected_monthly_isa += projected
+        if wt in LISA_WRAPPER_TYPES:
+            monthly_lisa += total
+            projected_monthly_lisa += projected
+        breakdown.append(entry)
+
+    # Sum ad-hoc contributions
+    adhoc_isa = 0.0
+    adhoc_lisa = 0.0
+    for c in ad_hoc_contributions:
+        amt = float(c["amount"])
+        wt = c.get("wrapper_type") or ""
+        adhoc_isa += amt
+        if wt in LISA_WRAPPER_TYPES:
+            adhoc_lisa += amt
+        # Add to breakdown
+        for entry in breakdown:
+            if entry["account_id"] == c["account_id"]:
+                entry["adhoc_total"] += amt
+                break
+
+    return {
+        "isa_used": monthly_isa + adhoc_isa,
+        "lisa_used": monthly_lisa + adhoc_lisa,
+        "monthly_isa": monthly_isa,
+        "monthly_lisa": monthly_lisa,
+        "adhoc_isa": adhoc_isa,
+        "adhoc_lisa": adhoc_lisa,
+        "projected_isa": projected_monthly_isa + adhoc_isa,
+        "projected_lisa": projected_monthly_lisa + adhoc_lisa,
+        "months": months,
+        "total_months": total_months,
+        "breakdown": breakdown,
+    }

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}ISA Allowance · Shelly{% endblock %}
+{% block content %}
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Tax Year {{ tax_year }}</p>
+      <h2>ISA Allowance</h2>
+    </div>
+    <a class="badge" href="/">Back to Overview</a>
+  </div>
+</section>
+
+{# ── Allowance Summary ──────────────────────────────────────────────────── #}
+<section class="card-grid allowance-grid mb-1">
+  <div class="card allowance-card">
+    <h2>ISA Allowance</h2>
+    <p>£{{ '{:,.0f}'.format(usage.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(isa_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (isa_progress * 100)|round(1) }}%;"></div></div>
+    <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
+    {% if usage.projected_isa != usage.isa_used %}
+    <small style="display:block; margin-top:0.25rem; color:var(--muted);">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
+    {% endif %}
+  </div>
+  <div class="card allowance-card">
+    <h2>LISA Allowance</h2>
+    <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (lisa_progress * 100)|round(1) }}%;"></div></div>
+    <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
+  </div>
+</section>
+
+{# ── How it's calculated ────────────────────────────────────────────────── #}
+<section class="card mb-1">
+  <h2>Breakdown</h2>
+  <p class="helper-text" style="margin-bottom: 1rem;">
+    Shelly calculates your ISA usage from {{ usage.months }} month{{ 's' if usage.months != 1 }} of regular contributions so far
+    ({{ usage.total_months }} months in the full tax year)
+    plus any one-off top-ups you record below.
+    {% if usage.months == 0 %}
+    <br>No contributions have gone through yet for this tax year — check your salary day in <a href="/settings/?mode=edit">Settings</a>.
+    {% endif %}
+  </p>
+  {% if usage.breakdown %}
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Account</th>
+        <th>Type</th>
+        <th style="text-align:right">Monthly</th>
+        <th style="text-align:right">× {{ usage.months }} mo</th>
+        <th style="text-align:right">Top-ups</th>
+        <th style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in usage.breakdown %}
+      <tr>
+        <td>{{ b.account_name }}</td>
+        <td><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
+        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_contribution) }}</td>
+        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
+        <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(b.monthly_total + b.adhoc_total) }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4"></td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(usage.adhoc_isa) }}</strong></td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(usage.isa_used) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+  {% else %}
+  <p class="helper-text">No ISA accounts found. Add a Stocks &amp; Shares ISA, Cash ISA, or Lifetime ISA account to start tracking.</p>
+  {% endif %}
+</section>
+
+{# ── Record a top-up ────────────────────────────────────────────────────── #}
+<section class="card mb-1" id="topup">
+  <h2>Record a Top-up</h2>
+  <p class="helper-text" style="margin-bottom: 1rem;">
+    Made a one-off transfer into an ISA outside your regular monthly contribution? Log it here so Shelly can keep your allowance accurate.
+  </p>
+  {% if isa_accounts %}
+  <form method="post" action="/allowance/add" class="form-grid">
+    <label>
+      <span>Account</span>
+      <select name="account_id" required>
+        <option value="">Choose an ISA account…</option>
+        {% for acc in isa_accounts %}
+        <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.wrapper_type }})</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Amount (£)</span>
+      <input type="number" name="amount" step="0.01" min="0.01" placeholder="200.00" required>
+    </label>
+    <label>
+      <span>Date</span>
+      <input type="date" name="contribution_date" value="{{ today }}">
+    </label>
+    <label class="form-full-col">
+      <span>Note (optional)</span>
+      <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
+    </label>
+    <div class="form-full-col">
+      <button type="submit" class="badge" style="cursor:pointer;">Record Top-up</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="helper-text">You don't have any ISA accounts yet. Create one under <a href="/accounts/">Accounts</a> first.</p>
+  {% endif %}
+</section>
+
+{# ── Top-up history ─────────────────────────────────────────────────────── #}
+{% if contributions %}
+<section class="card mb-1">
+  <h2>Top-up History ({{ tax_year }})</h2>
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Account</th>
+        <th style="text-align:right">Amount</th>
+        <th>Note</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contributions %}
+      <tr>
+        <td>{{ c.contribution_date }}</td>
+        <td>{{ c.account_name }}</td>
+        <td style="text-align:right">£{{ '{:,.2f}'.format(c.amount) }}</td>
+        <td>{{ c.note or '–' }}</td>
+        <td style="text-align:right">
+          <form method="post" action="/allowance/delete/{{ c.id }}" style="display:inline">
+            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% endblock %}

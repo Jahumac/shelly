@@ -3,7 +3,7 @@ from datetime import date, datetime
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from app.calculations import effective_account_value
+from app.calculations import effective_account_value, review_ready_date as calc_review_ready_date
 from app.models import (
     ensure_monthly_review_items,
     fetch_account,
@@ -125,6 +125,11 @@ def monthly_review():
 
     assumptions = fetch_assumptions(uid)
 
+    # Calculate the smart review-ready date for this month
+    salary_day = int(assumptions["salary_day"]) if assumptions and assumptions.get("salary_day") else 0
+    mk_year, mk_month = [int(x) for x in month_key.split("-")]
+    ready_date = calc_review_ready_date(mk_year, mk_month, salary_day) if salary_day else None
+
     return render_template(
         "monthly_review.html",
         review=review,
@@ -135,6 +140,7 @@ def monthly_review():
         contribution_items=contribution_items,
         holdings_by_account=holdings_by_account,
         assumptions=assumptions,
+        review_ready_date=ready_date,
         active_page="monthly_review",
     )
 

@@ -26,7 +26,7 @@
       <span class="onboarding-check">{% if has_profile %}✓{% else %}1{% endif %}</span>
       <div>
         <strong>Tell Shelly about yourself</strong>
-        <small>Date of birth, retirement age, salary day — so projections actually mean something.</small>
+        <small>Date of birth, retirement age, investment day — so projections actually mean something.</small>
       </div>
     </a>
     <a href="/accounts/?mode=create" class="onboarding-step {% if has_accounts %}onboarding-done{% endif %}">
@@ -50,6 +50,23 @@
         <small>This is how Shelly tracks your progress over time.</small>
       </div>
     </a>
+  </div>
+</section>
+{% endif %}
+
+{# ── Monthly review nudge ────────────────────────────────────────────────── #}
+{% if review_nudge %}
+<section class="card review-nudge mb-1">
+  <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+    <span style="font-size:1.5rem;">🐢</span>
+    <div style="flex:1; min-width:200px;">
+      <strong>Your investments should be settled by now</strong>
+      <p class="helper-text" style="margin:0.15rem 0 0;">
+        {% if review_ready %}Ready since {{ review_ready.strftime('%-d %B') }}.{% endif %}
+        Time to check your holdings and lock in this month's numbers.
+      </p>
+    </div>
+    <a href="/monthly-review/" class="badge badge-primary-action">Do monthly review</a>
   </div>
 </section>
 {% endif %}
@@ -172,6 +189,13 @@
     <p>£{{ '{:,.0f}'.format(metrics.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(metrics.isa_allowance) }}</span></p>
     <div class="progress"><div class="progress-bar" style="width: {{ (metrics.isa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(metrics.isa_progress * 100) }}% used · includes LISA · {{ metrics.tax_year_days_left }} days left in tax year</small>
+    {% if metrics.projected_isa != metrics.isa_used %}
+    <small style="display:block; margin-top:0.25rem; color:var(--muted);">On track: £{{ '{:,.0f}'.format(metrics.projected_isa) }} / £{{ '{:,.0f}'.format(metrics.isa_allowance) }} by end of tax year</small>
+    {% endif %}
+    <div style="margin-top: 0.5rem;">
+      <a href="/allowance/" class="badge badge-sm">View breakdown</a>
+      <a href="/allowance/#topup" class="badge badge-sm" style="margin-left: 0.25rem;">Record top-up</a>
+    </div>
   </div>
   <div class="card allowance-card">
     <h2>LISA Allowance {{ metrics.tax_year }}</h2>
