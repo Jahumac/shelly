@@ -8,6 +8,7 @@ LSE-listed instruments, returning a dict or None if nothing is found.
 
 Install dependency:  pip install yfinance>=0.2.0
 """
+import urllib.parse
 from datetime import datetime, timezone
 
 YFINANCE_AVAILABLE = False
@@ -105,6 +106,37 @@ def _try_ticker(symbol: str):
         return None
 
 
+def _search_yahoo(query: str):
+    """Search Yahoo Finance for a symbol by query string.
+
+    Returns the best matching LSE symbol, or None.
+    """
+    import urllib.request
+    import json
+
+    try:
+        encoded = urllib.parse.quote(query)
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={encoded}&quotesCount=6&newsCount=0"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+        quotes = data.get("quotes", [])
+
+        # Prefer London-listed results
+        for q in quotes:
+            sym = q.get("symbol", "")
+            if sym.endswith(".L"):
+                return sym
+
+        # Otherwise return the first equity/ETF match
+        for q in quotes:
+            if q.get("quoteType") in ("ETF", "EQUITY", "MUTUALFUND"):
+                return q.get("symbol")
+    except Exception:
+        pass
+    return None
+
+
 def fetch_price(ticker: str):
     """Fetch the current price for a ticker.
 
@@ -113,6 +145,8 @@ def fetch_price(ticker: str):
     2. If it doesn't end with .L, also try ticker + ".L" (London Stock Exchange).
     3. If both return results, prefer the .L version when it's priced in
        GBP or GBp — that's almost certainly the one a UK user wants.
+    4. If nothing works, search Yahoo Finance by name/ticker and try
+       the best match (handles renamed or ISIN-based symbols).
     Returns a dict with keys: price, currency, change_pct, yf_symbol
     or None if the price cannot be fetched.
     """
@@ -139,6 +173,15 @@ def fetch_price(ticker: str):
     if lse_result:
         lse_result["yf_symbol"] = ticker + ".L"
         return lse_result
+
+    # Last resort: search Yahoo Finance for the symbol
+    found_symbol = _search_yahoo(ticker)
+    if found_symbol and found_symbol.upper() != ticker:
+        search_result = _try_ticker(found_symbol)
+        if search_result:
+            search_result["yf_symbol"] = found_symbol
+            print(f"[Shelly] ${ticker} resolved via search → {found_symbol}", flush=True)
+            return search_result
 
     return None
 

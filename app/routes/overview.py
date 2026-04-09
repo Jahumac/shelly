@@ -24,6 +24,7 @@ from app.models import (
     fetch_assumptions,
     fetch_holding_totals_by_account,
     fetch_isa_contributions,
+    fetch_latest_price_update,
     fetch_net_worth_history,
     fetch_or_create_monthly_review,
     fetch_primary_goal,
@@ -113,6 +114,7 @@ def overview():
     daily_labels = [d[0] for d in daily_snapshots]
     daily_values = [round(d[1], 2) for d in daily_snapshots]
     last_snapshot_date = daily_labels[-1] if daily_labels else None
+    last_price_update = fetch_latest_price_update(uid)
 
     return render_template(
         "overview.html",
@@ -124,6 +126,7 @@ def overview():
         daily_labels=daily_labels,
         daily_values=daily_values,
         last_snapshot_date=last_snapshot_date,
+        last_price_update=last_price_update,
         review_nudge=review_nudge,
         review_ready=review_ready,
         active_page="overview",

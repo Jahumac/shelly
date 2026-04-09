@@ -624,6 +624,9 @@
             <p class="eyebrow">Positions</p>
             <h3>Holdings</h3>
           </div>
+          {% if positions %}
+          <button type="button" class="badge badge-meta" id="refresh-account-prices" title="Fetch latest prices from Yahoo Finance">↻ Refresh prices</button>
+          {% endif %}
         </div>
         {% if positions %}
           {# ── Desktop: full table ── #}
@@ -648,7 +651,10 @@
                   </td>
                   <td>{{ position.bucket or '' }}</td>
                   <td class="num">{{ '{:,.4f}'.format(position.units or 0) }}</td>
-                  <td class="num">£{{ '{:,.4f}'.format(position.price or 0) }}</td>
+                  <td class="num">
+                    £{{ '{:,.4f}'.format(position.price or 0) }}
+                    {% if position.price_updated_at %}<br><small class="text-muted">{{ position.price_updated_at[:16] }}</small>{% endif %}
+                  </td>
                   <td class="num">£{{ '{:,.2f}'.format(position.value or 0) }}</td>
                   <td class="text-right text-nowrap">
                     <div class="badge-row badge-row-end">
@@ -683,7 +689,7 @@
               </div>
               <div class="holding-card-stats">
                 <div><span>Units</span><strong>{{ '{:,.4f}'.format(position.units or 0) }}</strong></div>
-                <div><span>Price</span><strong>£{{ '{:,.4f}'.format(position.price or 0) }}</strong></div>
+                <div><span>Price</span><strong>£{{ '{:,.4f}'.format(position.price or 0) }}</strong>{% if position.price_updated_at %}<br><small class="text-muted">{{ position.price_updated_at[:16] }}</small>{% endif %}</div>
                 {% if position.bucket %}<div><span>Bucket</span><strong>{{ position.bucket }}</strong></div>{% endif %}
               </div>
               <div class="holding-card-actions">
@@ -1933,6 +1939,30 @@
   document.querySelectorAll('.tag-delete').forEach(function(btn) {
     btn.addEventListener('click', handleDeleteTag);
   });
+
+  /* ── Refresh prices button ────────────────────────────────────────────── */
+  var refreshBtn = document.getElementById('refresh-account-prices');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', function() {
+      refreshBtn.textContent = '↻ Updating…';
+      refreshBtn.disabled = true;
+      fetch('/holdings/api/trigger-price-update', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            refreshBtn.textContent = '✓ Updated';
+            setTimeout(function() { location.reload(); }, 800);
+          } else {
+            refreshBtn.textContent = '✕ ' + (data.message || 'Failed');
+            setTimeout(function() { refreshBtn.textContent = '↻ Refresh prices'; refreshBtn.disabled = false; }, 3000);
+          }
+        })
+        .catch(function() {
+          refreshBtn.textContent = '✕ Error';
+          setTimeout(function() { refreshBtn.textContent = '↻ Refresh prices'; refreshBtn.disabled = false; }, 3000);
+        });
+    });
+  }
 })();
 </script>
 {% endblock %}

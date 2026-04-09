@@ -778,6 +778,16 @@ def fetch_allowance_tracking(user_id=None):
         ).fetchone()
 
 
+def fetch_latest_price_update(user_id):
+    """Return the most recent price_updated_at timestamp across all catalogue items."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT MAX(price_updated_at) AS latest FROM holding_catalogue WHERE user_id = ? AND price_updated_at IS NOT NULL",
+            (user_id,),
+        ).fetchone()
+        return row["latest"] if row else None
+
+
 # ── ISA ad-hoc contributions ─────────────────────────────────────────────────
 
 def add_isa_contribution(user_id, account_id, amount, contribution_date, note=None):
@@ -1340,10 +1350,11 @@ def fetch_holdings_for_account(account_id):
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT *
-            FROM holdings
-            WHERE account_id = ?
-            ORDER BY holding_name, id
+            SELECT h.*, hc.price_updated_at, hc.price_change_pct AS catalogue_change_pct
+            FROM holdings h
+            LEFT JOIN holding_catalogue hc ON hc.id = h.holding_catalogue_id
+            WHERE h.account_id = ?
+            ORDER BY h.holding_name, h.id
             """,
             (account_id,),
         ).fetchall()
