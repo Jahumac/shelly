@@ -1,22 +1,30 @@
 {% extends 'base.html' %}
-{% block title %}Budget Items · Shelly{% endblock %}
+{% block title %}Edit Budget · Shelly{% endblock %}
 {% block content %}
 
-<section class="card mb-1">
-  <div class="section-header">
+<nav class="subnav">
+  <a href="/budget/">Budget Plan</a>
+  <a href="/budget/items/" class="subnav-active">Edit Budget</a>
+  <a href="/monthly-review/">Monthly Update</a>
+</nav>
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
+<section class="card highlight mb-1">
+  <div class="hero-top">
     <div>
-      <p class="eyebrow">Budget Items</p>
-      <h2>Manage Budget Items</h2>
+      <p class="eyebrow">Edit Budget</p>
+      <h2 class="hero-value">Manage Items & Sections</h2>
+      <p class="hero-subtitle">Add, edit, or remove your budget items and sections. Changes here apply to all months.</p>
     </div>
-    <div class="badge-row">
-      <a class="badge" href="/budget/items/?mode=create">Add item</a>
-      <a class="badge" href="/budget/items/?mode=add_section">Add section</a>
-      <a class="badge" href="/budget/">Back to budget</a>
+    <div class="badge-row badge-row-end">
+      <a class="badge" href="/budget/items/?mode=create">+ Add Item</a>
+      <a class="badge badge-sm" href="/budget/items/?mode=add_section">+ Add Section</a>
+      <a class="badge badge-sm" href="/budget/">Back to Budget</a>
     </div>
   </div>
-  <p class="helper-text">Shelly's filing cabinet — organise your income, expenses, and savings into sections. Everything here feeds into your monthly budget.</p>
 </section>
 
+{# ── Modal forms (add section / create item / edit item / edit section) ──── #}
 {% if page_mode == 'add_section' %}
 <section class="card mb-1">
   <div class="section-header">
@@ -64,7 +72,7 @@
           <option value="{{ account.id }}">{{ account.name }}</option>
           {% endfor %}
         </select>
-        <small class="form-hint">Link to an account and Shelly pulls the monthly contribution from that account into your budget. Update the amount on the account page and it flows through here automatically. You can still override it for any individual month in the budget view.</small>
+        <small class="form-hint">Link to an account and Shelly pulls the monthly contribution automatically.</small>
       </label>
       <label class="form-full-col"><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
     </div>
@@ -101,7 +109,6 @@
           <option value="{{ account.id }}" {% if selected.linked_account_id == account.id %}selected{% endif %}>{{ account.name }}</option>
           {% endfor %}
         </select>
-        <small class="form-hint">Shelly pulls the amount from this account's monthly contribution. Change it on the account page and it updates here too. You can still override for any individual month.</small>
       </label>
       <label class="form-full-col"><span>Notes</span><input type="text" name="notes" value="{{ selected.notes or '' }}"></label>
     </div>
@@ -148,52 +155,55 @@
 </section>
 {% endif %}
 
+{# ── Section colour map (same as budget view) ───────────────────────────── #}
+{% set section_colors = {
+  'income': '--accent-2',
+  'fixed': '--accent',
+  'debt': '--accent-6',
+  'investment': '--accent-5',
+  'saving': '--accent-5',
+  'discretionary': '--accent-3'
+} %}
+
+{# ── Sections (same card style as budget view) ──────────────────────────── #}
 {% for group in grouped %}
-<section class="card mb-1">
+{% set sec_color = section_colors.get(group.key, '--accent-7') %}
+<section class="panel mb-1 budget-section-panel" style="--sec-color: var({{ sec_color }})">
   <div class="section-header">
     <div>
-      <h2>{{ group.label }}</h2>
+      <p class="eyebrow" style="color: var({{ sec_color }})">{{ group.key | replace('_', ' ') | upper }}</p>
+      <h3>{{ group.label }}</h3>
     </div>
     <div class="badge-row">
-      <a class="badge" href="/budget/items/?mode=edit_section&section_key={{ group.key }}&section_label={{ group.label | urlencode }}">Rename / delete</a>
+      <a class="badge badge-sm" href="/budget/items/?mode=create&section={{ group.key }}">+ Add item</a>
+      <a class="badge badge-sm" href="/budget/items/?mode=edit_section&section_key={{ group.key }}&section_label={{ group.label | urlencode }}">Rename / delete</a>
     </div>
   </div>
 
   {% if group.rows %}
-  <div class="responsive-table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Notes</th>
-          <th>Linked account</th>
-          <th class="align-right">Default</th>
-          <th class="align-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in group.rows %}
-        <tr {% if selected and selected.id == item.id %}class="row-selected"{% endif %}>
-          <td><strong>{{ item.name }}</strong></td>
-          <td class="muted-cell">{{ item.notes or '—' }}</td>
-          <td class="muted-cell">{{ item.linked_account_name or '—' }}</td>
-          <td class="align-right">£{{ '{:,.2f}'.format(item.default_amount or 0) }}</td>
-          <td class="align-right">
-            <span class="badge-row flex-end">
-              <a class="badge" href="/budget/items/?item_id={{ item.id }}&mode=edit">Edit</a>
-              <form method="post" action="/budget/items/{{ item.id }}" class="form-contents">
-                <input type="hidden" name="form_name" value="delete">
-                <button type="submit" class="badge badge-danger" data-confirm="Remove {{ item.name }} from your budget?" data-confirm-title="Delete budget item?" data-confirm-ok="Yes, remove it" data-confirm-cancel="Keep it">Delete</button>
-              </form>
-            </span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="budget-rows">
+    {% for item in group.rows %}
+    <div class="budget-row {% if selected and selected.id == item.id %}budget-row-selected{% endif %}">
+      <div class="budget-row-left">
+        <span class="budget-row-name">{{ item.name }}</span>
+        {% if item.linked_account_name %}<span class="budget-pill">linked</span>{% endif %}
+        {% if item.notes %}<span class="budget-row-note">{{ item.notes }}</span>{% endif %}
+      </div>
+      <div class="budget-row-right">
+        <span class="budget-row-default">£{{ '{:,.2f}'.format(item.default_amount or 0) }}</span>
+        <span class="badge-row budget-row-actions">
+          <a class="badge badge-sm" href="/budget/items/?item_id={{ item.id }}&mode=edit">Edit</a>
+          <form method="post" action="/budget/items/{{ item.id }}" class="form-contents">
+            <input type="hidden" name="form_name" value="delete">
+            <button type="submit" class="badge badge-sm badge-danger" data-confirm="Remove {{ item.name }} from your budget?" data-confirm-title="Delete budget item?" data-confirm-ok="Yes, remove it" data-confirm-cancel="Keep it">Delete</button>
+          </form>
+        </span>
+      </div>
+    </div>
+    {% endfor %}
   </div>
   {% else %}
-  <p class="helper-text">Empty section — Shelly's waiting for you to <a href="/budget/items/?mode=create" class="link-accent">add an item</a>.</p>
+  <p class="helper-text">Empty section — <a href="/budget/items/?mode=create&section={{ group.key }}" class="link-accent">add an item</a> and Shelly will start tracking it.</p>
   {% endif %}
 </section>
 {% endfor %}

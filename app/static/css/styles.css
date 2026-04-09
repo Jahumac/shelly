@@ -1936,6 +1936,22 @@ button.badge-like-button {
   border-top: 3px solid var(--sec-color, var(--accent));
 }
 
+/* ── Edit Budget page — row actions + default amount ─────────────── */
+.budget-row-default {
+  font-size: 0.88rem;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-right: 0.5rem;
+}
+.budget-row-actions {
+  gap: 0.35rem !important;
+  flex-shrink: 0;
+}
+.budget-row-selected {
+  border-color: var(--accent);
+  background: rgba(56,189,248,0.06);
+}
+
 /* ── Budget toolbar (Edit Budget + Export + Import) ──────────────── */
 .budget-toolbar {
   display: flex;

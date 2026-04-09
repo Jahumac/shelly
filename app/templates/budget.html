@@ -17,7 +17,7 @@
       {% if is_inherited %}
       <p class="hero-subtitle budget-inherited-note">Shelly carried everything forward from your last saved month — tweak any number to make this month your own.</p>
       {% elif sections | length == 0 %}
-      <p class="hero-subtitle">Your budget is a blank canvas! Head to <a href="/budget/items/" class="link-accent">Edit Budget</a> to tell Shelly what to track.</p>
+      <p class="hero-subtitle">Your budget is a blank canvas! Hit <a href="/budget/items/" class="link-accent">Edit Budget</a> to tell Shelly what to track.</p>
       {% else %}
       <p class="hero-subtitle">Here's where the money goes — Shelly keeps score so you don't have to.</p>
       {% endif %}
@@ -136,7 +136,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="helper-text">Nothing here yet — use <a href="/budget/items/?mode=create" class="link-accent">Edit Budget</a> to add items.</p>
+  <p class="helper-text">Nothing here yet — <a href="/budget/items/?mode=create&section={{ section.key }}" class="link-accent">+ Add item</a></p>
   {% endif %}
 </section>
 {% endfor %}
