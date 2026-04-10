@@ -1420,6 +1420,7 @@ button.badge-like-button {
 .chart-wrap {
   position: relative;
   width: 100%;
+  overflow: hidden;
 }
 
 .chart-wrap canvas {
