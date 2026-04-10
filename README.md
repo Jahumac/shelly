@@ -251,16 +251,6 @@ Shelly uses Flask-Login for authentication with hashed passwords. It's designed 
 
 ---
 
-## Roadmap
-
-- [ ] Multi-currency support
-- [ ] Benchmark comparisons (e.g. vs FTSE All-World)
-- [ ] Import/export full database backup
-- [ ] Dividend tracking
-- [ ] Dark/light theme toggle
-
----
-
 ## Contributing
 
 Shelly is a personal project shared for others to use and learn from. If you find a bug or have a feature idea, feel free to open an issue. Pull requests are welcome.
