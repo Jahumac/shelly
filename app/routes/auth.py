@@ -70,7 +70,9 @@ def login():
         else:
             login_user(user, remember=True)
             next_url = request.args.get("next")
-            return redirect(next_url or url_for("overview.overview"))
+            if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+                return redirect(next_url)
+            return redirect(url_for("overview.overview"))
 
     return render_template("auth/login.html", error=error, version=__version__)
 

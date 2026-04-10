@@ -40,7 +40,7 @@ def init_scheduler(app):
         return scheduler
 
     # In development with Werkzeug reloader, only start in the reloader process
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'false':
+    if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return None
 
     # Use a file lock to ensure only one worker starts the scheduler

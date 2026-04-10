@@ -8,23 +8,14 @@
  *  - Images/fonts: Cache-first, long-lived
  */
 
-const CACHE_NAME = 'shelly-v2';
-const OFFLINE_PAGE = '/offline';
+const CACHE_NAME = 'shelly-v2.1.3.1';
 
 /* App shell files to pre-cache on install */
 const APP_SHELL = [
-  '/',
-  '/accounts/',
-  '/budget/',
-  '/goals/',
-  '/projections/',
-  '/performance/',
-  '/settings/',
-  '/monthly-review/',
-  '/holdings/',
   '/static/css/styles.css',
   '/static/js/charts.js',
   '/static/manifest.json',
+  '/static/icons/icon-180.png',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
 ];
