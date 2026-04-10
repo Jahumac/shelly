@@ -123,10 +123,10 @@
     Made a one-off transfer into an ISA outside your regular monthly contribution? Log it here so Shelly can keep your allowance accurate.
   </p>
   {% if isa_accounts %}
-  <form method="post" action="/allowance/add" class="allowance-form">
+  <form method="post" action="/allowance/add" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="allowance-form-row">
-      <label class="allowance-form-field allowance-form-field-grow">
+    <div class="form-grid">
+      <label>
         <span>Account</span>
         <select name="account_id" required>
           <option value="">Choose an ISA account…</option>
@@ -135,21 +135,21 @@
           {% endfor %}
         </select>
       </label>
-      <label class="allowance-form-field">
+      <label>
         <span>Amount (£)</span>
         <input type="number" name="amount" step="0.01" min="0.01" placeholder="200.00" required>
       </label>
-      <label class="allowance-form-field">
+      <label>
         <span>Date</span>
         <input type="date" name="contribution_date" value="{{ today }}">
       </label>
+      <label class="form-full-col">
+        <span>Note (optional)</span>
+        <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
+      </label>
     </div>
-    <label class="allowance-form-field" style="margin-top: 0.75rem;">
-      <span>Note (optional)</span>
-      <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
-    </label>
-    <div style="margin-top: 1rem;">
-      <button type="submit" class="badge badge-primary-action" style="cursor:pointer;">Record Top-up</button>
+    <div class="row-end" style="margin-top: 1rem;">
+      <button type="submit">Record top-up</button>
     </div>
   </form>
   {% else %}
@@ -257,10 +257,10 @@
     </div>
   </div>
   {% if pension_accounts %}
-  <form method="post" action="/allowance/pension/add" class="allowance-form">
+  <form method="post" action="/allowance/pension/add" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="allowance-form-row">
-      <label class="allowance-form-field allowance-form-field-grow">
+    <div class="form-grid">
+      <label>
         <span>Account</span>
         <select name="account_id" required>
           <option value="">Choose a pension account…</option>
@@ -269,28 +269,28 @@
           {% endfor %}
         </select>
       </label>
-      <label class="allowance-form-field">
+      <label>
         <span>Type</span>
         <select name="kind">
           <option value="personal">Personal</option>
           <option value="employer">Employer</option>
         </select>
       </label>
-      <label class="allowance-form-field">
+      <label>
         <span>Amount (£, gross)</span>
         <input type="number" name="amount" step="0.01" min="0.01" placeholder="1000.00" required>
       </label>
-      <label class="allowance-form-field">
+      <label>
         <span>Date</span>
         <input type="date" name="contribution_date" value="{{ today }}">
       </label>
+      <label class="form-full-col">
+        <span>Note (optional)</span>
+        <input type="text" name="note" placeholder="e.g. Bonus into SIPP">
+      </label>
     </div>
-    <label class="allowance-form-field" style="margin-top: 0.75rem;">
-      <span>Note (optional)</span>
-      <input type="text" name="note" placeholder="e.g. Bonus into SIPP">
-    </label>
-    <div style="margin-top: 1rem;">
-      <button type="submit" class="badge badge-primary-action" style="cursor:pointer;">Record Contribution</button>
+    <div class="row-end" style="margin-top: 1rem;">
+      <button type="submit">Record contribution</button>
     </div>
   </form>
   {% else %}

@@ -814,14 +814,25 @@ def pension_allowance_limits(assumptions=None):
 
 
 def is_pension_account(account):
+    if not account:
+        return False
     try:
-        cat = (account.get("category") or "").strip().lower()
+        cat_raw = account.get("category")
     except AttributeError:
-        cat = ""
+        try:
+            cat_raw = account["category"]
+        except Exception:
+            cat_raw = None
     try:
-        wt = (account.get("wrapper_type") or "").strip().lower()
+        wt_raw = account.get("wrapper_type")
     except AttributeError:
-        wt = ""
+        try:
+            wt_raw = account["wrapper_type"]
+        except Exception:
+            wt_raw = None
+
+    cat = (cat_raw or "").strip().lower()
+    wt = (wt_raw or "").strip().lower()
     return (cat == "pension") or ("pension" in wt) or ("sipp" in wt)
 
 
@@ -849,7 +860,15 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
         monthly_personal_net = float(b.get("personal") or 0)
         monthly_tax_relief = float(b.get("tax_relief") or 0)
 
-        if (acc.get("contribution_method") or "") == "salary_sacrifice":
+        try:
+            method = (acc.get("contribution_method") or "")
+        except AttributeError:
+            try:
+                method = (acc["contribution_method"] or "")
+            except Exception:
+                method = ""
+
+        if method == "salary_sacrifice":
             monthly_personal_gross = 0.0
             monthly_employer_gross = monthly_total
         else:
@@ -865,9 +884,13 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
         projected_total += projected
 
         breakdown.append({
-            "account_id": acc["id"],
-            "account_name": acc["name"],
-            "wrapper_type": acc.get("wrapper_type") or "",
+            "account_id": (acc["id"] if "id" in acc.keys() else acc.get("id")),
+            "account_name": (acc["name"] if "name" in acc.keys() else acc.get("name")),
+            "wrapper_type": (
+                (acc.get("wrapper_type") if hasattr(acc, "get") else acc["wrapper_type"])
+                if ("wrapper_type" in acc.keys() or hasattr(acc, "get"))
+                else ""
+            ) or "",
             "monthly_total": monthly_total,
             "monthly_personal": monthly_personal_gross,
             "monthly_employer": monthly_employer_gross,

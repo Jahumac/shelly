@@ -112,8 +112,7 @@
     {% endif %}
   </div>
 
-  {# Show daily portfolio chart if 2+ data points exist, otherwise show monthly history #}
-  {% if daily_labels | length >= 2 %}
+  {# Portfolio chart #}
   <div class="mt-125">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
       <p class="chart-label">Portfolio Value</p>
@@ -139,19 +138,25 @@
         <p id="changeValue" style="margin: 0; font-weight: 600;"></p>
       </div>
     </div>
+    {% if daily_labels | length == 0 %}
+    <p class="helper-text mt-05">No daily snapshots yet — hit ↻ Refresh to save your first point.</p>
+    {% elif daily_labels | length == 1 %}
+    <p class="helper-text mt-05">One snapshot so far — Shelly will draw a proper line once there are two days of data.</p>
+    {% endif %}
   </div>
-  {% elif history_labels | length >= 2 %}
+
+  {% if daily_labels | length < 2 and history_labels | length >= 2 %}
   <div class="mt-125">
     <p class="chart-label">Net worth history</p>
     <div class="chart-wrap chart-wrap-sm">
       <canvas id="netWorthChart" role="img" aria-label="Net worth history chart"></canvas>
     </div>
   </div>
-  {% elif history_labels | length == 1 %}
+  {% elif daily_labels | length < 2 and history_labels | length == 1 %}
   <p class="helper-text mt-1">
     One snapshot down — slow and steady. Complete next month's update and Shelly will start drawing your trend line.
   </p>
-  {% else %}
+  {% elif daily_labels | length < 2 %}
   <p class="helper-text mt-1">
     Complete your first Monthly Update and Shelly will start tracking your net worth. Remember: slow and steady wins the race.
   </p>
@@ -211,6 +216,10 @@
     <p>£{{ '{:,.0f}'.format(metrics.lisa_used) }} <span style="color:var(--muted); font-weight:400; font-size:0.95rem;">/ £{{ '{:,.0f}'.format(metrics.lisa_allowance) }}</span></p>
     <div class="progress"><div class="progress-bar" style="width: {{ (metrics.lisa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(metrics.lisa_progress * 100) }}% used</small>
+    <div style="margin-top: 0.5rem;">
+      <a href="/allowance/" class="badge badge-sm">View breakdown</a>
+      <a href="/allowance/#topup" class="badge badge-sm" style="margin-left: 0.25rem;">Record top-up</a>
+    </div>
   </div>
   <div class="card allowance-card">
     <h2>Pension Allowance {{ metrics.tax_year }}</h2>
@@ -326,12 +335,12 @@
 {% endif %}
 
 {# Daily portfolio chart script #}
-{% if daily_labels | length >= 2 %}
 <script>
 (function () {
   var allLabels = {{ daily_labels | tojson }};
   var allValues = {{ daily_values | tojson }};
   var chart = null;
+  var fallbackValue = {{ metrics.invested_total | round(2) }};
 
   var S = getComputedStyle(document.documentElement);
   var CSS = {
@@ -350,22 +359,66 @@
     'ALL': 999999
   };
 
+  function parseYMD(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    var parts = dateStr.split('-');
+    if (parts.length < 3) return null;
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var d = parseInt(parts[2], 10);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }
+
+  function ensureMinPoints(labels, values) {
+    if (!Array.isArray(labels) || !Array.isArray(values)) return { labels: [], values: [] };
+
+    if (labels.length === 0) {
+      var today = new Date();
+      var y = today.getFullYear();
+      var m = String(today.getMonth() + 1).padStart(2, '0');
+      var d = String(today.getDate()).padStart(2, '0');
+      var todayStr = y + '-' + m + '-' + d;
+      var yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+      var yy = yesterday.getFullYear();
+      var ym = String(yesterday.getMonth() + 1).padStart(2, '0');
+      var yd = String(yesterday.getDate()).padStart(2, '0');
+      var yesterdayStr = yy + '-' + ym + '-' + yd;
+      return { labels: [yesterdayStr, todayStr], values: [fallbackValue, fallbackValue] };
+    }
+
+    if (labels.length === 1) {
+      var onlyDate = parseYMD(labels[0]);
+      var prev = onlyDate ? new Date(onlyDate.getTime() - 24 * 60 * 60 * 1000) : new Date(Date.now() - 24 * 60 * 60 * 1000);
+      var py = prev.getFullYear();
+      var pm = String(prev.getMonth() + 1).padStart(2, '0');
+      var pd = String(prev.getDate()).padStart(2, '0');
+      var prevStr = py + '-' + pm + '-' + pd;
+      var v0 = Number(values[0]);
+      if (!isFinite(v0)) v0 = fallbackValue;
+      return { labels: [prevStr, labels[0]], values: [v0, v0] };
+    }
+
+    return { labels: labels, values: values };
+  }
+
   function filterData(period) {
+    var src = ensureMinPoints(allLabels, allValues);
     var cutoffDays = periods[period];
-    var today = new Date();
-    var cutoffDate = new Date(today.getTime() - cutoffDays * 24 * 60 * 60 * 1000);
+    var endDate = parseYMD(src.labels[src.labels.length - 1]) || new Date();
+    var cutoffDate = new Date(endDate.getTime() - cutoffDays * 24 * 60 * 60 * 1000);
 
     var filtered = {
       labels: [],
       values: []
     };
 
-    for (var i = 0; i < allLabels.length; i++) {
-      var dateStr = allLabels[i];
-      var date = new Date(dateStr);
+    for (var i = 0; i < src.labels.length; i++) {
+      var dateStr = src.labels[i];
+      var date = parseYMD(dateStr) || new Date(dateStr);
       if (date >= cutoffDate) {
         filtered.labels.push(dateStr);
-        filtered.values.push(allValues[i]);
+        filtered.values.push(src.values[i]);
       }
     }
 
@@ -373,14 +426,12 @@
   }
 
   function formatDate(dateStr) {
-    var date = new Date(dateStr);
+    var date = parseYMD(dateStr) || new Date(dateStr);
     return date.toLocaleDateString('en-GB', { day: 'short', month: 'short' });
   }
 
   function updateChart(period) {
     var data = filterData(period);
-    if (data.labels.length === 0) return;
-
     var fmtLabels = data.labels.map(formatDate);
     var ctx = document.getElementById('dailyPortfolioChart').getContext('2d');
 
@@ -438,11 +489,14 @@
       var latest = data.values[data.values.length - 1];
       var first = data.values[0];
       var change = latest - first;
-      var changePct = (change / first * 100);
+      var changePct = first ? (change / first * 100) : null;
 
       document.getElementById('latestValue').textContent = '£' + latest.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-      var changeStr = (change >= 0 ? '+' : '') + change.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '%)';
+      var changeStr = (change >= 0 ? '+' : '') + change.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (changePct !== null) {
+        changeStr += ' (' + (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '%)';
+      }
       var changeEl = document.getElementById('changeValue');
       changeEl.textContent = changeStr;
       changeEl.style.color = change >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -467,7 +521,6 @@
   updateChart('ALL');
 })();
 </script>
-{% endif %}
 
 <script>
 (function() {
