@@ -18,6 +18,10 @@ YFINANCE_AVAILABLE = False
 try:
     import yfinance as yf
     YFINANCE_AVAILABLE = True
+    try:
+        logging.getLogger("yfinance").setLevel(logging.ERROR)
+    except Exception:
+        pass
 except ImportError:
     pass
 
@@ -235,6 +239,14 @@ def fetch_price(ticker: str):
         return None
     ticker = ticker.strip().upper()
 
+    # ── Phase 0: prefer known alias up-front (reduces yfinance noise) ────
+    alias = TICKER_ALIASES.get(ticker)
+    if alias and not ticker.endswith(".L"):
+        alias_result = _try_ticker(alias)
+        if alias_result:
+            alias_result["yf_symbol"] = alias
+            return alias_result
+
     # ── Phase 1: yfinance (fast path) ────────────────────────────────────
     raw_result = _try_ticker(ticker)
     lse_result = None
@@ -259,7 +271,6 @@ def fetch_price(ticker: str):
     # ── Phase 2: direct HTTP API (bypasses yfinance entirely) ────────────
     # Try known alias first, then raw, then .L
     symbols_to_try = []
-    alias = TICKER_ALIASES.get(ticker)
     if alias:
         symbols_to_try.append(alias)
     symbols_to_try.append(ticker)
