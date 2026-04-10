@@ -92,6 +92,8 @@ def create_app():
         demo_user = app.config.get("DEMO_READ_ONLY_USERNAME")
         if not demo_user:
             return
+        if not app.config.get("DEMO_PUBLIC_LOGIN_ENABLED", False):
+            return
         if getattr(current_user, "username", None) != demo_user:
             return
         if request.method != "POST":

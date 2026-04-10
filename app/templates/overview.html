@@ -536,7 +536,7 @@
           btn.textContent = '✓ Updated';
           setTimeout(function() { location.reload(); }, 800);
         } else {
-          btn.textContent = '✕ ' + (data.message || 'Failed');
+          btn.textContent = '✕ ' + (data.message || data.error || 'Failed');
           setTimeout(function() { btn.textContent = '↻ Refresh'; btn.disabled = false; }, 3000);
         }
       })

@@ -171,6 +171,14 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
         try:
             catalogue = fetch_holding_catalogue_in_use(user_id)
             if not catalogue:
+                accounts = fetch_all_accounts(user_id)
+                holdings_totals = fetch_holding_totals_by_account(user_id)
+                total_value = sum(
+                    effective_account_value(account, holdings_totals)
+                    for account in accounts
+                )
+                save_daily_snapshot(user_id, total_value)
+                logger.info(f"Saved portfolio snapshot for user {user_id} ({slot_name or 'manual'})")
                 return
 
             logger.info(f"Fetching prices for {len(catalogue)} instruments...")
@@ -232,7 +240,12 @@ def trigger_manual_update(app, user_id):
         try:
             catalogue = fetch_holding_catalogue_in_use(user_id)
             if not catalogue:
-                return {"ok": False, "message": "No holdings to update."}
+                _run_price_update_for_user(app, user_id, slot_name="manual")
+                return {
+                    "ok": True,
+                    "message": "No holdings to update — saved a portfolio snapshot.",
+                    "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                }
 
             _run_price_update_for_user(app, user_id, slot_name="manual")
 

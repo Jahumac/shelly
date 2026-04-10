@@ -1959,7 +1959,7 @@
             refreshBtn.textContent = '✓ Updated';
             setTimeout(function() { location.reload(); }, 800);
           } else {
-            refreshBtn.textContent = '✕ ' + (data.message || 'Failed');
+            refreshBtn.textContent = '✕ ' + (data.message || data.error || 'Failed');
             setTimeout(function() { refreshBtn.textContent = '↻ Refresh prices'; refreshBtn.disabled = false; }, 3000);
           }
         })
