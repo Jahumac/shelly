@@ -318,7 +318,7 @@
 
   var S = getComputedStyle(document.documentElement);
   var CSS = {
-    primary: S.getPropertyValue('--primary').trim(),
+    primary: (S.getPropertyValue('--primary').trim() || S.getPropertyValue('--accent').trim()),
     muted:  S.getPropertyValue('--muted').trim(),
     grid:   S.getPropertyValue('--chart-grid').trim(),
   };

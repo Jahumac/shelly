@@ -6,6 +6,7 @@
   --text: #e5e7eb;
   --text-white: #ffffff;
   --muted: #94a3b8;
+  --primary: #38bdf8;
   --accent: #38bdf8;
   --accent-hover: #7dd3fc;
   --accent-2: #22c55e;
@@ -17,6 +18,8 @@
   --accent-8: #eab308;
   --border: #334155;
   --error: #f87171;
+  --success: #86efac;
+  --danger: #f87171;
   --chart-grid: rgba(255,255,255,0.05);
   --chart-grid-alt: rgba(51,65,85,0.5);
   --chart-bg-deep: #0b1220;
