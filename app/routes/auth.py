@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, redirect, render_template, request, url_for, current_app, abort, flash
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import __version__
@@ -74,7 +74,30 @@ def login():
                 return redirect(next_url)
             return redirect(url_for("overview.overview"))
 
-    return render_template("auth/login.html", error=error, version=__version__)
+    demo_username = current_app.config.get("DEMO_READ_ONLY_USERNAME", "demo")
+    demo_public = bool(current_app.config.get("DEMO_PUBLIC_LOGIN_ENABLED", False))
+    return render_template(
+        "auth/login.html",
+        error=error,
+        version=__version__,
+        demo_username=demo_username,
+        demo_public=demo_public,
+    )
+
+
+@auth_bp.route("/demo")
+def demo_login():
+    if not current_app.config.get("DEMO_PUBLIC_LOGIN_ENABLED", False):
+        abort(404)
+    if current_user.is_authenticated:
+        return redirect(url_for("overview.overview"))
+    demo_username = current_app.config.get("DEMO_READ_ONLY_USERNAME", "demo")
+    user = get_user_by_username(demo_username)
+    if not user:
+        flash(f"Demo user '{demo_username}' does not exist.", "error")
+        return redirect(url_for("auth.login"))
+    login_user(user, remember=False)
+    return redirect(url_for("overview.overview"))
 
 
 @auth_bp.route("/logout")

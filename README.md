@@ -64,8 +64,13 @@ Temporarily change a monthly contribution (e.g. parental leave, career break) wi
 - Install Shelly as a phone app — visit the URL in your mobile browser and tap "Add to Home Screen". Works full-screen with its own icon.
 - Offline-friendly app shell with a service worker; network-first for pages and API to keep data fresh.
 
+### Install on Mobile
+- iOS (Safari): open the URL → Share → Add to Home Screen
+- Android (Chrome): open the URL → menu → Install app / Add to Home screen
+
 ### Demo Mode (Read‑only)
-- Optional read‑only demo user for safe exploration (set `DEMO_READ_ONLY_USERNAME=demo` and create a `demo` user). Any POST writes from the demo account are blocked.
+- Optional read‑only demo user for safe exploration (default username: `demo`). Any POST writes from the demo account are blocked.
+- Optional passwordless demo entry: set `DEMO_PUBLIC_LOGIN_ENABLED=1` and create the demo user, then use `/demo` (or the “Try demo” button on the login page).
 
 ---
 
@@ -190,13 +195,16 @@ data/
 
 ## Screenshots
 
-Add screenshots under `docs/screenshots/` and reference them here:
+To add screenshots to the repo front page:
 
+1. Create a folder (e.g. `docs/screenshots/`) and add PNGs
+2. Add image links here, for example:
+
+```md
 ![Overview](docs/screenshots/overview.png)
 ![Accounts](docs/screenshots/accounts.png)
 ![Budget](docs/screenshots/budget.png)
-![Monthly Update](docs/screenshots/monthly_update.png)
-![Goals](docs/screenshots/goals.png)
+```
 
 ---
 

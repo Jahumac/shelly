@@ -62,6 +62,13 @@
           <button type="submit" class="auth-submit">Sign in</button>
         </form>
 
+        {% if demo_public %}
+          <div style="margin-top:0.75rem">
+            <a class="badge" href="{{ url_for('auth.demo_login') }}">Try demo (read-only)</a>
+            <p class="auth-hint" style="margin-top:0.5rem">Demo user: <strong>{{ demo_username }}</strong>. Writes are blocked.</p>
+          </div>
+        {% endif %}
+
         <p class="auth-footer-note">Self-hosted &middot; Open source &middot; <a href="https://github.com/Jahumac/shelly-finance" target="_blank" rel="noopener">GitHub</a></p>
       </div>
     </div>

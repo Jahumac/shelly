@@ -22,3 +22,4 @@ class Config:
     DB_PATH = DATA_DIR / "finance.db"
     SECRET_KEY = _load_or_create_secret_key()
     DEMO_READ_ONLY_USERNAME = os.environ.get("DEMO_READ_ONLY_USERNAME", "demo")
+    DEMO_PUBLIC_LOGIN_ENABLED = os.environ.get("DEMO_PUBLIC_LOGIN_ENABLED", "0") == "1"
