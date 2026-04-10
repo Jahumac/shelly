@@ -8,7 +8,7 @@ from .services.scheduler import init_scheduler
 
 from .extensions import limiter
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 from .routes.auth import auth_bp
 from .routes.overview import overview_bp
 from .routes.goals import goals_bp

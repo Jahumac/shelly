@@ -774,6 +774,151 @@ def calculate_isa_usage(accounts, ad_hoc_contributions, today=None, salary_day=0
     }
 
 
+def pension_allowance_limits(assumptions=None):
+    assumptions = assumptions or {}
+    try:
+        annual_allowance = float(assumptions.get("pension_annual_allowance") or 60000)
+    except (TypeError, ValueError):
+        annual_allowance = 60000.0
+
+    try:
+        mpaa_enabled = int(assumptions.get("mpaa_enabled") or 0) == 1
+    except (TypeError, ValueError):
+        mpaa_enabled = False
+
+    try:
+        mpaa_allowance = float(assumptions.get("mpaa_allowance") or 10000)
+    except (TypeError, ValueError):
+        mpaa_allowance = 10000.0
+
+    effective_allowance = min(annual_allowance, mpaa_allowance) if mpaa_enabled else annual_allowance
+
+    try:
+        income = float(assumptions.get("annual_income") or 0)
+    except (TypeError, ValueError):
+        income = 0.0
+
+    if income > 0:
+        personal_relief_limit = min(income, effective_allowance)
+    else:
+        personal_relief_limit = min(3600.0, effective_allowance)
+
+    return {
+        "annual_allowance": annual_allowance,
+        "effective_allowance": effective_allowance,
+        "personal_relief_limit": personal_relief_limit,
+        "annual_income": income,
+        "mpaa_enabled": mpaa_enabled,
+        "mpaa_allowance": mpaa_allowance,
+    }
+
+
+def is_pension_account(account):
+    try:
+        cat = (account.get("category") or "").strip().lower()
+    except AttributeError:
+        cat = ""
+    try:
+        wt = (account.get("wrapper_type") or "").strip().lower()
+    except AttributeError:
+        wt = ""
+    return (cat == "pension") or ("pension" in wt) or ("sipp" in wt)
+
+
+def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, today=None, salary_day=0):
+    today = today or date.today()
+    months = months_in_tax_year(today, salary_day)
+    total_months = full_year_contribution_months(salary_day)
+
+    used_total = 0.0
+    used_personal = 0.0
+    used_employer = 0.0
+    projected_total = 0.0
+    breakdown = []
+
+    assumptions = assumptions or {}
+
+    for acc in accounts:
+        if not is_pension_account(acc):
+            continue
+
+        b = contribution_breakdown(acc, assumptions)
+
+        monthly_total = float(b.get("total_into_pot") or 0)
+        monthly_employer = float(b.get("employer") or 0)
+        monthly_personal_net = float(b.get("personal") or 0)
+        monthly_tax_relief = float(b.get("tax_relief") or 0)
+
+        if (acc.get("contribution_method") or "") == "salary_sacrifice":
+            monthly_personal_gross = 0.0
+            monthly_employer_gross = monthly_total
+        else:
+            monthly_personal_gross = max(0.0, (monthly_personal_net + monthly_tax_relief))
+            monthly_employer_gross = max(0.0, monthly_employer)
+
+        total = monthly_total * months
+        projected = monthly_total * total_months
+
+        used_total += total
+        used_personal += monthly_personal_gross * months
+        used_employer += monthly_employer_gross * months
+        projected_total += projected
+
+        breakdown.append({
+            "account_id": acc["id"],
+            "account_name": acc["name"],
+            "wrapper_type": acc.get("wrapper_type") or "",
+            "monthly_total": monthly_total,
+            "monthly_personal": monthly_personal_gross,
+            "monthly_employer": monthly_employer_gross,
+            "months": months,
+            "monthly_sum": total,
+            "adhoc_total": 0.0,
+            "adhoc_personal": 0.0,
+            "adhoc_employer": 0.0,
+        })
+
+    adhoc_total = 0.0
+    adhoc_personal = 0.0
+    adhoc_employer = 0.0
+
+    for c in ad_hoc_contributions:
+        amt = float(c["amount"])
+        kind = (c.get("kind") or "personal").strip().lower()
+        adhoc_total += amt
+        if kind == "employer":
+            adhoc_employer += amt
+        else:
+            adhoc_personal += amt
+
+        for entry in breakdown:
+            if entry["account_id"] == c["account_id"]:
+                entry["adhoc_total"] += amt
+                if kind == "employer":
+                    entry["adhoc_employer"] += amt
+                else:
+                    entry["adhoc_personal"] += amt
+                break
+
+    used_total += adhoc_total
+    used_personal += adhoc_personal
+    used_employer += adhoc_employer
+    projected_total += adhoc_total
+
+    return {
+        "pension_used": used_total,
+        "pension_personal_used": used_personal,
+        "pension_employer_used": used_employer,
+        "adhoc_total": adhoc_total,
+        "adhoc_personal": adhoc_personal,
+        "adhoc_employer": adhoc_employer,
+        "projected_total": projected_total,
+        "months": months,
+        "total_months": total_months,
+        "breakdown": breakdown,
+    }
+
+
 def build_month_strip(today=None):
     """Build the 12-month tax-year strip (Apr → Mar) for the current date.
 

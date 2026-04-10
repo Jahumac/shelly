@@ -212,6 +212,23 @@
     <div class="progress"><div class="progress-bar" style="width: {{ (metrics.lisa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(metrics.lisa_progress * 100) }}% used</small>
   </div>
+  <div class="card allowance-card">
+    <h2>Pension Allowance {{ metrics.tax_year }}</h2>
+    <p>£{{ '{:,.0f}'.format(metrics.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(metrics.pension_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (metrics.pension_progress * 100)|round(1) }}%;"></div></div>
+    <small>
+      {{ '{:.1f}'.format(metrics.pension_progress * 100) }}% used · Personal limit: £{{ '{:,.0f}'.format(metrics.pension_personal_limit) }}
+    </small>
+    {% if metrics.projected_pension != metrics.pension_used %}
+    <small style="display:block; margin-top:0.25rem; color:var(--muted);">
+      On track: £{{ '{:,.0f}'.format(metrics.projected_pension) }} / £{{ '{:,.0f}'.format(metrics.pension_allowance) }} by end of tax year
+    </small>
+    {% endif %}
+    <div style="margin-top: 0.5rem;">
+      <a href="/allowance/" class="badge badge-sm">View breakdown</a>
+      <a href="/allowance/#pension" class="badge badge-sm" style="margin-left: 0.25rem;">Record contribution</a>
+    </div>
+  </div>
 </section>
 
 {# ── Accounts ─────────────────────────────────────────────────────────────── #}
