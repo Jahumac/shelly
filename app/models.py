@@ -203,6 +203,14 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS scheduler_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    run_date TEXT NOT NULL,
+    slot TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS portfolio_daily_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -822,10 +830,19 @@ def fetch_allowance_tracking(user_id=None):
 
 
 def fetch_latest_price_update(user_id):
-    """Return the most recent price_updated_at timestamp across all catalogue items."""
+    """Return the most recent price_updated_at timestamp across catalogue items that are actually held."""
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT MAX(price_updated_at) AS latest FROM holding_catalogue WHERE user_id = ? AND price_updated_at IS NOT NULL",
+            """
+            SELECT MAX(hc.price_updated_at) AS latest
+            FROM holding_catalogue hc
+            JOIN holdings h ON h.holding_catalogue_id = hc.id
+            JOIN accounts a ON a.id = h.account_id
+            WHERE a.user_id = ?
+              AND a.is_active = 1
+              AND hc.is_active = 1
+              AND hc.price_updated_at IS NOT NULL
+            """,
             (user_id,),
         ).fetchone()
         return row["latest"] if row else None
@@ -1312,6 +1329,25 @@ def fetch_holding_catalogue(user_id):
     with get_connection() as conn:
         return conn.execute(
             "SELECT * FROM holding_catalogue WHERE is_active = 1 AND user_id = ? ORDER BY holding_name ASC",
+            (user_id,),
+        ).fetchall()
+
+
+def fetch_holding_catalogue_in_use(user_id):
+    """Return active catalogue items that are linked to at least one holding in an active account."""
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT hc.*
+            FROM holding_catalogue hc
+            JOIN holdings h ON h.holding_catalogue_id = hc.id
+            JOIN accounts a ON a.id = h.account_id
+            WHERE hc.is_active = 1
+              AND a.user_id = ?
+              AND a.is_active = 1
+            GROUP BY hc.id
+            ORDER BY hc.holding_name ASC
+            """,
             (user_id,),
         ).fetchall()
 
@@ -1985,6 +2021,42 @@ def fetch_monthly_performance_data(user_id):
             (user_id, user_id),
         ).fetchall()
     return [(r["month_key"], r["total_balance"], r["total_contribution"]) for r in rows]
+
+
+def fetch_monthly_performance_data_by_account(user_id):
+    """Return per-account monthly performance data.
+
+    Returns a dict keyed by account_id:
+        {account_id: {"account_name": str, "rows": [(month_key, balance, contribution), ...]}}
+    """
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.id AS account_id,
+                a.name AS account_name,
+                ms.month_key,
+                ms.balance AS balance,
+                COALESCE(mri.expected_contribution, 0) AS contribution
+            FROM monthly_snapshots ms
+            JOIN accounts a ON a.id = ms.account_id
+            LEFT JOIN monthly_reviews mr ON mr.month_key = ms.month_key AND mr.user_id = ?
+            LEFT JOIN monthly_review_items mri
+                   ON mri.review_id = mr.id AND mri.account_id = ms.account_id
+            WHERE ms.month_key IS NOT NULL
+              AND a.user_id = ?
+            ORDER BY a.name ASC, ms.month_key ASC
+            """,
+            (user_id, user_id),
+        ).fetchall()
+
+    out = {}
+    for r in rows:
+        aid = int(r["account_id"])
+        if aid not in out:
+            out[aid] = {"account_name": r["account_name"], "rows": []}
+        out[aid]["rows"].append((r["month_key"], float(r["balance"] or 0), float(r["contribution"] or 0)))
+    return out
 
 
 # ── Contribution overrides ────────────────────────────────────────────────────

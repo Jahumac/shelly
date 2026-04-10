@@ -16,6 +16,7 @@ from app.calculations import (
     _safe_get,
     account_gross_growth_rate,
     account_growth_rate,
+    compute_performance_series,
     contribution_breakdown,
     current_age_from_assumptions,
     effective_account_value,
@@ -39,6 +40,8 @@ from app.models import (
     fetch_budget_items,
     fetch_budget_sections,
     fetch_holding_totals_by_account,
+    fetch_monthly_performance_data,
+    fetch_monthly_performance_data_by_account,
     fetch_prior_month_budget_entries,
 )
 
@@ -466,3 +469,158 @@ def export_budget():
     fname = f"budget_{month_key}.xlsx"
     return send_file(buf, as_attachment=True, download_name=fname,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ── Performance export ────────────────────────────────────────────────────────
+
+@export_bp.route("/performance/export.xlsx")
+@login_required
+def export_performance():
+    uid = current_user.id
+    assumptions = fetch_assumptions(uid)
+    accounts = fetch_all_accounts(uid)
+
+    assumed_rate = to_float(assumptions["annual_growth_rate"]) if assumptions else 0.07
+    assumed_monthly_total = sum(to_float(a["monthly_contribution"]) for a in accounts)
+
+    monthly_data = fetch_monthly_performance_data(uid)
+    perf_portfolio = compute_performance_series(monthly_data, assumed_rate, assumed_monthly_total)
+
+    per_account_data = fetch_monthly_performance_data_by_account(uid)
+    account_map = {int(a["id"]): a for a in accounts}
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Summary"
+    _set_col_width(ws, 1, 26)
+    _set_col_width(ws, 2, 12)
+    _set_col_width(ws, 3, 12)
+    _set_col_width(ws, 4, 14)
+    _set_col_width(ws, 5, 16)
+    _set_col_width(ws, 6, 16)
+    _set_col_width(ws, 7, 16)
+    _set_col_width(ws, 8, 16)
+    _set_col_width(ws, 9, 16)
+    _set_col_width(ws, 10, 18)
+
+    _title_cell(ws, 1, "Shelly Finance — Performance Report", 10)
+    cell = ws.cell(row=2, column=1, value=f"Generated {datetime.now().strftime('%d %b %Y at %H:%M')}")
+    cell.font = _SUBTITLE_FONT
+
+    _header_row(ws, 4, [
+        "Entity",
+        "Start",
+        "End",
+        "Months",
+        "Total Return",
+        "Annualised",
+        "Contributed",
+        "Market Gain",
+        "Vs Plan",
+        "Current Value",
+    ])
+
+    GBP = '£#,##0.00'
+    PCT = '0.00"%"'
+    row = 5
+
+    def _append_summary(entity_name, perf):
+        nonlocal row
+        if not perf:
+            _data_row(ws, row, [entity_name, "", "", 0, "", "", "", "", "", ""], bold=True)
+            row += 1
+            return
+        labels = perf.get("labels") or []
+        start_m = labels[0] if labels else ""
+        end_m = labels[-1] if labels else ""
+        _data_row(ws, row, [
+            entity_name,
+            start_m,
+            end_m,
+            int(perf.get("n_months") or 0),
+            float(perf.get("total_return") or 0),
+            float(perf.get("annualised_return") or 0) if perf.get("annualised_return") is not None else None,
+            float(perf.get("total_contributed") or 0),
+            float(perf.get("total_market_gain") or 0),
+            float(perf.get("vs_plan") or 0),
+            float(perf.get("current_value") or 0),
+        ], bold=True, num_formats={5: PCT, 6: PCT, 7: GBP, 8: GBP, 9: GBP, 10: GBP})
+        row += 1
+
+    _append_summary("Portfolio", perf_portfolio)
+
+    for aid, payload in per_account_data.items():
+        acc = account_map.get(aid)
+        if not acc:
+            continue
+        assumed_monthly = to_float(acc.get("monthly_contribution", 0))
+        perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
+        _append_summary(payload["account_name"], perf_acc)
+
+    def _safe_sheet_title(base, used):
+        s = (base or "Sheet").strip()[:31]
+        if not s:
+            s = "Sheet"
+        if s not in used:
+            used.add(s)
+            return s
+        i = 2
+        while True:
+            suffix = f" {i}"
+            candidate = (s[:31 - len(suffix)] + suffix)[:31]
+            if candidate not in used:
+                used.add(candidate)
+                return candidate
+            i += 1
+
+    used_titles = {ws.title}
+
+    def _add_detail_sheet(title, perf):
+        ws_d = wb.create_sheet(_safe_sheet_title(title, used_titles))
+        _set_col_width(ws_d, 1, 10)
+        _set_col_width(ws_d, 2, 16)
+        _set_col_width(ws_d, 3, 16)
+        _set_col_width(ws_d, 4, 18)
+        _set_col_width(ws_d, 5, 16)
+        _set_col_width(ws_d, 6, 12)
+
+        _title_cell(ws_d, 1, f"Shelly Finance — {title}", 6)
+        sub = ws_d.cell(row=2, column=1, value=f"Assumed growth: {assumed_rate*100:.1f}%")
+        sub.font = _SUBTITLE_FONT
+
+        if not perf or not perf.get("table_rows"):
+            ws_d.cell(row=4, column=1, value="Not enough data yet (need at least two monthly snapshots).").font = _DATA_FONT
+            return
+
+        _header_row(ws_d, 4, ["Month", "Opening", "Contributions", "Market Gain / Loss", "Closing", "Return"])
+        rows_chrono = list(reversed(perf["table_rows"]))
+        for i, r in enumerate(rows_chrono, 5):
+            _data_row(ws_d, i, [
+                r["month_key"],
+                float(r["opening"]),
+                float(r["contribution"]),
+                float(r["market_gain"]),
+                float(r["closing"]),
+                float(r["return_pct"]),
+            ], num_formats={2: GBP, 3: GBP, 4: GBP, 5: GBP, 6: PCT})
+
+    _add_detail_sheet("Portfolio (Monthly)", perf_portfolio)
+
+    for aid, payload in per_account_data.items():
+        acc = account_map.get(aid)
+        if not acc:
+            continue
+        assumed_monthly = to_float(acc.get("monthly_contribution", 0))
+        perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
+        _add_detail_sheet(f"{payload['account_name']} (Monthly)", perf_acc)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"performance_{date.today().isoformat()}.xlsx"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=fname,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

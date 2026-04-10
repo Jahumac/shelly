@@ -161,7 +161,7 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
     # Imports moved inside app_context
     with app.app_context():
         from app.models import (
-            get_connection, fetch_holding_catalogue, fetch_all_accounts,
+            get_connection, fetch_holding_catalogue_in_use, fetch_all_accounts,
             fetch_holding_totals_by_account, save_daily_snapshot,
             sync_holding_prices_from_catalogue
         )
@@ -169,7 +169,7 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
         from app.services.prices import refresh_catalogue_prices
 
         try:
-            catalogue = fetch_holding_catalogue(user_id)
+            catalogue = fetch_holding_catalogue_in_use(user_id)
             if not catalogue:
                 return
 
@@ -226,11 +226,11 @@ def trigger_manual_update(app, user_id):
 
     Returns a dict with status and message.
     """
-    from app.models import fetch_holding_catalogue, fetch_assumptions
+    from app.models import fetch_holding_catalogue_in_use
 
     with app.app_context():
         try:
-            catalogue = fetch_holding_catalogue(user_id)
+            catalogue = fetch_holding_catalogue_in_use(user_id)
             if not catalogue:
                 return {"ok": False, "message": "No holdings to update."}
 
@@ -239,7 +239,7 @@ def trigger_manual_update(app, user_id):
             return {
                 "ok": True,
                 "message": "Prices updated and portfolio snapshot saved.",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             }
 
         except Exception as e:

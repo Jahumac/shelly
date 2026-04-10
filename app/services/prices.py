@@ -294,7 +294,7 @@ def lookup_instrument(query: str):
     Returns a dict with keys: ticker, yf_symbol, name, price, price_gbp,
     currency, change_pct, asset_type  — or None if nothing found.
     """
-    if not YFINANCE_AVAILABLE or not query or not query.strip():
+    if not query or not query.strip():
         return None
     query = query.strip()
     price_data = fetch_price(query)
@@ -340,11 +340,8 @@ def refresh_catalogue_prices(catalogue_rows):
     Returns a list of dicts: {id, name, ticker, success, price, currency,
                                change_pct, error}
     """
-    if not YFINANCE_AVAILABLE:
-        return [{"id": None, "error": "yfinance not installed — run: pip install yfinance", "success": False}]
-
     results = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     for row in catalogue_rows:
         if not row["ticker"]:

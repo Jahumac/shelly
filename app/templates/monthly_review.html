@@ -263,7 +263,8 @@ document.querySelectorAll('.holding-update-row').forEach(function(form) {
   }
 
   /* Build payload from hidden form fields for the save API */
-  function buildPayload(price) {
+  function buildPayload(price, meta) {
+    meta = meta || {};
     return {
       holding_id: form.querySelector('[name="holding_id"]').value,
       account_id: form.querySelector('[name="account_id"]').value,
@@ -275,16 +276,21 @@ document.querySelectorAll('.holding-update-row').forEach(function(form) {
       notes: (form.querySelector('[name="notes"]') || {}).value || '',
       units: parseFloat(unitsEl.value) || 0,
       price: price,
+      price_source: meta.price_source,
+      price_raw: meta.price_raw,
+      currency_raw: meta.currency_raw,
+      change_pct: meta.change_pct,
+      updated_at: meta.updated_at,
     };
   }
 
   /* Auto-save: persist the updated price without a full page reload */
-  async function autoSave(price) {
+  async function autoSave(price, meta) {
     try {
       await fetch('/holdings/api/save-price', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(buildPayload(price)),
+        body: JSON.stringify(buildPayload(price, meta)),
       });
       if (submitBtn) {
         submitBtn.textContent = 'Saved ✓';
@@ -303,7 +309,13 @@ document.querySelectorAll('.holding-update-row').forEach(function(form) {
         var data = await resp.json();
         priceEl.value = data.price;
         recalc();
-        await autoSave(data.price);
+        await autoSave(data.price, {
+          price_source: 'live',
+          price_raw: data.price_raw,
+          currency_raw: data.currency_raw,
+          change_pct: data.change_pct,
+          updated_at: data.updated_at,
+        });
         success = true;
       }
     } catch(e) {}
