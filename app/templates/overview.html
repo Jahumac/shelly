@@ -494,54 +494,152 @@
     var fmtLabels = data.labels.map(formatDate);
     var ctx = document.getElementById('dailyPortfolioChart').getContext('2d');
 
-    if (chart) {
-      chart.destroy();
+    var hasChartJs = (typeof window.Chart === 'function');
+
+    function drawFallback(canvasCtx, labels, values) {
+      if (!canvasCtx || !canvasCtx.canvas) return;
+      var canvas = canvasCtx.canvas;
+      var rect = canvas.getBoundingClientRect();
+      var w = Math.max(1, Math.floor(rect.width));
+      var h = Math.max(1, Math.floor(rect.height));
+      var dpr = window.devicePixelRatio || 1;
+      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+      }
+      canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvasCtx.clearRect(0, 0, w, h);
+
+      var padL = 44;
+      var padR = 12;
+      var padT = 10;
+      var padB = 22;
+      var innerW = Math.max(1, w - padL - padR);
+      var innerH = Math.max(1, h - padT - padB);
+
+      var minV = Infinity;
+      var maxV = -Infinity;
+      for (var i = 0; i < values.length; i++) {
+        var v = Number(values[i]);
+        if (!isFinite(v)) continue;
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+      }
+      if (!isFinite(minV) || !isFinite(maxV)) {
+        minV = fallbackValue;
+        maxV = fallbackValue;
+      }
+      if (minV === maxV) {
+        minV = minV * 0.999;
+        maxV = maxV * 1.001;
+      }
+
+      function xFor(idx) {
+        if (values.length <= 1) return padL + innerW / 2;
+        return padL + (idx / (values.length - 1)) * innerW;
+      }
+      function yFor(val) {
+        var t = (val - minV) / (maxV - minV);
+        return padT + (1 - t) * innerH;
+      }
+
+      canvasCtx.strokeStyle = CSS.grid || 'rgba(148, 163, 184, 0.12)';
+      canvasCtx.lineWidth = 1;
+      canvasCtx.beginPath();
+      for (var g = 0; g <= 4; g++) {
+        var y = padT + (g / 4) * innerH;
+        canvasCtx.moveTo(padL, y);
+        canvasCtx.lineTo(padL + innerW, y);
+      }
+      canvasCtx.stroke();
+
+      canvasCtx.font = '11px Inter, system-ui, -apple-system, sans-serif';
+      canvasCtx.fillStyle = CSS.muted || '#94a3b8';
+      canvasCtx.textAlign = 'right';
+      canvasCtx.textBaseline = 'middle';
+      for (var t = 0; t <= 4; t++) {
+        var val = minV + (1 - t / 4) * (maxV - minV);
+        var yTick = padT + (t / 4) * innerH;
+        var label = '£' + (val >= 1000 ? (val / 1000).toFixed(0) + 'k' : Math.round(val));
+        canvasCtx.fillText(label, padL - 8, yTick);
+      }
+
+      canvasCtx.beginPath();
+      for (var p = 0; p < values.length; p++) {
+        var pv = Number(values[p]);
+        if (!isFinite(pv)) pv = fallbackValue;
+        var x = xFor(p);
+        var y = yFor(pv);
+        if (p === 0) canvasCtx.moveTo(x, y);
+        else canvasCtx.lineTo(x, y);
+      }
+      canvasCtx.lineWidth = 2;
+      canvasCtx.strokeStyle = CSS.primary || '#38bdf8';
+      canvasCtx.stroke();
+
+      canvasCtx.lineTo(padL + innerW, padT + innerH);
+      canvasCtx.lineTo(padL, padT + innerH);
+      canvasCtx.closePath();
+      canvasCtx.fillStyle = (CSS.primary || '#38bdf8') + '22';
+      canvasCtx.fill();
     }
 
-    chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: fmtLabels,
-        datasets: [{
-          data: data.values,
-          borderColor: CSS.primary,
-          backgroundColor: CSS.primary + '22',
-          borderWidth: 2,
-          pointRadius: data.values.length <= 30 ? 3 : 0,
-          pointBackgroundColor: CSS.primary,
-          fill: true,
-          tension: 0.25
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (hasChartJs) {
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: fmtLabels,
+          datasets: [{
+            data: data.values,
+            borderColor: CSS.primary,
+            backgroundColor: CSS.primary + '22',
+            borderWidth: 2,
+            pointRadius: data.values.length <= 30 ? 3 : 0,
+            pointBackgroundColor: CSS.primary,
+            fill: true,
+            tension: 0.25
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: CSS.grid },
+              ticks: { color: CSS.muted, font: { size: 11 } }
+            },
+            y: {
+              grid: { color: CSS.grid },
+              ticks: {
+                color: CSS.muted,
+                font: { size: 11 },
+                callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); }
               }
             }
           }
-        },
-        scales: {
-          x: {
-            grid: { color: CSS.grid },
-            ticks: { color: CSS.muted, font: { size: 11 } }
-          },
-          y: {
-            grid: { color: CSS.grid },
-            ticks: {
-              color: CSS.muted,
-              font: { size: 11 },
-              callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); }
-            }
-          }
         }
+      });
+    } else {
+      if (chart && typeof chart.destroy === 'function') {
+        try { chart.destroy(); } catch (e) {}
+        chart = null;
       }
-    });
+      drawFallback(ctx, fmtLabels, data.values);
+    }
 
     // Update stats
     if (data.values.length > 0) {
