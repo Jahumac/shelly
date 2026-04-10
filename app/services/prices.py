@@ -9,6 +9,7 @@ LSE-listed instruments, returning a dict or None if nothing is found.
 Install dependency:  pip install yfinance>=0.2.0
 """
 import json
+import logging
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -39,6 +40,7 @@ TICKER_ALIASES = {
     "VGOV":  "VGOV.L",    # Vanguard UK Government Bond UCITS ETF (Dist)
 }
 
+logger = logging.getLogger(__name__)
 
 def _try_ticker(symbol: str):
     """Return dict with price/currency/change_pct for a Yahoo Finance symbol, or None.
@@ -268,7 +270,7 @@ def fetch_price(ticker: str):
         http_result = _try_yahoo_http(sym)
         if http_result:
             http_result["yf_symbol"] = sym
-            print(f"[Shelly] ${ticker} resolved via HTTP API → {sym}", flush=True)
+            logger.info(f"${ticker} resolved via HTTP API → {sym}")
             return http_result
 
     # ── Phase 3: search Yahoo Finance for the symbol ─────────────────────
@@ -280,7 +282,7 @@ def fetch_price(ticker: str):
             search_result = _try_yahoo_http(found_symbol)
         if search_result:
             search_result["yf_symbol"] = found_symbol
-            print(f"[Shelly] ${ticker} resolved via search → {found_symbol}", flush=True)
+            logger.info(f"${ticker} resolved via search → {found_symbol}")
             return search_result
 
     return None

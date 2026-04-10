@@ -7,8 +7,23 @@
   <a href="/monthly-review/">Monthly Update</a>
 </nav>
 
-{# ── Hero ────────────────────────────────────────────────────────────────── #}
+{# ── Month strip (tax year: Apr → Mar) — moved above hero for consistency ─ #}
 {% set _mk_month = month_key.split('-')[1] | int %}
+<section class="budget-year-strip month-accent-{{ _mk_month }}">
+  <div class="budget-year-strip-inner">
+    <button type="button" class="budget-year-arrow" id="prev-month" title="Previous month">◀</button>
+    {% for m in month_strip %}
+    <a href="/budget/?month={{ m.key }}"
+       class="budget-month-pill{% if m.is_current %} budget-month-active{% endif %}{% if m.is_today and not m.is_current %} budget-month-today{% endif %}{% if m.has_data %} budget-month-has-data{% endif %}">
+      <span class="budget-month-pill-label">{{ m.label }}</span>
+      {% if m.has_data %}<span class="budget-month-dot"></span>{% endif %}
+    </a>
+    {% endfor %}
+    <button type="button" class="budget-year-arrow" id="next-month" title="Next month">▶</button>
+  </div>
+</section>
+
+{# ── Hero ────────────────────────────────────────────────────────────────── #}
 <section class="card highlight mb-1 month-accent-{{ _mk_month }}">
   <div class="hero-top">
     <div>
@@ -45,21 +60,6 @@
       <span>Savings Rate</span>
       <strong id="stat-savings" title="Based on amounts in your Investment / Savings sections">{{ '{:.1f}'.format(summary.savings_rate) }}%</strong>
     </div>
-  </div>
-</section>
-
-{# ── Month strip (tax year: Apr → Mar) — below hero for consistency ──── #}
-<section class="budget-year-strip month-accent-{{ _mk_month }}">
-  <div class="budget-year-strip-inner">
-    <button type="button" class="budget-year-arrow" id="prev-month" title="Previous month">◀</button>
-    {% for m in month_strip %}
-    <a href="/budget/?month={{ m.key }}"
-       class="budget-month-pill{% if m.is_current %} budget-month-active{% endif %}{% if m.is_today and not m.is_current %} budget-month-today{% endif %}{% if m.has_data %} budget-month-has-data{% endif %}">
-      <span class="budget-month-pill-label">{{ m.label }}</span>
-      {% if m.has_data %}<span class="budget-month-dot"></span>{% endif %}
-    </a>
-    {% endfor %}
-    <button type="button" class="budget-year-arrow" id="next-month" title="Next month">▶</button>
   </div>
 </section>
 

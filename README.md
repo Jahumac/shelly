@@ -60,8 +60,12 @@ Multiple users can share a single Shelly instance, each with their own accounts,
 ### Contribution Overrides
 Temporarily change a monthly contribution (e.g. parental leave, career break) without losing your long-term plan.
 
-### PWA Support
-Install Shelly as a phone app — visit the URL in your mobile browser and tap "Add to Home Screen". Works full-screen with its own icon.
+### PWA & Mobile
+- Install Shelly as a phone app — visit the URL in your mobile browser and tap "Add to Home Screen". Works full-screen with its own icon.
+- Offline-friendly app shell with a service worker; network-first for pages and API to keep data fresh.
+
+### Demo Mode (Read‑only)
+- Optional read‑only demo user for safe exploration (set `DEMO_READ_ONLY_USERNAME=demo` and create a `demo` user). Any POST writes from the demo account are blocked.
 
 ---
 
@@ -181,6 +185,30 @@ data/
 ├── finance.db             # SQLite database (auto-created, git-ignored)
 └── secret_key.txt         # Flask secret key (auto-generated, git-ignored)
 ```
+
+---
+
+## Screenshots
+
+Add screenshots under `docs/screenshots/` and reference them here:
+
+![Overview](docs/screenshots/overview.png)
+![Accounts](docs/screenshots/accounts.png)
+![Budget](docs/screenshots/budget.png)
+![Monthly Update](docs/screenshots/monthly_update.png)
+![Goals](docs/screenshots/goals.png)
+
+---
+
+## Roadmap
+
+- Read‑only demo mode for public try‑outs (done).
+- Better offline experience: cached read‑only views with clear “offline” indicators.
+- Diagnostics page: last scheduler run, Yahoo price fetch status, DB health.
+- Import UX: smarter column matching and validation hints.
+- Alerts: allowance nearing limits, spending spikes, price update failures.
+- Desktop packaging: Tauri/Electron wrapper.
+- Optional migration to versioned API endpoints to simplify mobile-native clients.
 
 ---
 

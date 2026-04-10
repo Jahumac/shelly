@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, send_from_directory
+from flask import Flask, redirect, url_for, send_from_directory, request, flash, jsonify
 from flask_login import LoginManager, current_user
 from flask_wtf.csrf import CSRFProtect
 
@@ -85,6 +85,21 @@ def create_app():
         if count_users() == 0:
             return redirect(url_for("auth.setup"))
 
+    @app.before_request
+    def enforce_read_only_demo():
+        if not current_user.is_authenticated:
+            return
+        demo_user = app.config.get("DEMO_READ_ONLY_USERNAME")
+        if not demo_user:
+            return
+        if getattr(current_user, "username", None) != demo_user:
+            return
+        if request.method != "POST":
+            return
+        if request.headers.get("Accept", "").find("application/json") != -1 or request.path.find("/api/") != -1:
+            return jsonify({"error": "Demo account is read-only"}), 403
+        flash("Demo account is read-only", "error")
+        return redirect(request.referrer or url_for("overview.overview"))
     # ── Context processors ────────────────────────────────────────────────────
     @app.context_processor
     def inject_dashboard_name():

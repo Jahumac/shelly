@@ -51,7 +51,6 @@ def init_scheduler(app):
         _lock_file = open(lock_path, 'w')
         fcntl.flock(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except (IOError, OSError):
-        print("[Shelly] Another worker already holds the scheduler lock — skipping scheduler init in this worker.", flush=True)
         logger.info("Another worker already holds the scheduler lock — skipping.")
         return None
 
@@ -71,10 +70,8 @@ def init_scheduler(app):
 
     try:
         scheduler.start()
-        print("[Shelly] Background scheduler started — checking for price updates every 15 min (6am–10pm UK)", flush=True)
         logger.info("Background scheduler started — checking every 15 min (6am–10pm UK)")
     except Exception as e:
-        print(f"[Shelly] Failed to start scheduler: {e}", flush=True)
         logger.error(f"Failed to start scheduler: {e}")
         scheduler = None
 
@@ -100,7 +97,7 @@ def _scheduled_check(app):
         today_str = now.strftime('%Y-%m-%d')
         now_iso = now.strftime('%Y-%m-%d %H:%M:%S')
 
-        print(f"[Shelly] Scheduled check running at {now_iso} UK time", flush=True)
+        logger.info(f"Scheduled check running at {now_iso} UK time")
 
         try:
             users = fetch_all_users()
@@ -152,12 +149,10 @@ def _scheduled_check(app):
                     )
                     conn.commit()
 
-                print(f"[Shelly] Triggering price update for user {user_id} at {now_iso}", flush=True)
                 logger.info(f"Triggering price update for user {user_id}")
                 _run_price_update_for_user(app, user_id, slot_name="auto")
 
             except Exception as e:
-                print(f"[Shelly] Scheduled check error for user {user_id}: {e}", flush=True)
                 logger.error(f"Scheduled check error for user {user_id}: {e}")
 
 
@@ -176,10 +171,9 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
         try:
             catalogue = fetch_holding_catalogue(user_id)
             if not catalogue:
-                print(f"[Shelly] No holdings in catalogue for user {user_id} — skipping", flush=True)
                 return
 
-            print(f"[Shelly] Fetching prices for {len(catalogue)} instruments...", flush=True)
+            logger.info(f"Fetching prices for {len(catalogue)} instruments...")
             price_results = refresh_catalogue_prices(catalogue)
 
             with get_connection() as conn:
@@ -220,7 +214,6 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
 
             successful = sum(1 for r in price_results if r.get("success"))
             failed = len(price_results) - successful
-            print(f"[Shelly] Price update complete: {successful} OK, {failed} failed — snapshot saved (£{total_value:,.2f})", flush=True)
             logger.info(f"Updated {successful}/{len(price_results)} holdings for user {user_id} ({slot_name or 'manual'})")
 
         except Exception as e:
