@@ -1,5 +1,5 @@
 """Holdings blueprint — API-only routes (page removed; see accounts for add-holding flow)."""
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
 
 from datetime import datetime, timezone
@@ -139,3 +139,14 @@ def api_trigger_price_update():
     result = trigger_manual_update(current_app, current_user.id)
     status_code = 200 if result.get("ok") else 400
     return jsonify(result), status_code
+
+
+@holdings_bp.route("/trigger-price-update", methods=["POST"])
+@login_required
+def trigger_price_update():
+    result = trigger_manual_update(current_app, current_user.id)
+    if result.get("ok"):
+        flash(result.get("message") or "Prices updated.", "success")
+    else:
+        flash(result.get("message") or result.get("error") or "Price update failed.", "error")
+    return redirect(request.referrer or url_for("overview.overview"))

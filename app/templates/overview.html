@@ -176,7 +176,9 @@
       {% else %}
       <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Auto-update: Off</p>
       {% endif %}
-      <button type="button" class="badge badge-meta" id="refresh-overview-prices" title="Fetch latest prices now">↻ Refresh</button>
+      <form method="post" action="/holdings/trigger-price-update" class="form-reset">
+        <button type="submit" class="badge badge-meta" title="Fetch latest prices now">↻ Refresh</button>
+      </form>
     </div>
   </div>
 </section>
@@ -522,29 +524,4 @@
 })();
 </script>
 
-<script>
-(function() {
-  var btn = document.getElementById('refresh-overview-prices');
-  if (!btn) return;
-  btn.addEventListener('click', function() {
-    btn.textContent = '↻ Updating…';
-    btn.disabled = true;
-    fetch('/holdings/api/trigger-price-update', { method: 'POST' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.ok) {
-          btn.textContent = '✓ Updated';
-          setTimeout(function() { location.reload(); }, 800);
-        } else {
-          btn.textContent = '✕ ' + (data.message || data.error || 'Failed');
-          setTimeout(function() { btn.textContent = '↻ Refresh'; btn.disabled = false; }, 3000);
-        }
-      })
-      .catch(function() {
-        btn.textContent = '✕ Error';
-        setTimeout(function() { btn.textContent = '↻ Refresh'; btn.disabled = false; }, 3000);
-      });
-  });
-})();
-</script>
 {% endblock %}
