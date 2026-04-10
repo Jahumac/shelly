@@ -187,7 +187,6 @@ CREATE TABLE IF NOT EXISTS isa_contributions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-<<<<<<< HEAD
 CREATE TABLE IF NOT EXISTS pension_contributions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -199,8 +198,6 @@ CREATE TABLE IF NOT EXISTS pension_contributions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 CREATE TABLE IF NOT EXISTS schema_migrations (
     name TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -673,7 +670,6 @@ def init_db():
             except Exception:
                 pass
 
-<<<<<<< HEAD
         for col in [
             "annual_income REAL DEFAULT 0",
             "pension_annual_allowance REAL DEFAULT 60000",
@@ -684,9 +680,6 @@ def init_db():
                 conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
             except Exception:
                 pass
-
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
         # ── Custom tags per user ─────────────────────────────────────────────
         conn.execute("""
             CREATE TABLE IF NOT EXISTS custom_tags (
@@ -697,7 +690,6 @@ def init_db():
             )
         """)
 
-<<<<<<< HEAD
         conn.execute("""
             CREATE TABLE IF NOT EXISTS pension_contributions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -710,9 +702,6 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
-
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
         conn.commit()
 
 
@@ -888,7 +877,6 @@ def delete_isa_contribution(contribution_id, user_id):
         conn.commit()
 
 
-<<<<<<< HEAD
 def add_pension_contribution(user_id, account_id, amount, kind, contribution_date, note=None):
     with get_connection() as conn:
         conn.execute(
@@ -925,9 +913,6 @@ def delete_pension_contribution(contribution_id, user_id):
         )
         conn.commit()
 
-
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 def fetch_or_create_monthly_review(month_key, user_id):
     with get_connection() as conn:
         review = conn.execute(
@@ -1050,13 +1035,10 @@ def update_assumptions(payload, user_id):
                 retirement_goal_value = ?,
                 isa_allowance = ?,
                 lisa_allowance = ?,
-<<<<<<< HEAD
                 annual_income = ?,
                 pension_annual_allowance = ?,
                 mpaa_enabled = ?,
                 mpaa_allowance = ?,
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
                 target_dev_pct = ?,
                 target_em_pct = ?,
                 emergency_fund_target = ?,
@@ -1078,13 +1060,10 @@ def update_assumptions(payload, user_id):
                 payload["retirement_goal_value"],
                 payload["isa_allowance"],
                 payload["lisa_allowance"],
-<<<<<<< HEAD
                 payload.get("annual_income", 0),
                 payload.get("pension_annual_allowance", 60000),
                 payload.get("mpaa_enabled", 0),
                 payload.get("mpaa_allowance", 10000),
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
                 payload["target_dev_pct"],
                 payload["target_em_pct"],
                 payload["emergency_fund_target"],

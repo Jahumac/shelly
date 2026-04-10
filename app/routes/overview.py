@@ -6,15 +6,10 @@ from flask_login import current_user, login_required
 from app.calculations import (
     allowance_progress,
     calculate_isa_usage,
-<<<<<<< HEAD
     calculate_pension_usage,
     effective_account_value,
     is_review_due,
     pension_allowance_limits,
-=======
-    effective_account_value,
-    is_review_due,
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
     progress_to_goal,
     projected_total_retirement_value,
     review_ready_date,
@@ -31,10 +26,7 @@ from app.models import (
     fetch_assumptions,
     fetch_holding_totals_by_account,
     fetch_isa_contributions,
-<<<<<<< HEAD
     fetch_pension_contributions,
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
     fetch_latest_price_update,
     fetch_net_worth_history,
     fetch_or_create_monthly_review,
@@ -80,14 +72,11 @@ def overview():
     isa_used = isa_usage["isa_used"]
     lisa_used = isa_usage["lisa_used"]
 
-<<<<<<< HEAD
     pension_contribs = fetch_pension_contributions(uid, ty_start, ty_end)
     pension_usage = calculate_pension_usage(raw_accounts, pension_contribs, assumptions, now_date, salary_day)
     pension_limits = pension_allowance_limits(dict(assumptions) if assumptions else {})
     pension_allowance = pension_limits["effective_allowance"]
 
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
     now = datetime.now()
 
     metrics = {
@@ -103,7 +92,6 @@ def overview():
         "current_time": now.strftime("%H:%M"),
         "isa_allowance": float(assumptions["isa_allowance"]) if assumptions else 0,
         "lisa_allowance": float(assumptions["lisa_allowance"]) if assumptions else 0,
-<<<<<<< HEAD
         "pension_allowance": pension_allowance,
         "isa_used": isa_used,
         "lisa_used": lisa_used,
@@ -115,14 +103,6 @@ def overview():
         "lisa_progress": allowance_progress(lisa_used, float(assumptions["lisa_allowance"]) if assumptions else 0),
         "pension_progress": allowance_progress(pension_usage["pension_used"], pension_allowance),
         "pension_personal_limit": pension_limits["personal_relief_limit"],
-=======
-        "isa_used": isa_used,
-        "lisa_used": lisa_used,
-        "projected_isa": isa_usage["projected_isa"],
-        "projected_lisa": isa_usage["projected_lisa"],
-        "isa_progress": allowance_progress(isa_used, float(assumptions["isa_allowance"]) if assumptions else 0),
-        "lisa_progress": allowance_progress(lisa_used, float(assumptions["lisa_allowance"]) if assumptions else 0),
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
         "effective_values": {account["id"]: effective_account_value(account, holdings_totals) for account in accounts},
     }
 

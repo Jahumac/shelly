@@ -72,7 +72,6 @@
         <input type="number" step="0.01" name="lisa_allowance" value="{{ assumptions.lisa_allowance if assumptions else 4000 }}">
         <small class="form-hint">Sub-limit within ISA allowance</small>
       </label>
-<<<<<<< HEAD
       <label>
         <span>Annual income (£)</span>
         <input type="number" step="0.01" name="annual_income" value="{{ assumptions.annual_income if assumptions and assumptions.annual_income is not none else 0 }}">
@@ -103,8 +102,6 @@
           sync();
         })();
       </script>
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
         <input type="checkbox" name="auto_update_prices" value="1" id="auto-update-toggle" {{ 'checked' if not assumptions or assumptions.auto_update_prices != 0 else '' }}>
@@ -191,7 +188,6 @@
       <strong>£{{ '{:,.0f}'.format(assumptions.lisa_allowance if assumptions else 4000) }}</strong>
     </div>
     <div class="hero-strip-stat">
-<<<<<<< HEAD
       <span>Pension allowance</span>
       <strong>£{{ '{:,.0f}'.format(assumptions.pension_annual_allowance if assumptions and assumptions.pension_annual_allowance is not none else 60000) }}</strong>
     </div>
@@ -200,8 +196,6 @@
       <strong>£{{ '{:,.0f}'.format(assumptions.annual_income if assumptions and assumptions.annual_income is not none else 0) }}</strong>
     </div>
     <div class="hero-strip-stat">
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
       <span>Investment day</span>
       <strong>{{ (assumptions.salary_day ~ ('st' if assumptions.salary_day in [1,21,31] else ('nd' if assumptions.salary_day in [2,22] else ('rd' if assumptions.salary_day in [3,23] else 'th')))) if assumptions and assumptions.salary_day else 'Not set' }}</strong>
     </div>

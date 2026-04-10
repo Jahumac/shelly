@@ -1,9 +1,5 @@
 {% extends 'base.html' %}
-<<<<<<< HEAD
 {% block title %}Allowances · Shelly{% endblock %}
-=======
-{% block title %}ISA Allowance · Shelly{% endblock %}
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 {% block content %}
 
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
@@ -14,13 +10,8 @@
   <div class="hero-top">
     <div>
       <p class="eyebrow">Tax Year {{ tax_year }}</p>
-<<<<<<< HEAD
       <h2 class="hero-value">Allowances</h2>
       <p class="hero-subtitle">Track ISA, LISA and pension contributions across all accounts</p>
-=======
-      <h2 class="hero-value">ISA Allowance</h2>
-      <p class="hero-subtitle">Track your ISA and LISA usage across all accounts</p>
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
@@ -49,7 +40,6 @@
     <div class="progress"><div class="progress-bar" style="width: {{ (lisa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
   </div>
-<<<<<<< HEAD
   <div class="card allowance-card">
     <h2>Pension Annual Allowance</h2>
     <p>£{{ '{:,.0f}'.format(pension_usage.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</span></p>
@@ -64,8 +54,6 @@
     </small>
     {% endif %}
   </div>
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 </section>
 
 {# ── How it's calculated ────────────────────────────────────────────────── #}
@@ -208,7 +196,6 @@
 </section>
 {% endif %}
 
-<<<<<<< HEAD
 {# ── Pension breakdown ──────────────────────────────────────────────────── #}
 <section class="card mb-1">
   <div class="section-header">
@@ -351,7 +338,4 @@
   </table>
 </section>
 {% endif %}
-
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 {% endblock %}

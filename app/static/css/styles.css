@@ -279,11 +279,7 @@ nav a.active {
 }
 
 .allowance-grid {
-<<<<<<< HEAD
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-=======
-  grid-template-columns: repeat(2, minmax(0, 1fr));
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 }
 
 .stat-card p,

@@ -774,7 +774,6 @@ def calculate_isa_usage(accounts, ad_hoc_contributions, today=None, salary_day=0
     }
 
 
-<<<<<<< HEAD
 def pension_allowance_limits(assumptions=None):
     assumptions = assumptions or {}
     try:
@@ -920,8 +919,6 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
     }
 
 
-=======
->>>>>>> 960fff2 (feat: initial commit for Shelly finance dashboard)
 def build_month_strip(today=None):
     """Build the 12-month tax-year strip (Apr → Mar) for the current date.
 
