@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}ISA Allowance · Shelly{% endblock %}
+{% block title %}Allowances · Shelly{% endblock %}
 {% block content %}
 
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
@@ -10,8 +10,8 @@
   <div class="hero-top">
     <div>
       <p class="eyebrow">Tax Year {{ tax_year }}</p>
-      <h2 class="hero-value">ISA Allowance</h2>
-      <p class="hero-subtitle">Track your ISA and LISA usage across all accounts</p>
+      <h2 class="hero-value">Allowances</h2>
+      <p class="hero-subtitle">Track ISA, LISA and pension contributions across all accounts</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
@@ -39,6 +39,20 @@
     <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
     <div class="progress"><div class="progress-bar" style="width: {{ (lisa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
+  </div>
+  <div class="card allowance-card">
+    <h2>Pension Annual Allowance</h2>
+    <p>£{{ '{:,.0f}'.format(pension_usage.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" style="width: {{ (pension_progress * 100)|round(1) }}%;"></div></div>
+    <small>
+      {{ '{:.1f}'.format(pension_progress * 100) }}% used
+      · Personal tax-relief limit: £{{ '{:,.0f}'.format(pension_limits.personal_relief_limit) }}
+    </small>
+    {% if pension_usage.projected_total != pension_usage.pension_used %}
+    <small style="display:block; margin-top:0.25rem; color:var(--muted);">
+      On track: £{{ '{:,.0f}'.format(pension_usage.projected_total) }} / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }} by end of tax year
+    </small>
+    {% endif %}
   </div>
 </section>
 
@@ -171,6 +185,149 @@
         <td>{{ c.note or '–' }}</td>
         <td style="text-align:right">
           <form method="post" action="/allowance/delete/{{ c.id }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# ── Pension breakdown ──────────────────────────────────────────────────── #}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Pension</p>
+      <h2>Breakdown</h2>
+    </div>
+  </div>
+  <p class="helper-text" style="margin-bottom: 1rem;">
+    Shelly totals your pension contributions from {{ pension_usage.months }} month{{ 's' if pension_usage.months != 1 }} of regular contributions so far
+    ({{ pension_usage.total_months }} months in the full tax year)
+    plus any one-off contributions you record below.
+  </p>
+  {% if pension_usage.breakdown %}
+  <div class="table-scroll">
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Account</th>
+        <th style="text-align:center">Type</th>
+        <th style="text-align:right">Monthly (gross)</th>
+        <th style="text-align:right">× {{ pension_usage.months }} mo</th>
+        <th style="text-align:right">One-offs</th>
+        <th style="text-align:right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in pension_usage.breakdown %}
+      <tr>
+        <td>{{ b.account_name }}</td>
+        <td style="text-align:center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
+        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
+        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_sum) }}</td>
+        <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(b.monthly_sum + b.adhoc_total) }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4"></td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(pension_usage.adhoc_total) }}</strong></td>
+        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(pension_usage.pension_used) }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+  {% else %}
+  <p class="helper-text">No pension accounts found. Add a SIPP or Workplace Pension account to start tracking.</p>
+  {% endif %}
+</section>
+
+{# ── Record a pension contribution ───────────────────────────────────────── #}
+<section class="card mb-1" id="pension">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Ad-hoc Contribution</p>
+      <h2>Record a Pension Payment</h2>
+    </div>
+  </div>
+  {% if pension_accounts %}
+  <form method="post" action="/allowance/pension/add" class="allowance-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="allowance-form-row">
+      <label class="allowance-form-field allowance-form-field-grow">
+        <span>Account</span>
+        <select name="account_id" required>
+          <option value="">Choose a pension account…</option>
+          {% for acc in pension_accounts %}
+          <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.wrapper_type }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="allowance-form-field">
+        <span>Type</span>
+        <select name="kind">
+          <option value="personal">Personal</option>
+          <option value="employer">Employer</option>
+        </select>
+      </label>
+      <label class="allowance-form-field">
+        <span>Amount (£, gross)</span>
+        <input type="number" name="amount" step="0.01" min="0.01" placeholder="1000.00" required>
+      </label>
+      <label class="allowance-form-field">
+        <span>Date</span>
+        <input type="date" name="contribution_date" value="{{ today }}">
+      </label>
+    </div>
+    <label class="allowance-form-field" style="margin-top: 0.75rem;">
+      <span>Note (optional)</span>
+      <input type="text" name="note" placeholder="e.g. Bonus into SIPP">
+    </label>
+    <div style="margin-top: 1rem;">
+      <button type="submit" class="badge badge-primary-action" style="cursor:pointer;">Record Contribution</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="helper-text">You don't have any pension accounts yet. Create one under <a href="/accounts/">Accounts</a> first.</p>
+  {% endif %}
+</section>
+
+{# ── Pension contribution history ────────────────────────────────────────── #}
+{% if pension_contributions %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">History</p>
+      <h2>Pension Contributions ({{ tax_year }})</h2>
+    </div>
+  </div>
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Account</th>
+        <th>Type</th>
+        <th style="text-align:right">Amount</th>
+        <th>Note</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in pension_contributions %}
+      <tr>
+        <td>{{ c.contribution_date }}</td>
+        <td>{{ c.account_name }}</td>
+        <td><span class="badge badge-sm">{{ (c.kind or 'personal')|capitalize }}</span></td>
+        <td style="text-align:right">£{{ '{:,.2f}'.format(c.amount) }}</td>
+        <td>{{ c.note or '–' }}</td>
+        <td style="text-align:right">
+          <form method="post" action="/allowance/pension/delete/{{ c.id }}" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
           </form>

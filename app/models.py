@@ -187,6 +187,17 @@ CREATE TABLE IF NOT EXISTS isa_contributions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS pension_contributions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    amount REAL NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'personal',
+    contribution_date TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     name TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -659,6 +670,17 @@ def init_db():
             except Exception:
                 pass
 
+        for col in [
+            "annual_income REAL DEFAULT 0",
+            "pension_annual_allowance REAL DEFAULT 60000",
+            "mpaa_enabled INTEGER DEFAULT 0",
+            "mpaa_allowance REAL DEFAULT 10000",
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
+            except Exception:
+                pass
+
         # ── Custom tags per user ─────────────────────────────────────────────
         conn.execute("""
             CREATE TABLE IF NOT EXISTS custom_tags (
@@ -666,6 +688,19 @@ def init_db():
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 tag TEXT NOT NULL,
                 UNIQUE(user_id, tag)
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pension_contributions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                account_id INTEGER NOT NULL REFERENCES accounts(id),
+                amount REAL NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'personal',
+                contribution_date TEXT NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
 
@@ -844,6 +879,43 @@ def delete_isa_contribution(contribution_id, user_id):
         conn.commit()
 
 
+def add_pension_contribution(user_id, account_id, amount, kind, contribution_date, note=None):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO pension_contributions (user_id, account_id, amount, kind, contribution_date, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, account_id, amount, kind, contribution_date, note),
+        )
+        conn.commit()
+
+
+def fetch_pension_contributions(user_id, tax_year_start, tax_year_end):
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT c.*, a.name AS account_name, a.wrapper_type
+            FROM pension_contributions c
+            JOIN accounts a ON a.id = c.account_id
+            WHERE c.user_id = ?
+              AND c.contribution_date >= ?
+              AND c.contribution_date <= ?
+            ORDER BY c.contribution_date DESC
+            """,
+            (user_id, tax_year_start, tax_year_end),
+        ).fetchall()
+
+
+def delete_pension_contribution(contribution_id, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM pension_contributions WHERE id = ? AND user_id = ?",
+            (contribution_id, user_id),
+        )
+        conn.commit()
+
+
 def fetch_or_create_monthly_review(month_key, user_id):
     with get_connection() as conn:
         review = conn.execute(
@@ -966,6 +1038,10 @@ def update_assumptions(payload, user_id):
                 retirement_goal_value = ?,
                 isa_allowance = ?,
                 lisa_allowance = ?,
+                annual_income = ?,
+                pension_annual_allowance = ?,
+                mpaa_enabled = ?,
+                mpaa_allowance = ?,
                 target_dev_pct = ?,
                 target_em_pct = ?,
                 emergency_fund_target = ?,
@@ -987,6 +1063,10 @@ def update_assumptions(payload, user_id):
                 payload["retirement_goal_value"],
                 payload["isa_allowance"],
                 payload["lisa_allowance"],
+                payload.get("annual_income", 0),
+                payload.get("pension_annual_allowance", 60000),
+                payload.get("mpaa_enabled", 0),
+                payload.get("mpaa_allowance", 10000),
                 payload["target_dev_pct"],
                 payload["target_em_pct"],
                 payload["emergency_fund_target"],
