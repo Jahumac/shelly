@@ -624,6 +624,140 @@
         {% endif %}
       </section>
 
+      <section class="panel mt-1">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Performance</p>
+            <h3>Monthly history</h3>
+          </div>
+          <a class="badge badge-meta" href="/performance/export.xlsx?account_id={{ selected.id }}">Download report</a>
+        </div>
+
+        {% if account_monthly_labels and account_monthly_labels | length >= 2 %}
+        <div class="chart-wrap chart-wrap-sm">
+          <canvas id="acctMonthlyChart" role="img" aria-label="Monthly account value chart"></canvas>
+        </div>
+        <p id="acct-chart-error" class="helper-text mt-05" style="display:none;"></p>
+
+        <script>
+        (function () {
+          try {
+            var labels = {{ account_monthly_labels | tojson }};
+            var values = {{ account_monthly_values | tojson }};
+            var canvas = document.getElementById('acctMonthlyChart');
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+
+            function drawFallback(canvasCtx, values) {
+              var rect = canvas.getBoundingClientRect();
+              var w = Math.max(1, Math.floor(rect.width));
+              var h = Math.max(1, Math.floor(rect.height));
+              var dpr = window.devicePixelRatio || 1;
+              if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+                canvas.width = Math.floor(w * dpr);
+                canvas.height = Math.floor(h * dpr);
+              }
+              canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+              canvasCtx.clearRect(0, 0, w, h);
+
+              var padL = 44;
+              var padR = 12;
+              var padT = 10;
+              var padB = 22;
+              var innerW = Math.max(1, w - padL - padR);
+              var innerH = Math.max(1, h - padT - padB);
+
+              var minV = Infinity;
+              var maxV = -Infinity;
+              for (var i = 0; i < values.length; i++) {
+                var v = Number(values[i]);
+                if (!isFinite(v)) continue;
+                if (v < minV) minV = v;
+                if (v > maxV) maxV = v;
+              }
+              if (!isFinite(minV) || !isFinite(maxV)) return;
+              if (minV === maxV) {
+                minV = minV * 0.999;
+                maxV = maxV * 1.001;
+              }
+
+              function xFor(idx) {
+                if (values.length <= 1) return padL + innerW / 2;
+                return padL + (idx / (values.length - 1)) * innerW;
+              }
+              function yFor(val) {
+                var t = (val - minV) / (maxV - minV);
+                return padT + (1 - t) * innerH;
+              }
+
+              canvasCtx.strokeStyle = CSS.grid || 'rgba(148, 163, 184, 0.12)';
+              canvasCtx.lineWidth = 1;
+              canvasCtx.beginPath();
+              for (var g = 0; g <= 4; g++) {
+                var y = padT + (g / 4) * innerH;
+                canvasCtx.moveTo(padL, y);
+                canvasCtx.lineTo(padL + innerW, y);
+              }
+              canvasCtx.stroke();
+
+              canvasCtx.beginPath();
+              for (var p = 0; p < values.length; p++) {
+                var pv = Number(values[p]);
+                if (!isFinite(pv)) continue;
+                var x = xFor(p);
+                var y = yFor(pv);
+                if (p === 0) canvasCtx.moveTo(x, y);
+                else canvasCtx.lineTo(x, y);
+              }
+              canvasCtx.lineWidth = 2;
+              canvasCtx.strokeStyle = CSS.primary || '#38bdf8';
+              canvasCtx.stroke();
+            }
+
+            if (typeof window.Chart === 'function') {
+              new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels: labels,
+                  datasets: [{
+                    data: values,
+                    borderColor: CSS.primary,
+                    backgroundColor: CSS.primary + '22',
+                    borderWidth: 2,
+                    pointRadius: values.length <= 24 ? 3 : 0,
+                    pointBackgroundColor: CSS.primary,
+                    fill: true,
+                    tension: 0.25
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 } } },
+                    y: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 } } }
+                  }
+                }
+              });
+            } else {
+              drawFallback(ctx, values);
+            }
+          } catch (err) {
+            var msg = (err && err.message) ? err.message : String(err);
+            var el = document.getElementById('acct-chart-error');
+            if (el) {
+              el.style.display = 'block';
+              el.textContent = 'Account chart failed to render: ' + msg;
+            }
+          }
+        })();
+        </script>
+        {% else %}
+        <p class="helper-text">Not enough monthly snapshots yet. Run a Monthly Update twice (two months) to see history.</p>
+        {% endif %}
+      </section>
+
       <section class="panel mt-1" id="holdings-section">
         <div class="section-header">
           <div>

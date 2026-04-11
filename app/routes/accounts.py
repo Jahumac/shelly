@@ -25,6 +25,7 @@ from app.models import (
     fetch_holding_catalogue,
     fetch_holding_totals_by_account,
     fetch_holdings_for_account,
+    fetch_account_snapshot_history,
     fetch_user_tags,
     reconnect_holdings_to_catalogue,
     sync_holding_prices_from_catalogue,
@@ -99,6 +100,12 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
     catalogue_rows = fetch_catalogue_with_prices(user_id)
     catalogue_prices = {row["id"]: {"price": row["last_price"], "currency": row["price_currency"]} for row in catalogue_rows if row["last_price"]}
     overrides = fetch_contribution_overrides(selected["id"]) if selected else []
+    account_monthly_labels = []
+    account_monthly_values = []
+    if selected:
+        history = fetch_account_snapshot_history(selected["id"], limit=36)
+        account_monthly_labels = [m for (m, _) in history]
+        account_monthly_values = [round(float(v or 0), 2) for (_, v) in history]
 
     edit_holding = None
     if edit_holding_id and positions:
@@ -157,6 +164,8 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
         catalogue_prices=catalogue_prices,
         edit_holding=edit_holding,
         tax_band=assumptions["tax_band"] if assumptions and "tax_band" in assumptions.keys() else "basic",
+        account_monthly_labels=account_monthly_labels,
+        account_monthly_values=account_monthly_values,
     )
 
 

@@ -1,10 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.calculations import current_age_from_assumptions
-from app.models import fetch_assumptions, reset_all_user_data, update_assumptions
+from app.models import (
+    fetch_assumptions,
+    fetch_holding_catalogue_in_use,
+    fetch_latest_price_update,
+    get_connection,
+    reset_all_user_data,
+    update_assumptions,
+)
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -64,7 +71,100 @@ def settings():
         return redirect(url_for("settings.settings"))
 
     computed_age = int(current_age_from_assumptions(assumptions)) if assumptions else 0
-    return render_template("settings.html", assumptions=assumptions, computed_age=computed_age, active_page="settings")
+    page_mode = request.args.get("mode", "view")
+    diagnostics = None
+    if page_mode == "diagnostics":
+        diagnostics = {}
+        with get_connection() as conn:
+            diagnostics["db_ok"] = True
+            try:
+                conn.execute("SELECT 1").fetchone()
+            except Exception:
+                diagnostics["db_ok"] = False
+
+            last_run = conn.execute(
+                "SELECT run_date, slot, created_at FROM scheduler_runs WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+                (uid,),
+            ).fetchone()
+            diagnostics["scheduler_last_run"] = dict(last_run) if last_run else None
+
+            counts = conn.execute(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM accounts WHERE user_id = ?) AS accounts,
+                    (SELECT COUNT(*) FROM holdings h JOIN accounts a ON a.id = h.account_id WHERE a.user_id = ?) AS holdings,
+                    (SELECT COUNT(*) FROM holding_catalogue WHERE user_id = ? AND is_active = 1) AS catalogue_active,
+                    (SELECT COUNT(*) FROM portfolio_daily_snapshots WHERE user_id = ?) AS portfolio_daily_snapshots
+                """,
+                (uid, uid, uid, uid),
+            ).fetchone()
+            diagnostics["counts"] = dict(counts) if counts else {}
+
+            latest_snapshot = conn.execute(
+                "SELECT snapshot_date, total_value FROM portfolio_daily_snapshots WHERE user_id = ? ORDER BY snapshot_date DESC LIMIT 1",
+                (uid,),
+            ).fetchone()
+            diagnostics["latest_portfolio_snapshot"] = dict(latest_snapshot) if latest_snapshot else None
+
+            in_use = fetch_holding_catalogue_in_use(uid)
+            diagnostics["catalogue_in_use_count"] = len(in_use) if in_use else 0
+
+            latest_price_update = fetch_latest_price_update(uid)
+            diagnostics["latest_price_update_raw"] = latest_price_update
+            diagnostics["latest_price_update_utc"] = str(latest_price_update) if latest_price_update else None
+
+            sample_rows = conn.execute(
+                """
+                SELECT
+                    hc.id,
+                    hc.holding_name,
+                    hc.ticker,
+                    hc.last_price,
+                    hc.price_currency,
+                    hc.price_updated_at,
+                    COUNT(h.id) AS linked_holdings
+                FROM holding_catalogue hc
+                JOIN holdings h ON h.holding_catalogue_id = hc.id
+                JOIN accounts a ON a.id = h.account_id
+                WHERE a.user_id = ?
+                  AND a.is_active = 1
+                  AND hc.is_active = 1
+                GROUP BY hc.id
+                ORDER BY hc.price_updated_at DESC NULLS LAST, hc.holding_name ASC
+                LIMIT 20
+                """,
+                (uid,),
+            ).fetchall()
+            diagnostics["catalogue_in_use_sample"] = [dict(r) for r in sample_rows]
+
+        stale_count = 0
+        now_utc = datetime.now(timezone.utc)
+        for row in diagnostics.get("catalogue_in_use_sample", []):
+            ts = (row.get("price_updated_at") or "").strip()
+            if not ts:
+                stale_count += 1
+                continue
+            try:
+                if ts.endswith(" UTC"):
+                    dt = datetime.strptime(ts, "%Y-%m-%d %H:%M UTC").replace(tzinfo=timezone.utc)
+                else:
+                    dt = datetime.fromisoformat(ts)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                if now_utc - dt > timedelta(days=2):
+                    stale_count += 1
+            except Exception:
+                stale_count += 1
+        diagnostics["catalogue_stale_2d_count_in_sample"] = stale_count
+
+    return render_template(
+        "settings.html",
+        assumptions=assumptions,
+        computed_age=computed_age,
+        diagnostics=diagnostics,
+        page_mode=page_mode,
+        active_page="settings",
+    )
 
 
 @settings_bp.route("/reset", methods=["POST"])

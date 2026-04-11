@@ -2000,6 +2000,22 @@ def fetch_net_worth_history(user_id, limit=24):
     return [(r["month_key"], r["total"]) for r in rows[-limit:]]
 
 
+def fetch_account_snapshot_history(account_id, limit=24):
+    """Return (month_key, balance) pairs for one account for the last `limit` months that have snapshots."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT month_key, balance
+            FROM monthly_snapshots
+            WHERE account_id = ?
+              AND month_key IS NOT NULL
+            ORDER BY month_key ASC
+            """,
+            (account_id,),
+        ).fetchall()
+    return [(r["month_key"], r["balance"]) for r in rows[-limit:]]
+
+
 def fetch_monthly_performance_data(user_id):
     """Return list of (month_key, total_balance, total_contribution) ordered by month."""
     with get_connection() as conn:

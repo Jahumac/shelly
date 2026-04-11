@@ -152,6 +152,118 @@
   </form>
 </section>
 
+{% elif page_mode == 'diagnostics' %}
+
+<section class="card highlight mb-1 month-accent-{{ current_month_num }}">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Diagnostics</p>
+      <h2>System Health</h2>
+      <p class="hero-subtitle">Quick status checks for scheduler, prices and database</p>
+    </div>
+    <a class="badge" href="/settings/">Back</a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Status</p>
+      <h3>Overview</h3>
+    </div>
+  </div>
+  <table class="data-table">
+    <tbody>
+      <tr>
+        <td>Database</td>
+        <td class="num">{% if diagnostics and diagnostics.db_ok %}OK{% else %}Error{% endif %}</td>
+      </tr>
+      <tr>
+        <td>Scheduler last run</td>
+        <td class="num">
+          {% if diagnostics and diagnostics.scheduler_last_run %}
+            {{ diagnostics.scheduler_last_run.run_date }} {{ diagnostics.scheduler_last_run.slot }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td>Latest portfolio snapshot</td>
+        <td class="num">
+          {% if diagnostics and diagnostics.latest_portfolio_snapshot %}
+            {{ diagnostics.latest_portfolio_snapshot.snapshot_date }} · £{{ '{:,.2f}'.format(diagnostics.latest_portfolio_snapshot.total_value or 0) }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td>Latest price update (raw)</td>
+        <td class="num">{% if diagnostics and diagnostics.latest_price_update_utc %}{{ diagnostics.latest_price_update_utc }}{% else %}—{% endif %}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="panel mt-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Counts</p>
+      <h3>Data</h3>
+    </div>
+  </div>
+  <table class="data-table">
+    <tbody>
+      <tr><td>Accounts</td><td class="num">{{ diagnostics.counts.accounts if diagnostics and diagnostics.counts else 0 }}</td></tr>
+      <tr><td>Holdings</td><td class="num">{{ diagnostics.counts.holdings if diagnostics and diagnostics.counts else 0 }}</td></tr>
+      <tr><td>Catalogue active</td><td class="num">{{ diagnostics.counts.catalogue_active if diagnostics and diagnostics.counts else 0 }}</td></tr>
+      <tr><td>Catalogue in use</td><td class="num">{{ diagnostics.catalogue_in_use_count if diagnostics else 0 }}</td></tr>
+      <tr><td>Portfolio daily snapshots</td><td class="num">{{ diagnostics.counts.portfolio_daily_snapshots if diagnostics and diagnostics.counts else 0 }}</td></tr>
+      <tr><td>Stale prices (sample, &gt;2d/none)</td><td class="num">{{ diagnostics.catalogue_stale_2d_count_in_sample if diagnostics else 0 }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="panel mt-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Prices</p>
+      <h3>Latest Instruments</h3>
+    </div>
+  </div>
+  {% if diagnostics and diagnostics.catalogue_in_use_sample %}
+  <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Holding</th>
+          <th>Ticker</th>
+          <th class="num">Last price</th>
+          <th>Currency</th>
+          <th>Updated</th>
+          <th class="num">Linked</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in diagnostics.catalogue_in_use_sample %}
+        <tr>
+          <td>{{ r.holding_name }}</td>
+          <td>{{ r.ticker or '—' }}</td>
+          <td class="num">{% if r.last_price is not none %}{{ '{:,.4f}'.format(r.last_price) }}{% else %}—{% endif %}</td>
+          <td>{{ r.price_currency or '—' }}</td>
+          <td>{{ (r.price_updated_at or '—')[:16] }}</td>
+          <td class="num">{{ r.linked_holdings }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="helper-text">No holdings with catalogue links yet.</p>
+  {% endif %}
+</section>
+
 {% else %}
 
 {# ── View mode ────────────────────────────────────────────────────────────── #}
@@ -204,6 +316,7 @@
 
 <div class="row-end">
   <a class="badge badge-primary-action" href="/settings/?mode=edit">Edit settings</a>
+  <a class="badge" href="/settings/?mode=diagnostics" style="margin-left:0.5rem;">Diagnostics</a>
 </div>
 
 {% endif %}

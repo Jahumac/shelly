@@ -3695,6 +3695,34 @@ button.badge-like-button {
     padding-right: 0.5rem;
   }
 
+  .holding-update-row {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .holding-update-inputs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  .holding-update-field input {
+    width: 100%;
+  }
+
+  .holding-price-wrap {
+    width: 100%;
+  }
+
+  .hu-refresh {
+    flex: 0 0 auto;
+  }
+
+  .hu-submit {
+    width: 100%;
+    margin-left: 0;
+    align-self: stretch;
+  }
+
   .import-inline-input {
     width: 76px;
     font-size: 0.82rem;

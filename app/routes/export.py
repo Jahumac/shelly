@@ -479,15 +479,27 @@ def export_performance():
     uid = current_user.id
     assumptions = fetch_assumptions(uid)
     accounts = fetch_all_accounts(uid)
+    account_id = request.args.get("account_id")
 
     assumed_rate = to_float(assumptions["annual_growth_rate"]) if assumptions else 0.07
     assumed_monthly_total = sum(to_float(a["monthly_contribution"]) for a in accounts)
 
-    monthly_data = fetch_monthly_performance_data(uid)
-    perf_portfolio = compute_performance_series(monthly_data, assumed_rate, assumed_monthly_total)
-
     per_account_data = fetch_monthly_performance_data_by_account(uid)
     account_map = {int(a["id"]): a for a in accounts}
+
+    selected_account_id = None
+    if account_id:
+        try:
+            selected_account_id = int(account_id)
+        except Exception:
+            selected_account_id = None
+        if selected_account_id not in account_map:
+            selected_account_id = None
+
+    perf_portfolio = None
+    if selected_account_id is None:
+        monthly_data = fetch_monthly_performance_data(uid)
+        perf_portfolio = compute_performance_series(monthly_data, assumed_rate, assumed_monthly_total)
 
     wb = Workbook()
     ws = wb.active
@@ -547,12 +559,19 @@ def export_performance():
         ], bold=True, num_formats={5: PCT, 6: PCT, 7: GBP, 8: GBP, 9: GBP, 10: GBP})
         row += 1
 
-    _append_summary("Portfolio", perf_portfolio)
+    if selected_account_id is None:
+        _append_summary("Portfolio", perf_portfolio)
 
-    for aid, payload in per_account_data.items():
-        acc = account_map.get(aid)
-        if not acc:
-            continue
+        for aid, payload in per_account_data.items():
+            acc = account_map.get(aid)
+            if not acc:
+                continue
+            assumed_monthly = to_float(acc.get("monthly_contribution", 0))
+            perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
+            _append_summary(payload["account_name"], perf_acc)
+    else:
+        payload = per_account_data.get(selected_account_id, {"account_name": account_map[selected_account_id]["name"], "rows": []})
+        acc = account_map[selected_account_id]
         assumed_monthly = to_float(acc.get("monthly_contribution", 0))
         perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
         _append_summary(payload["account_name"], perf_acc)
@@ -604,12 +623,19 @@ def export_performance():
                 float(r["return_pct"]),
             ], num_formats={2: GBP, 3: GBP, 4: GBP, 5: GBP, 6: PCT})
 
-    _add_detail_sheet("Portfolio (Monthly)", perf_portfolio)
+    if selected_account_id is None:
+        _add_detail_sheet("Portfolio (Monthly)", perf_portfolio)
 
-    for aid, payload in per_account_data.items():
-        acc = account_map.get(aid)
-        if not acc:
-            continue
+        for aid, payload in per_account_data.items():
+            acc = account_map.get(aid)
+            if not acc:
+                continue
+            assumed_monthly = to_float(acc.get("monthly_contribution", 0))
+            perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
+            _add_detail_sheet(f"{payload['account_name']} (Monthly)", perf_acc)
+    else:
+        payload = per_account_data.get(selected_account_id, {"account_name": account_map[selected_account_id]["name"], "rows": []})
+        acc = account_map[selected_account_id]
         assumed_monthly = to_float(acc.get("monthly_contribution", 0))
         perf_acc = compute_performance_series(payload["rows"], assumed_rate, assumed_monthly)
         _add_detail_sheet(f"{payload['account_name']} (Monthly)", perf_acc)
@@ -617,7 +643,11 @@ def export_performance():
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    fname = f"performance_{date.today().isoformat()}.xlsx"
+    if selected_account_id is None:
+        fname = f"performance_{date.today().isoformat()}.xlsx"
+    else:
+        safe = "".join(ch for ch in (account_map[selected_account_id]["name"] or "account") if ch.isalnum() or ch in (" ", "-", "_")).strip().replace(" ", "_")
+        fname = f"performance_{safe}_{date.today().isoformat()}.xlsx"
     return send_file(
         buf,
         as_attachment=True,
