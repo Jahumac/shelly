@@ -57,12 +57,18 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Performance</p>
-      <h3>1-Year History</h3>
+      <h3>Price history</h3>
+    </div>
+    <div class="badge-row badge-row-end">
+      <a class="badge {% if history_period == '1d' %}badge-primary-action{% else %}badge-meta{% endif %}" href="/holdings/{{ item.id }}?period=1d">1D</a>
+      <a class="badge {% if history_period == '1m' %}badge-primary-action{% else %}badge-meta{% endif %}" href="/holdings/{{ item.id }}?period=1m">1M</a>
+      <a class="badge {% if history_period == '6m' %}badge-primary-action{% else %}badge-meta{% endif %}" href="/holdings/{{ item.id }}?period=6m">6M</a>
+      <a class="badge {% if history_period == '1y' %}badge-primary-action{% else %}badge-meta{% endif %}" href="/holdings/{{ item.id }}?period=1y">1Y</a>
     </div>
   </div>
   
   <div class="chart-wrap mt-1">
-    <canvas id="historyChart" role="img" aria-label="1-Year Price History"></canvas>
+    <canvas id="historyChart" role="img" aria-label="Holding price history chart"></canvas>
   </div>
   <p id="history-chart-error" class="helper-text mt-05" style="display:none;"></p>
 
@@ -76,21 +82,95 @@
       if (!canvas) return;
       var ctx = canvas.getContext('2d');
 
+      var S = getComputedStyle(document.documentElement);
+      var COLORS = {
+        accent: (S.getPropertyValue('--accent').trim() || '#60a5fa'),
+        grid: (S.getPropertyValue('--chart-grid').trim() || 'rgba(148, 163, 184, 0.12)'),
+        muted: (S.getPropertyValue('--muted').trim() || '#94a3b8'),
+      };
+
+      function drawFallback(canvasCtx, values) {
+        var rect = canvas.getBoundingClientRect();
+        var w = Math.max(1, Math.floor(rect.width));
+        var h = Math.max(1, Math.floor(rect.height));
+        var dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+        }
+        canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        canvasCtx.clearRect(0, 0, w, h);
+
+        var padL = 44;
+        var padR = 12;
+        var padT = 10;
+        var padB = 22;
+        var innerW = Math.max(1, w - padL - padR);
+        var innerH = Math.max(1, h - padT - padB);
+
+        var minV = Infinity;
+        var maxV = -Infinity;
+        for (var i = 0; i < values.length; i++) {
+          var v = Number(values[i]);
+          if (!isFinite(v)) continue;
+          if (v < minV) minV = v;
+          if (v > maxV) maxV = v;
+        }
+        if (!isFinite(minV) || !isFinite(maxV)) return;
+        if (minV === maxV) { minV = minV * 0.999; maxV = maxV * 1.001; }
+
+        function xFor(idx) {
+          if (values.length <= 1) return padL + innerW / 2;
+          return padL + (idx / (values.length - 1)) * innerW;
+        }
+        function yFor(val) {
+          var t = (val - minV) / (maxV - minV);
+          return padT + (1 - t) * innerH;
+        }
+
+        canvasCtx.strokeStyle = COLORS.grid;
+        canvasCtx.lineWidth = 1;
+        canvasCtx.beginPath();
+        for (var g = 0; g <= 4; g++) {
+          var y = padT + (g / 4) * innerH;
+          canvasCtx.moveTo(padL, y);
+          canvasCtx.lineTo(padL + innerW, y);
+        }
+        canvasCtx.stroke();
+
+        canvasCtx.beginPath();
+        for (var p = 0; p < values.length; p++) {
+          var pv = Number(values[p]);
+          if (!isFinite(pv)) continue;
+          var x = xFor(p);
+          var y = yFor(pv);
+          if (p === 0) canvasCtx.moveTo(x, y);
+          else canvasCtx.lineTo(x, y);
+        }
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = COLORS.accent;
+        canvasCtx.stroke();
+      }
+
       if (typeof window.Chart === 'function') {
+        var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height || 220);
+        gradient.addColorStop(0, COLORS.accent + '33');
+        gradient.addColorStop(1, COLORS.accent + '00');
+
         new Chart(ctx, {
           type: 'line',
           data: {
             labels: labels,
             datasets: [{
               data: values,
-              borderColor: CSS.primary,
-              backgroundColor: CSS.primary + '22',
+              borderColor: COLORS.accent,
+              backgroundColor: gradient,
               borderWidth: 2,
               pointRadius: 0,
               pointHoverRadius: 4,
-              pointBackgroundColor: CSS.primary,
+              pointBackgroundColor: COLORS.accent,
               fill: true,
-              tension: 0.1
+              tension: 0.2
             }]
           },
           options: {
@@ -98,11 +178,13 @@
             maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { intersect: false, mode: 'index' } },
             scales: {
-              x: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 }, maxTicksLimit: 6 } },
-              y: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 } } }
+              x: { grid: { color: COLORS.grid }, ticks: { color: COLORS.muted, font: { size: 11 }, maxTicksLimit: 6 } },
+              y: { grid: { color: COLORS.grid }, ticks: { color: COLORS.muted, font: { size: 11 } } }
             }
           }
         });
+      } else {
+        drawFallback(ctx, values);
       }
     } catch (err) {
       var el = document.getElementById('history-chart-error');

@@ -222,9 +222,6 @@ def _search_yahoo(query: str):
 
 def fetch_history(ticker: str, period: str = "1y"):
     """Fetch historical prices for a given ticker."""
-    if not YFINANCE_AVAILABLE:
-        return None
-    
     ticker_clean = ticker.strip()
     if not ticker_clean:
         return None
@@ -233,32 +230,88 @@ def fetch_history(ticker: str, period: str = "1y"):
     alias = TICKER_ALIASES.get(ticker_clean.upper())
     symbol = alias or ticker_clean
 
-    try:
-        t = yf.Ticker(symbol)
-        hist = t.history(period=period)
-        if hist is None or hist.empty:
-            # Fallback to .L
-            if not symbol.endswith(".L"):
-                symbol_l = symbol + ".L"
-                t = yf.Ticker(symbol_l)
-                hist = t.history(period=period)
-        
-        if hist is None or hist.empty:
+    # Map periods to Yahoo chart API params for the HTTP fallback
+    period = (period or "1y").strip()
+    http_range = period
+    http_interval = "1d"
+    if period == "1d":
+        http_interval = "5m"
+    elif period in ("5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y"):
+        http_interval = "1d"
+    else:
+        http_range = "1y"
+
+    def _fetch_history_http(sym: str):
+        try:
+            encoded = urllib.parse.quote(sym)
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={http_range}&interval={http_interval}"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req, timeout=10)
+            data = json.loads(resp.read())
+            result = data.get("chart", {}).get("result")
+            if not result:
+                return None
+
+            meta = result[0].get("meta", {}) or {}
+            currency = meta.get("currency", "GBP")
+            divider = 100.0 if currency == "GBp" else 1.0
+
+            timestamps = result[0].get("timestamp", []) or []
+            closes = (
+                (result[0].get("indicators", {}) or {})
+                .get("quote", [{}])[0]
+                .get("close", [])
+            ) or []
+
+            history_data = []
+            for ts, close in zip(timestamps, closes):
+                if close is None:
+                    continue
+                dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                if period == "1d":
+                    label = dt.strftime("%Y-%m-%d %H:%M")
+                else:
+                    label = dt.strftime("%Y-%m-%d")
+                history_data.append({
+                    "date": label,
+                    "price": round(float(close) / divider, 4),
+                })
+
+            return history_data or None
+        except Exception:
             return None
 
-        # Convert GBp to GBP
-        currency = t.info.get("currency") if hasattr(t, "info") and isinstance(t.info, dict) else "GBP"
-        divider = 100.0 if currency == "GBp" else 1.0
+    try:
+        if YFINANCE_AVAILABLE:
+            t = yf.Ticker(symbol)
+            hist = t.history(period=period)
+            if hist is None or hist.empty:
+                if not symbol.endswith(".L"):
+                    symbol_l = symbol + ".L"
+                    t = yf.Ticker(symbol_l)
+                    hist = t.history(period=period)
 
-        history_data = []
-        for date, row in hist.iterrows():
-            price = float(row["Close"]) / divider
-            history_data.append({
-                "date": date.strftime("%Y-%m-%d"),
-                "price": round(price, 4)
-            })
-        
-        return history_data
+            if hist is not None and not hist.empty:
+                currency = t.info.get("currency") if hasattr(t, "info") and isinstance(t.info, dict) else "GBP"
+                divider = 100.0 if currency == "GBp" else 1.0
+
+                history_data = []
+                for date, row in hist.iterrows():
+                    price = float(row["Close"]) / divider
+                    history_data.append({
+                        "date": date.strftime("%Y-%m-%d"),
+                        "price": round(price, 4)
+                    })
+                return history_data
+
+        http_data = _fetch_history_http(symbol)
+        if http_data:
+            return http_data
+        if not symbol.endswith(".L"):
+            http_data = _fetch_history_http(symbol + ".L")
+            if http_data:
+                return http_data
+        return None
     except Exception as e:
         logger.error(f"Error fetching history for {ticker}: {e}")
         return None

@@ -35,12 +35,21 @@ def holding_detail(catalogue_id):
         flash("Instrument not found.", "error")
         return redirect(url_for("overview.overview"))
 
+    period = (request.args.get("period") or "1y").strip().lower()
+    period_map = {
+        "1d": "1d",
+        "1m": "1mo",
+        "6m": "6mo",
+        "1y": "1y",
+    }
+    history_period = period_map.get(period, "1y")
+
     history_data = None
     ticker = (item.get("ticker") or "").strip()
     if ticker:
-        history_data = fetch_history(ticker, period="1y")
+        history_data = fetch_history(ticker, period=history_period)
     
-    return render_template("holding_detail.html", item=item, history_data=history_data)
+    return render_template("holding_detail.html", item=item, history_data=history_data, history_period=period)
 
 
 @holdings_bp.route("/api/lookup")

@@ -117,9 +117,8 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
       <p class="chart-label">Portfolio Value</p>
       <div class="period-selector" style="display: flex; gap: 0.5rem;">
-        <button class="period-btn" data-period="7D" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">7D</button>
+        <button class="period-btn" data-period="1D" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1D</button>
         <button class="period-btn" data-period="1M" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1M</button>
-        <button class="period-btn" data-period="3M" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">3M</button>
         <button class="period-btn" data-period="6M" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">6M</button>
         <button class="period-btn" data-period="1Y" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1Y</button>
         <button class="period-btn active" data-period="ALL" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--primary); color: white; cursor: pointer; font-size: 0.85rem;">ALL</button>
@@ -348,16 +347,16 @@
 
   var S = getComputedStyle(document.documentElement);
   var CSS = {
-    primary: (S.getPropertyValue('--primary').trim() || S.getPropertyValue('--accent').trim()),
+    accent: (S.getPropertyValue('--accent').trim() || S.getPropertyValue('--primary').trim() || '#60a5fa'),
+    primary: (S.getPropertyValue('--primary').trim() || S.getPropertyValue('--accent').trim() || '#60a5fa'),
     muted:  S.getPropertyValue('--muted').trim(),
     grid:   S.getPropertyValue('--chart-grid').trim(),
   };
 
   // Period definitions (in days)
   var periods = {
-    '7D': 7,
+    '1D': 1,
     '1M': 30,
-    '3M': 90,
     '6M': 180,
     '1Y': 365,
     'ALL': 999999
@@ -591,17 +590,21 @@
         chart.destroy();
       }
 
+      var gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height || 220);
+      gradient.addColorStop(0, CSS.accent + '33');
+      gradient.addColorStop(1, CSS.accent + '00');
+
       chart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: fmtLabels,
           datasets: [{
             data: data.values,
-            borderColor: CSS.primary,
-            backgroundColor: CSS.primary + '22',
+            borderColor: CSS.accent,
+            backgroundColor: gradient,
             borderWidth: 2,
             pointRadius: data.values.length <= 30 ? 3 : 0,
-            pointBackgroundColor: CSS.primary,
+            pointBackgroundColor: CSS.accent,
             fill: true,
             tension: 0.25
           }]
