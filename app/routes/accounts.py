@@ -547,30 +547,37 @@ def account_add_holding_manual(account_id):
 @accounts_bp.route("/<int:account_id>/cash", methods=["POST"])
 @login_required
 def update_cash(account_id):
-    account = fetch_account_by_id(account_id)
-    if not account or account["owner"] != current_user.id:
+    uid = current_user.id
+    account = fetch_account(account_id, uid)
+    if not account:
         flash("Account not found.", "error")
-        return redirect(url_for("accounts.accounts_page"))
+        return redirect(url_for("accounts.accounts"))
 
     cash = request.form.get("uninvested_cash", "")
     rate = request.form.get("cash_interest_rate", "")
 
     from app.calculations import to_float
-    account["uninvested_cash"] = to_float(cash) if cash else 0.0
-    account["cash_interest_rate"] = (to_float(rate) / 100.0) if rate else 0.0
-    account["last_updated"] = datetime.now(timezone.utc).isoformat()
+    payload = dict(account)
+    payload["uninvested_cash"] = to_float(cash) if cash else 0.0
+    payload["cash_interest_rate"] = (to_float(rate) / 100.0) if rate else 0.0
+    payload["last_updated"] = datetime.now(timezone.utc).isoformat()
 
     # ensure missing fields are populated before update
-    account.setdefault("employer_contribution", 0)
-    account.setdefault("contribution_method", "standard")
-    account.setdefault("annual_fee_pct", 0)
-    account.setdefault("platform_fee_pct", 0)
-    account.setdefault("platform_fee_flat", 0)
-    account.setdefault("platform_fee_cap", 0)
-    account.setdefault("fund_fee_pct", 0)
+    payload.setdefault("employer_contribution", 0)
+    payload.setdefault("contribution_method", "standard")
+    payload.setdefault("annual_fee_pct", 0)
+    payload.setdefault("platform_fee_pct", 0)
+    payload.setdefault("platform_fee_flat", 0)
+    payload.setdefault("platform_fee_cap", 0)
+    payload.setdefault("fund_fee_pct", 0)
+    payload.setdefault("uninvested_cash", 0)
+    payload.setdefault("cash_interest_rate", 0)
 
-    update_account(account)
-    save_daily_snapshot(current_user.id)
+    update_account(payload)
+    holdings_totals = fetch_holding_totals_by_account(uid)
+    accounts = fetch_all_accounts(uid)
+    total_value = sum(effective_account_value(a, holdings_totals) for a in accounts)
+    save_daily_snapshot(uid, total_value)
     flash("Cash balance updated.", "success")
     return redirect(url_for("accounts.account_detail", account_id=account_id))
 
@@ -624,8 +631,12 @@ def account_edit_holding(account_id, holding_id):
             None,
             datetime.now(timezone.utc).isoformat()
         )
-        sync_holding_prices_from_catalogue(existing["holding_catalogue_id"])
+        sync_holding_prices_from_catalogue(existing["holding_catalogue_id"], price, "GBP")
 
-    save_daily_snapshot(current_user.id)
+    uid = current_user.id
+    holdings_totals = fetch_holding_totals_by_account(uid)
+    accounts = fetch_all_accounts(uid)
+    total_value = sum(effective_account_value(a, holdings_totals) for a in accounts)
+    save_daily_snapshot(uid, total_value)
     flash(f"Updated {existing['holding_name']}", "success")
     return redirect(url_for("accounts.account_detail", account_id=account_id))

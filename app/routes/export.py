@@ -577,7 +577,9 @@ def export_performance():
         _append_summary(payload["account_name"], perf_acc)
 
     def _safe_sheet_title(base, used):
-        s = (base or "Sheet").strip()[:31]
+        s = (base or "Sheet").strip()
+        s = "".join("-" if ch in (":", "\\", "/", "?", "*", "[", "]") else ch for ch in s)
+        s = s.strip().strip("'")[:31]
         if not s:
             s = "Sheet"
         if s not in used:

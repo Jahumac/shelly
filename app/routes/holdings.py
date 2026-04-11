@@ -25,15 +25,20 @@ holdings_bp = Blueprint("holdings", __name__)
 @login_required
 def holding_detail(catalogue_id):
     """Render a detail page for a specific catalogue instrument."""
-    item = fetch_catalogue_holding(catalogue_id)
-    if not item or item["user_id"] != current_user.id:
+    item_row = fetch_catalogue_holding(catalogue_id)
+    if not item_row:
         flash("Instrument not found.", "error")
-        return redirect(url_for("overview.holdings_page"))
+        return redirect(url_for("overview.overview"))
+
+    item = dict(item_row)
+    if item.get("user_id") != current_user.id:
+        flash("Instrument not found.", "error")
+        return redirect(url_for("overview.overview"))
 
     history_data = None
-    if item.get("ticker"):
-        # We can try to fetch history
-        history_data = fetch_history(item["ticker"], period="1y")
+    ticker = (item.get("ticker") or "").strip()
+    if ticker:
+        history_data = fetch_history(ticker, period="1y")
     
     return render_template("holding_detail.html", item=item, history_data=history_data)
 
