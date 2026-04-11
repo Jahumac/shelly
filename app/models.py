@@ -605,6 +605,8 @@ def init_db():
             "platform_fee_flat REAL DEFAULT 0",
             "platform_fee_cap REAL DEFAULT 0",
             "fund_fee_pct REAL DEFAULT 0",
+            "uninvested_cash REAL DEFAULT 0",
+            "cash_interest_rate REAL DEFAULT 0",
         ]:
             try:
                 conn.execute(f"ALTER TABLE accounts ADD COLUMN {col}")
@@ -1140,7 +1142,9 @@ def update_account(payload):
                 platform_fee_pct = ?,
                 platform_fee_flat = ?,
                 platform_fee_cap = ?,
-                fund_fee_pct = ?
+                fund_fee_pct = ?,
+                uninvested_cash = ?,
+                cash_interest_rate = ?
             WHERE id = ?
             """,
             (
@@ -1165,6 +1169,8 @@ def update_account(payload):
                 payload.get("platform_fee_flat", 0),
                 payload.get("platform_fee_cap", 0),
                 payload.get("fund_fee_pct", 0),
+                payload.get("uninvested_cash", 0),
+                payload.get("cash_interest_rate", 0),
                 payload["id"],
             ),
         )
@@ -1193,9 +1199,10 @@ def create_account(payload, user_id):
                 monthly_contribution, goal_value, valuation_mode, growth_mode,
                 growth_rate_override, owner, is_active, notes, last_updated,
                 employer_contribution, contribution_method, annual_fee_pct,
-                platform_fee_pct, platform_fee_flat, platform_fee_cap, fund_fee_pct
+                platform_fee_pct, platform_fee_flat, platform_fee_cap, fund_fee_pct,
+                uninvested_cash, cash_interest_rate
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -1221,6 +1228,8 @@ def create_account(payload, user_id):
                 payload.get("platform_fee_flat", 0),
                 payload.get("platform_fee_cap", 0),
                 payload.get("fund_fee_pct", 0),
+                payload.get("uninvested_cash", 0),
+                payload.get("cash_interest_rate", 0),
             ),
         )
         conn.commit()

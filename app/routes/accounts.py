@@ -544,6 +544,37 @@ def account_add_holding_manual(account_id):
     return redirect(url_for("accounts.account_detail", account_id=account_id))
 
 
+@accounts_bp.route("/<int:account_id>/cash", methods=["POST"])
+@login_required
+def update_cash(account_id):
+    account = fetch_account_by_id(account_id)
+    if not account or account["owner"] != current_user.id:
+        flash("Account not found.", "error")
+        return redirect(url_for("accounts.accounts_page"))
+
+    cash = request.form.get("uninvested_cash", "")
+    rate = request.form.get("cash_interest_rate", "")
+
+    from app.calculations import to_float
+    account["uninvested_cash"] = to_float(cash) if cash else 0.0
+    account["cash_interest_rate"] = (to_float(rate) / 100.0) if rate else 0.0
+    account["last_updated"] = datetime.now(timezone.utc).isoformat()
+
+    # ensure missing fields are populated before update
+    account.setdefault("employer_contribution", 0)
+    account.setdefault("contribution_method", "standard")
+    account.setdefault("annual_fee_pct", 0)
+    account.setdefault("platform_fee_pct", 0)
+    account.setdefault("platform_fee_flat", 0)
+    account.setdefault("platform_fee_cap", 0)
+    account.setdefault("fund_fee_pct", 0)
+
+    update_account(account)
+    save_daily_snapshot(current_user.id)
+    flash("Cash balance updated.", "success")
+    return redirect(url_for("accounts.account_detail", account_id=account_id))
+
+
 @accounts_bp.route("/<int:account_id>/holdings/<int:holding_id>/delete", methods=["POST"])
 @login_required
 def account_delete_holding(account_id, holding_id):
@@ -582,4 +613,19 @@ def account_edit_holding(account_id, holding_id):
         "notes": notes,
     }
     update_holding(payload)
+
+    # Also update catalogue price if modified
+    if price is not None and existing["holding_catalogue_id"]:
+        from app.models import update_catalogue_price, sync_holding_prices_from_catalogue
+        update_catalogue_price(
+            existing["holding_catalogue_id"],
+            price,
+            "GBP",
+            None,
+            datetime.now(timezone.utc).isoformat()
+        )
+        sync_holding_prices_from_catalogue(existing["holding_catalogue_id"])
+
+    save_daily_snapshot(current_user.id)
+    flash(f"Updated {existing['holding_name']}", "success")
     return redirect(url_for("accounts.account_detail", account_id=account_id))

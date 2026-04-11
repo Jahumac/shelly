@@ -173,6 +173,58 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
             if not catalogue:
                 accounts = fetch_all_accounts(user_id)
                 holdings_totals = fetch_holding_totals_by_account(user_id)
+                
+                from app.models import update_account, fetch_assumptions
+                from app.calculations import to_float
+                now = datetime.now(timezone.utc)
+                for acc in accounts:
+                    is_cash_isa = acc.get("wrapper_type", "").lower() == "cash isa"
+                    if acc["valuation_mode"] == "manual" or is_cash_isa:
+                        last_updated_str = acc.get("last_updated")
+                        if last_updated_str:
+                            try:
+                                last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00"))
+                                if last_updated.tzinfo is None:
+                                    last_updated = last_updated.replace(tzinfo=timezone.utc)
+                            except ValueError:
+                                last_updated = now
+                            
+                            days_elapsed = (now - last_updated).days
+                            if days_elapsed > 0:
+                                current_val = to_float(acc.get("current_value", 0))
+                                rate = to_float(acc.get("growth_rate_override")) if acc.get("growth_rate_override") is not None else 0.0
+                                if acc.get("growth_mode") != "custom":
+                                    row = fetch_assumptions(user_id)
+                                    rate = to_float(row["annual_growth_rate"]) if row else 0.05
+                                
+                                daily_rate = rate / 365.0
+                                monthly_contrib = to_float(acc.get("monthly_contribution", 0))
+                                daily_contrib = (monthly_contrib * 12) / 365.0
+                                
+                                new_val = current_val * ((1 + daily_rate) ** days_elapsed) + (daily_contrib * days_elapsed)
+                                
+                                update_payload = dict(acc)
+                                update_payload["current_value"] = new_val
+                                update_payload["last_updated"] = now.isoformat()
+                                update_payload.setdefault("employer_contribution", 0)
+                                update_payload.setdefault("contribution_method", "standard")
+                                update_payload.setdefault("annual_fee_pct", 0)
+                                update_payload.setdefault("platform_fee_pct", 0)
+                                update_payload.setdefault("platform_fee_flat", 0)
+                                update_payload.setdefault("platform_fee_cap", 0)
+                                update_payload.setdefault("fund_fee_pct", 0)
+                                update_payload.setdefault("uninvested_cash", acc.get("uninvested_cash", 0))
+                                update_payload.setdefault("cash_interest_rate", acc.get("cash_interest_rate", 0))
+                                
+                                # Accrue uninvested cash interest too
+                                cash_rate = to_float(acc.get("cash_interest_rate", 0)) / 365.0
+                                cash_val = to_float(acc.get("uninvested_cash", 0))
+                                if cash_val > 0 and cash_rate > 0:
+                                    update_payload["uninvested_cash"] = cash_val * ((1 + cash_rate) ** days_elapsed)
+                                
+                                update_account(update_payload)
+                
+                accounts = fetch_all_accounts(user_id)
                 total_value = sum(
                     effective_account_value(account, holdings_totals)
                     for account in accounts
@@ -213,6 +265,63 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
 
             accounts = fetch_all_accounts(user_id)
             holdings_totals = fetch_holding_totals_by_account(user_id)
+            
+            # Auto-accrue manual accounts and Cash ISAs
+            from app.models import update_account, fetch_assumptions
+            from app.calculations import to_float
+            now = datetime.now(timezone.utc)
+            for acc in accounts:
+                is_cash_isa = acc.get("wrapper_type", "").lower() == "cash isa"
+                if acc["valuation_mode"] == "manual" or is_cash_isa:
+                    last_updated_str = acc.get("last_updated")
+                    if last_updated_str:
+                        try:
+                            last_updated = datetime.fromisoformat(last_updated_str.replace("Z", "+00:00"))
+                            if last_updated.tzinfo is None:
+                                last_updated = last_updated.replace(tzinfo=timezone.utc)
+                        except ValueError:
+                            last_updated = now
+                        
+                        days_elapsed = (now - last_updated).days
+                        if days_elapsed > 0:
+                            current_val = to_float(acc.get("current_value", 0))
+                            rate = to_float(acc.get("growth_rate_override")) if acc.get("growth_rate_override") is not None else 0.0
+                            if acc.get("growth_mode") != "custom":
+                                row = fetch_assumptions(user_id)
+                                rate = to_float(row["annual_growth_rate"]) if row else 0.05
+                            
+                            daily_rate = rate / 365.0
+                            monthly_contrib = to_float(acc.get("monthly_contribution", 0))
+                            daily_contrib = (monthly_contrib * 12) / 365.0
+                            
+                            new_val = current_val * ((1 + daily_rate) ** days_elapsed) + (daily_contrib * days_elapsed)
+                            
+                            # Create an update payload including all required fields
+                            update_payload = dict(acc)
+                            update_payload["current_value"] = new_val
+                            update_payload["last_updated"] = now.isoformat()
+                            # Default missing fields for safety
+                            update_payload.setdefault("employer_contribution", 0)
+                            update_payload.setdefault("contribution_method", "standard")
+                            update_payload.setdefault("annual_fee_pct", 0)
+                            update_payload.setdefault("platform_fee_pct", 0)
+                            update_payload.setdefault("platform_fee_flat", 0)
+                            update_payload.setdefault("platform_fee_cap", 0)
+                            update_payload.setdefault("fund_fee_pct", 0)
+                            update_payload.setdefault("uninvested_cash", acc.get("uninvested_cash", 0))
+                            update_payload.setdefault("cash_interest_rate", acc.get("cash_interest_rate", 0))
+                            
+                            # Accrue uninvested cash interest too
+                            cash_rate = to_float(acc.get("cash_interest_rate", 0)) / 365.0
+                            cash_val = to_float(acc.get("uninvested_cash", 0))
+                            if cash_val > 0 and cash_rate > 0:
+                                update_payload["uninvested_cash"] = cash_val * ((1 + cash_rate) ** days_elapsed)
+
+                            update_account(update_payload)
+                            
+            # Re-fetch accounts to get the updated values
+            accounts = fetch_all_accounts(user_id)
+
             total_value = sum(
                 effective_account_value(account, holdings_totals)
                 for account in accounts

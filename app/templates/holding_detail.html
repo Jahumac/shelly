@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.holding_name }} · Shelly{% endblock %}
+{% block content %}
+
+<div class="mb-1">
+  <a href="javascript:history.back()" class="badge">← Back</a>
+</div>
+
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">{{ item.asset_type or 'Instrument' }}</p>
+      <h2>{{ item.holding_name }}</h2>
+      {% if item.ticker %}
+      <p class="text-muted mt-025">{{ item.ticker }}</p>
+      {% endif %}
+    </div>
+    <div class="badge-row">
+      <span class="badge badge-meta">{{ item.bucket or 'Other' }}</span>
+    </div>
+  </div>
+
+  <div class="mt-1">
+    <div style="display:flex; gap: 2rem; flex-wrap: wrap;">
+      <div>
+        <p class="text-sm text-muted uppercase">Latest Price</p>
+        <h3 class="mt-025">
+          {% if item.last_price %}
+            {% if item.price_currency == 'GBp' %}{{ '{:,.2f}p'.format(item.last_price) }}{% else %}£{{ '{:,.4f}'.format(item.last_price) }}{% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </h3>
+        {% if item.price_updated_at %}
+          <p class="text-xs text-muted mt-025">Updated {{ item.price_updated_at[:16] }}</p>
+        {% endif %}
+      </div>
+      
+      <div>
+        <p class="text-sm text-muted uppercase">Day Change</p>
+        <h3 class="mt-025">
+          {% if item.price_change_pct is not none and item.last_price %}
+            <span class="{% if item.price_change_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %} text-bold">
+              {{ '{:+.2f}'.format(item.price_change_pct) }}%
+            </span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </h3>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% if history_data %}
+<section class="panel mt-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Performance</p>
+      <h3>1-Year History</h3>
+    </div>
+  </div>
+  
+  <div class="chart-wrap mt-1">
+    <canvas id="historyChart" role="img" aria-label="1-Year Price History"></canvas>
+  </div>
+  <p id="history-chart-error" class="helper-text mt-05" style="display:none;"></p>
+
+  <script>
+  (function () {
+    try {
+      var rawData = {{ history_data | tojson | safe }};
+      var labels = rawData.map(function(d) { return d.date; });
+      var values = rawData.map(function(d) { return d.price; });
+      var canvas = document.getElementById('historyChart');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+
+      if (typeof window.Chart === 'function') {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: values,
+              borderColor: CSS.primary,
+              backgroundColor: CSS.primary + '22',
+              borderWidth: 2,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointBackgroundColor: CSS.primary,
+              fill: true,
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { intersect: false, mode: 'index' } },
+            scales: {
+              x: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 }, maxTicksLimit: 6 } },
+              y: { grid: { color: CSS.grid }, ticks: { color: CSS.muted, font: { size: 11 } } }
+            }
+          }
+        });
+      }
+    } catch (err) {
+      var el = document.getElementById('history-chart-error');
+      if (el) {
+        el.style.display = 'block';
+        el.textContent = 'Chart failed to render: ' + err.message;
+      }
+    }
+  })();
+  </script>
+</section>
+{% else %}
+  {% if item.ticker %}
+  <section class="panel mt-1">
+    <p class="helper-text">No historical price data available for {{ item.ticker }}.</p>
+  </section>
+  {% endif %}
+{% endif %}
+
+{% endblock %}

@@ -220,6 +220,50 @@ def _search_yahoo(query: str):
     return None
 
 
+def fetch_history(ticker: str, period: str = "1y"):
+    """Fetch historical prices for a given ticker."""
+    if not YFINANCE_AVAILABLE:
+        return None
+    
+    ticker_clean = ticker.strip()
+    if not ticker_clean:
+        return None
+
+    # Apply aliases
+    alias = TICKER_ALIASES.get(ticker_clean.upper())
+    symbol = alias or ticker_clean
+
+    try:
+        t = yf.Ticker(symbol)
+        hist = t.history(period=period)
+        if hist is None or hist.empty:
+            # Fallback to .L
+            if not symbol.endswith(".L"):
+                symbol_l = symbol + ".L"
+                t = yf.Ticker(symbol_l)
+                hist = t.history(period=period)
+        
+        if hist is None or hist.empty:
+            return None
+
+        # Convert GBp to GBP
+        currency = t.info.get("currency") if hasattr(t, "info") and isinstance(t.info, dict) else "GBP"
+        divider = 100.0 if currency == "GBp" else 1.0
+
+        history_data = []
+        for date, row in hist.iterrows():
+            price = float(row["Close"]) / divider
+            history_data.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "price": round(price, 4)
+            })
+        
+        return history_data
+    except Exception as e:
+        logger.error(f"Error fetching history for {ticker}: {e}")
+        return None
+
+
 def fetch_price(ticker: str):
     """Fetch the current price for a ticker.
 

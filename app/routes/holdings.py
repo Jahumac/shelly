@@ -1,5 +1,5 @@
 """Holdings blueprint — API-only routes (page removed; see accounts for add-holding flow)."""
-from flask import Blueprint, jsonify, request, current_app, flash, redirect, url_for
+from flask import Blueprint, jsonify, request, current_app, flash, redirect, url_for, render_template
 from flask_login import current_user, login_required
 
 from datetime import datetime, timezone
@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from app.calculations import effective_account_value
 from app.models import (
     fetch_all_accounts,
+    fetch_catalogue_holding,
     fetch_holding_catalogue,
     fetch_holding_totals_by_account,
     save_daily_snapshot,
@@ -14,10 +15,27 @@ from app.models import (
     update_catalogue_price,
     update_holding,
 )
-from app.services.prices import fetch_price, lookup_instrument
+from app.services.prices import fetch_price, fetch_history, lookup_instrument
 from app.services.scheduler import trigger_manual_update
 
 holdings_bp = Blueprint("holdings", __name__)
+
+
+@holdings_bp.route("/<int:catalogue_id>")
+@login_required
+def holding_detail(catalogue_id):
+    """Render a detail page for a specific catalogue instrument."""
+    item = fetch_catalogue_holding(catalogue_id)
+    if not item or item["user_id"] != current_user.id:
+        flash("Instrument not found.", "error")
+        return redirect(url_for("overview.holdings_page"))
+
+    history_data = None
+    if item.get("ticker"):
+        # We can try to fetch history
+        history_data = fetch_history(item["ticker"], period="1y")
+    
+    return render_template("holding_detail.html", item=item, history_data=history_data)
 
 
 @holdings_bp.route("/api/lookup")

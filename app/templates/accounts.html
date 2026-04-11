@@ -770,6 +770,26 @@
           </form>
           {% endif %}
         </div>
+
+        {# ── Uninvested Cash ── #}
+        {% if selected.valuation_mode == 'holdings' %}
+        <div class="panel mt-1 mb-1" style="background: var(--surface-2); padding: 1rem; border-radius: var(--radius-md);">
+          <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+            <div style="flex:1; min-width: 10rem;">
+              <label class="text-sm text-muted uppercase">Uninvested Cash (£)</label>
+              <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025" style="width:100%;" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
+            </div>
+            <div style="flex:1; min-width: 10rem;">
+              <label class="text-sm text-muted uppercase">Cash Interest Rate (%)</label>
+              <input type="number" step="any" name="cash_interest_rate" class="input-standard mt-025" style="width:100%;" value="{{ '{:.2f}'.format((selected.cash_interest_rate or 0) * 100) }}">
+            </div>
+            <div>
+              <button type="submit" class="badge badge-meta">Save Cash Balance</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
         {% if positions %}
           {# ── Desktop: full table ── #}
           <div class="responsive-table-wrap mt-075 holdings-desktop">
@@ -788,20 +808,30 @@
                 {% for position in positions %}
                 <tr>
                   <td>
-                    <strong class="text-sm-2">{{ position.holding_name }}</strong>
+                    {% if position.holding_catalogue_id %}
+                      <a href="/holdings/{{ position.holding_catalogue_id }}" class="link-accent text-sm-2"><strong>{{ position.holding_name }}</strong></a>
+                    {% else %}
+                      <strong class="text-sm-2">{{ position.holding_name }}</strong>
+                    {% endif %}
                     {% if position.ticker %}<br><small class="text-muted">{{ position.ticker }}</small>{% endif %}
                   </td>
                   <td>{{ position.bucket or '' }}</td>
-                  <td class="num">{{ '{:,.4f}'.format(position.units or 0) }}</td>
                   <td class="num">
-                    £{{ '{:,.4f}'.format(position.price or 0) }}
-                    {% if position.price_updated_at %}<br><small class="text-muted">{{ position.price_updated_at[:16] }}</small>{% endif %}
+                    <input type="number" step="any" name="units" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.units or 0) }}" style="width: 5rem; padding: 0.2rem; text-align: right;" class="input-standard">
+                  </td>
+                  <td class="num">
+                    <div style="display:flex; align-items:center; gap: 0.2rem; justify-content: flex-end;">
+                      <span>£</span>
+                      <input type="number" step="any" name="price" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.price or 0) }}" style="width: 5rem; padding: 0.2rem; text-align: right;" class="input-standard">
+                    </div>
+                    {% if position.price_updated_at %}<small class="text-muted" style="display:block;margin-top:0.2rem;">{{ position.price_updated_at[:16] }}</small>{% endif %}
                   </td>
                   <td class="num">£{{ '{:,.2f}'.format(position.value or 0) }}</td>
                   <td class="text-right text-nowrap">
                     <div class="badge-row badge-row-end">
-                      <a href="/accounts/{{ selected.id }}?mode=edit_holding&holding_id={{ position.id }}#holdings-section"
-                         class="badge">Edit</a>
+                      <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-{{ position.id }}" class="form-reset">
+                        <button type="submit" class="badge badge-meta">Save</button>
+                      </form>
                       <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
                         <button type="submit"
                                 data-confirm="Remove {{ position.holding_name }} from this account?"
@@ -830,13 +860,20 @@
                 <span class="holding-card-value">£{{ '{:,.2f}'.format(position.value or 0) }}</span>
               </div>
               <div class="holding-card-stats">
-                <div><span>Units</span><strong>{{ '{:,.4f}'.format(position.units or 0) }}</strong></div>
-                <div><span>Price</span><strong>£{{ '{:,.4f}'.format(position.price or 0) }}</strong>{% if position.price_updated_at %}<br><small class="text-muted">{{ position.price_updated_at[:16] }}</small>{% endif %}</div>
+                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-mob-{{ position.id }}" class="form-reset" style="display:contents;"></form>
+                <div style="display:flex; flex-direction:column; gap:0.2rem;">
+                  <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">Units</span>
+                  <input type="number" step="any" name="units" form="edit-holding-mob-{{ position.id }}" value="{{ '{:.4f}'.format(position.units or 0) }}" class="input-standard" style="width:100%; padding:0.2rem;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.2rem;">
+                  <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">Price (£)</span>
+                  <input type="number" step="any" name="price" form="edit-holding-mob-{{ position.id }}" value="{{ '{:.4f}'.format(position.price or 0) }}" class="input-standard" style="width:100%; padding:0.2rem;">
+                  {% if position.price_updated_at %}<small class="text-muted" style="margin-top:0.1rem; line-height:1;">{{ position.price_updated_at[:16] }}</small>{% endif %}
+                </div>
                 {% if position.bucket %}<div><span>Bucket</span><strong>{{ position.bucket }}</strong></div>{% endif %}
               </div>
               <div class="holding-card-actions">
-                <a href="/accounts/{{ selected.id }}?mode=edit_holding&holding_id={{ position.id }}#holdings-section"
-                   class="badge">Edit</a>
+                <button type="submit" form="edit-holding-mob-{{ position.id }}" class="badge badge-meta">Save</button>
                 <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
                   <button type="submit"
                           data-confirm="Remove {{ position.holding_name }} from this account?"

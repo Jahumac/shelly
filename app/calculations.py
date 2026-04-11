@@ -145,10 +145,12 @@ def to_float(value):
 
 
 def effective_account_value(account, holdings_totals=None):
+    """Return the value of the account based on its valuation mode and uninvested cash."""
     holdings_totals = holdings_totals or {}
+    uninvested = to_float(account.get("uninvested_cash", 0) if hasattr(account, 'get') else (account["uninvested_cash"] if "uninvested_cash" in account.keys() else 0))
     if account["valuation_mode"] == "holdings":
-        return to_float(holdings_totals.get(account["id"], 0))
-    return to_float(account["current_value"])
+        return to_float(holdings_totals.get(account["id"], 0)) + uninvested
+    return to_float(account["current_value"]) + uninvested
 
 
 def total_invested(accounts, holdings_totals=None):
