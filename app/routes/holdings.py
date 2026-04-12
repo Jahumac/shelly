@@ -11,6 +11,7 @@ from app.models import (
     fetch_first_position_for_catalogue_holding,
     fetch_holding_catalogue,
     fetch_holding_totals_by_account,
+    handle_catalogue_price_update,
     save_daily_snapshot,
     sync_holding_prices_from_catalogue,
     update_catalogue_price,
@@ -266,16 +267,7 @@ def api_save_price():
             currency_raw_s = currency_raw or "GBP"
             change_pct_f = float(change_pct) if change_pct is not None else None
 
-            update_catalogue_price(catalogue_id_int, price_raw_f, currency_raw_s, change_pct_f, updated_at)
-            sync_holding_prices_from_catalogue(catalogue_id_int, price_raw_f, currency_raw_s)
-
-            accounts = fetch_all_accounts(current_user.id)
-            holdings_totals = fetch_holding_totals_by_account(current_user.id)
-            total_value = sum(
-                effective_account_value(account, holdings_totals)
-                for account in accounts
-            )
-            save_daily_snapshot(current_user.id, total_value)
+            handle_catalogue_price_update(current_user.id, catalogue_id_int, price_raw_f, currency_raw_s, change_pct_f, updated_at)
         except Exception:
             pass
 

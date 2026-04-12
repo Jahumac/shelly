@@ -1492,6 +1492,20 @@ def update_catalogue_price(catalogue_id, price, currency, change_pct, updated_at
         conn.commit()
 
 
+def handle_catalogue_price_update(user_id, catalogue_id, price, currency, change_pct, updated_at):
+    """Update catalogue price, sync it to all holdings, and save a daily snapshot."""
+    update_catalogue_price(catalogue_id, price, currency, change_pct, updated_at)
+    sync_holding_prices_from_catalogue(catalogue_id, price, currency)
+
+    accounts = fetch_all_accounts(user_id)
+    holdings_totals = fetch_holding_totals_by_account(user_id)
+    total_value = sum(
+        effective_account_value(account, holdings_totals)
+        for account in accounts
+    )
+    save_daily_snapshot(user_id, total_value)
+
+
 def sync_holding_prices_from_catalogue(catalogue_id, price, currency):
     """Propagate a refreshed catalogue price to all account holdings linked to it.
 

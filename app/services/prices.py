@@ -562,42 +562,110 @@ def lookup_instrument(query: str):
 
 
 def refresh_catalogue_prices(catalogue_rows):
-    """Fetch fresh prices for all catalogue items that have a ticker.
+    """Fetch fresh prices for all catalogue items in bulk.
 
     Returns a list of dicts: {id, name, ticker, success, price, currency,
                                change_pct, error}
     """
     results = []
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
+    
+    # 1. Collect unique tickers and map them back to rows
+    ticker_to_rows = {}
     for row in catalogue_rows:
-        if not row["ticker"]:
+        t = (row.get("ticker") or "").strip().upper()
+        if not t:
             continue
-        data = fetch_price(row["ticker"])
-        if data:
-            results.append({
-                "id": row["id"],
-                "name": row["holding_name"],
-                "ticker": row["ticker"],
-                "yf_symbol": data["yf_symbol"],
-                "price": data["price"],
-                "currency": data["currency"],
-                "change_pct": data["change_pct"],
-                "updated_at": now,
-                "success": True,
-                "error": None,
-            })
-        else:
-            results.append({
-                "id": row["id"],
-                "name": row["holding_name"],
-                "ticker": row["ticker"],
-                "price": None,
-                "currency": None,
-                "change_pct": None,
-                "updated_at": now,
-                "success": False,
-                "error": f"No data found for {row['ticker']} or {row['ticker']}.L",
-            })
+        if t not in ticker_to_rows:
+            ticker_to_rows[t] = []
+        ticker_to_rows[t].append(row)
+
+    if not ticker_to_rows:
+        return []
+
+    # 2. Try bulk fetch via yfinance if available
+    bulk_data = {}
+    if YFINANCE_AVAILABLE:
+        try:
+            # We try both raw and .L versions in bulk to be safe
+            symbols_to_fetch = []
+            for t in ticker_to_rows.keys():
+                symbols_to_fetch.append(t)
+                if not t.endswith(".L"):
+                    symbols_to_fetch.append(t + ".L")
+                if TICKER_ALIASES.get(t):
+                    symbols_to_fetch.append(TICKER_ALIASES[t])
+
+            # yfinance download is often more reliable/faster for many tickers than Tickers().info
+            # We fetch 1d period to get current price + prev close for change_pct
+            tickers_str = " ".join(list(set(symbols_to_fetch)))
+            df = yf.download(tickers_str, period="5d", interval="1d", group_by='ticker', progress=False, threads=True)
+            
+            for sym in symbols_to_fetch:
+                try:
+                    # Get the most recent valid price
+                    if sym in df.columns.levels[0]:
+                        s_df = df[sym].dropna(subset=['Close'])
+                        if not s_df.empty:
+                            price = s_df['Close'].iloc[-1]
+                            prev_close = s_df['Close'].iloc[-2] if len(s_df) >= 2 else None
+                            change_pct = None
+                            if prev_close and prev_close > 0:
+                                change_pct = (price - prev_close) / prev_close * 100
+                            
+                            bulk_data[sym] = {
+                                "price": round(float(price), 4),
+                                "change_pct": round(float(change_pct), 2) if change_pct is not None else None,
+                                "yf_symbol": sym,
+                                "currency": None # download doesn't give currency easily, fallback will handle it
+                            }
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.error(f"Bulk fetch failed: {e}")
+
+    # 3. Process results, falling back to fetch_price if bulk failed or needs currency
+    for ticker, rows in ticker_to_rows.items():
+        # Find the best match from bulk_data
+        data = None
+        best_sym = None
+        
+        # Try order: Alias -> .L -> Raw
+        for sym in [TICKER_ALIASES.get(ticker), ticker + ".L", ticker]:
+            if sym and sym in bulk_data:
+                data = bulk_data[sym]
+                best_sym = sym
+                break
+        
+        # If bulk succeeded but missing currency, or bulk failed entirely, use fetch_price
+        if not data or not data.get("currency"):
+            data = fetch_price(ticker)
+        
+        for row in rows:
+            if data:
+                results.append({
+                    "id": row["id"],
+                    "name": row["holding_name"],
+                    "ticker": ticker,
+                    "yf_symbol": data.get("yf_symbol") or best_sym or ticker,
+                    "price": data["price"],
+                    "currency": data.get("currency"),
+                    "change_pct": data.get("change_pct"),
+                    "updated_at": now,
+                    "success": True,
+                    "error": None,
+                })
+            else:
+                results.append({
+                    "id": row["id"],
+                    "name": row["holding_name"],
+                    "ticker": ticker,
+                    "price": None,
+                    "currency": None,
+                    "change_pct": None,
+                    "updated_at": now,
+                    "success": False,
+                    "error": f"No data found for {ticker}",
+                })
 
     return results
