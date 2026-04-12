@@ -8,7 +8,7 @@
  *  - Images/fonts: Cache-first, long-lived
  */
 
-const CACHE_NAME = 'shelly-v1.5.2';
+const CACHE_NAME = 'shelly-v1.5.3';
 
 /* App shell files to pre-cache on install */
 const APP_SHELL = [
@@ -86,7 +86,7 @@ self.addEventListener('fetch', (event) => {
 /* ── Strategies ───────────────────────────────────────────────────────── */
 
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
+  const cached = await caches.match(request, { ignoreSearch: true });
   if (cached) {
     /* Revalidate in background */
     fetch(request)

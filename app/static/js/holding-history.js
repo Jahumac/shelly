@@ -107,7 +107,8 @@
     var reqUrl = '/holdings/' + holdingId + '/history?period=' + encodeURIComponent(period);
     fetch(reqUrl, {
       headers: { 'Accept': 'application/json' },
-      credentials: 'include'
+      credentials: 'include',
+      cache: 'no-store'
     })
       .then(function (r) {
         var ct = (r.headers.get('content-type') || '').toLowerCase();
