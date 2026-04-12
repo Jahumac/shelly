@@ -43,6 +43,21 @@
       {% endif %}
     </nav>
   </header>
+  {% if month_strip %}
+  {% set _current_month = month_strip | selectattr('is_today', 'true') | first %}
+  {% set _accent = _current_month.month_num if _current_month else 4 %}
+  <section class="budget-year-strip month-strip-global month-accent-{{ _accent }}">
+    <div class="budget-year-strip-inner">
+      {% for m in month_strip %}
+      <span class="budget-month-pill{% if m.is_today %} budget-month-active{% endif %}"
+            title="{{ m.label }}">
+        <span class="budget-month-pill-label">{{ m.label }}</span>
+      </span>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <main class="page-shell">
     <div id="offline-banner" class="offline-banner hidden">Offline mode: pages you’ve opened before may load, but changes won’t be saved.</div>
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -328,6 +343,13 @@
           window.location.href = row.dataset.href;
         });
       });
+
+      var focusPanel = document.querySelector('[data-focus-panel]');
+      if (false) { // Completely disabled auto-scrolling
+        requestAnimationFrame(function () {
+          focusPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
     });
 
     (function () {

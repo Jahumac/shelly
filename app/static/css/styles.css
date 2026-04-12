@@ -146,6 +146,13 @@ nav a.active {
   padding: 2rem;
 }
 
+.month-strip-global {
+  margin-top: 0 !important;
+  border-top: none !important;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
 /* ── Flash messages ──────────────────────────────────────────────── */
 .flash-msg {
   padding: 0.65rem 1rem;
