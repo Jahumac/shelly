@@ -1,7 +1,8 @@
 from datetime import date, datetime, timedelta
+from typing import Optional, Dict, Any, Union
 
 
-def age_from_dob(dob_str, today=None):
+def age_from_dob(dob_str: Optional[str], today: Optional[date] = None) -> float:
     """Calculate current age in fractional years from a date-of-birth string (YYYY-MM-DD).
 
     Falls back to 0 if the DOB is missing or unparseable.
@@ -21,18 +22,31 @@ def age_from_dob(dob_str, today=None):
     months_since_birthday = (today.month - dob.month) % 12
     if today.day < dob.day:
         months_since_birthday = max(months_since_birthday - 1, 0)
-    return age_years + months_since_birthday / 12.0
+    return float(age_years + months_since_birthday / 12.0)
 
 
-def current_age_from_assumptions(assumptions):
+def current_age_from_assumptions(assumptions: Optional[Union[Dict[str, Any], Any]]) -> float:
     """Get the user's current age, preferring date_of_birth over legacy current_age."""
     if not assumptions:
         return 0.0
-    dob = assumptions.get("date_of_birth") if hasattr(assumptions, 'get') else (assumptions["date_of_birth"] if "date_of_birth" in assumptions.keys() else None)
+    
+    dob = None
+    if hasattr(assumptions, 'get'):
+        dob = assumptions.get("date_of_birth")
+    elif isinstance(assumptions, dict):
+        dob = assumptions.get("date_of_birth")
+    
     if dob:
         return age_from_dob(dob)
+    
     # Legacy fallback
-    return to_float(assumptions.get("current_age") if hasattr(assumptions, 'get') else assumptions["current_age"])
+    val = 0.0
+    if hasattr(assumptions, 'get'):
+        val = assumptions.get("current_age", 0.0)
+    elif isinstance(assumptions, dict):
+        val = assumptions.get("current_age", 0.0)
+        
+    return to_float(val)
 
 
 TAX_BAND_RATES = {"basic": 0.20, "higher": 0.40, "additional": 0.45}

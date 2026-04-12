@@ -3,9 +3,10 @@
 import csv
 import io
 from datetime import datetime
+from typing import List, Dict, Union, Any, Optional
 
 
-def _safe_float(value, default=0.0):
+def _safe_float(value: Optional[str], default: float = 0.0) -> float:
     """Parse a float from a string, returning default on failure."""
     try:
         return float((value or "").replace(",", "").strip())
@@ -13,7 +14,7 @@ def _safe_float(value, default=0.0):
         return default
 
 
-def parse_trading212(file_bytes):
+def parse_trading212(file_bytes: bytes) -> List[Dict[str, Any]]:
     """
     Parse a Trading 212 transaction history CSV.
 

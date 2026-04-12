@@ -13,6 +13,7 @@ import logging
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from typing import Optional, Dict, Any, List
 
 YFINANCE_AVAILABLE = False
 try:
@@ -47,13 +48,13 @@ TICKER_ALIASES = {
 logger = logging.getLogger(__name__)
 
 
-def _yahoo_json(url: str, timeout: int = 10):
+def _yahoo_json(url: str, timeout: int = 10) -> Any:
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     resp = urllib.request.urlopen(req, timeout=timeout)
     return json.loads(resp.read())
 
 
-def fetch_dividend_profile(ticker: str):
+def fetch_dividend_profile(ticker: str) -> Optional[Dict[str, Any]]:
     """Fetch dividend metadata for a ticker from Yahoo Finance.
 
     Returns dict:
@@ -143,7 +144,7 @@ def fetch_dividend_profile(ticker: str):
 
     return out
 
-def _try_ticker(symbol: str):
+def _try_ticker(symbol: str) -> Optional[Dict[str, Any]]:
     """Return dict with price/currency/change_pct for a Yahoo Finance symbol, or None.
 
     Uses three fallback strategies because yfinance can be flaky:
@@ -245,8 +246,8 @@ def _try_ticker(symbol: str):
         return None
 
 
-def _try_yahoo_http(symbol: str):
-    """Fetch price directly from Yahoo Finance v8 chart API (bypasses yfinance).
+def _try_yahoo_http(symbol: str) -> Optional[Dict[str, Any]]:
+    """Fetch current price via direct v8 chart HTTP API.
 
     This is the most reliable fallback — it uses the same endpoint that
     Yahoo's website uses and handles tickers that yfinance can't resolve.
@@ -301,7 +302,7 @@ def _try_yahoo_http(symbol: str):
         return None
 
 
-def _search_yahoo(query: str):
+def _search_yahoo(query: str) -> Optional[str]:
     """Search Yahoo Finance for a symbol by query string.
 
     Returns the best matching LSE symbol, or None.
@@ -332,7 +333,7 @@ def _search_yahoo(query: str):
     return None
 
 
-def fetch_history(ticker: str, period: str = "1y"):
+def fetch_history(ticker: str, period: str = "1y") -> Optional[Dict[str, Any]]:
     """Fetch historical prices for a given ticker."""
     ticker_clean = ticker.strip()
     if not ticker_clean:
@@ -435,7 +436,7 @@ def fetch_history(ticker: str, period: str = "1y"):
         return None
 
 
-def fetch_price(ticker: str):
+def fetch_price(ticker: str) -> Optional[Dict[str, Any]]:
     """Fetch the current price for a ticker.
 
     Strategy for a UK-focused dashboard:
@@ -514,7 +515,7 @@ def fetch_price(ticker: str):
     return None
 
 
-def lookup_instrument(query: str):
+def lookup_instrument(query: str) -> Optional[Dict[str, Any]]:
     """Look up an instrument by ticker or partial name via Yahoo Finance.
 
     Returns a dict with keys: ticker, yf_symbol, name, price, price_gbp,
@@ -561,7 +562,7 @@ def lookup_instrument(query: str):
     }
 
 
-def refresh_catalogue_prices(catalogue_rows):
+def refresh_catalogue_prices(catalogue_rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Fetch fresh prices for all catalogue items in bulk.
 
     Returns a list of dicts: {id, name, ticker, success, price, currency,

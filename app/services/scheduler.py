@@ -9,7 +9,8 @@ This module handles:
 import logging
 from datetime import datetime, timezone
 import os
-from flask import current_app
+from flask import Flask, current_app
+from typing import Optional, Any
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -23,7 +24,7 @@ scheduler = None
 _lock_file = None  # Keep reference so fcntl lock isn't released by GC
 
 
-def init_scheduler(app):
+def init_scheduler(app: Flask) -> Optional[Any]:
     """Initialize and start the background scheduler.
 
     This should be called once during app initialization, after the database is set up.
@@ -78,15 +79,8 @@ def init_scheduler(app):
     return scheduler
 
 
-def _scheduled_check(app):
-    """Runs every 15 minutes (6am-10pm UK). For each user with auto_update
-    enabled, triggers a price update if at least 4 hours have passed since
-    the last successful run.
-
-    This is more reliable than checking exact time windows because it
-    self-heals after restarts — if gunicorn restarts and misses a window,
-    the next 15-minute check will catch up automatically.
-    """
+def _scheduled_check(app: Flask) -> None:
+    """Runs every 15 minutes (6am-10pm UK).
     import pytz
 
     with app.app_context():

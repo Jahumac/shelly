@@ -15,6 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ app_version }}">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -31,14 +32,14 @@
       </a>
       {% endif %}
     </div>
-    <nav>
+    <nav hx-boost="true" hx-target="main.page-shell" hx-select="main.page-shell">
       <a href="/" class="{% if active_page == 'overview' %}active{% endif %}">Overview</a>
       <a href="/accounts/" class="{% if active_page == 'accounts' %}active{% endif %}">Accounts</a>
       <a href="/budget/" class="{% if active_page in ('budget', 'monthly_review') %}active{% endif %}">Budget</a>
       <a href="/goals/" class="{% if active_page in ('goals', 'projections', 'performance') %}active{% endif %}">Goals</a>
       <a href="/settings/" class="{% if active_page in ('settings', 'users') %}active{% endif %}">Settings</a>
       {% if current_user.is_authenticated %}
-        <a href="/logout" class="nav-logout">{{ current_user.username }} &rarr; Log out</a>
+        <a href="/logout" class="nav-logout" hx-boost="false">{{ current_user.username }} &rarr; Log out</a>
       {% endif %}
     </nav>
   </header>
@@ -55,7 +56,7 @@
   </main>
   {# ── Mobile bottom navigation ────────────────────────────────────────────── #}
   {% if current_user.is_authenticated %}
-  <nav class="bottom-nav" aria-label="Main navigation">
+  <nav class="bottom-nav" aria-label="Main navigation" hx-boost="true" hx-target="main.page-shell" hx-select="main.page-shell">
     <a href="/" class="bottom-nav-item {% if active_page == 'overview' %}bottom-nav-active{% endif %}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
       <span>Overview</span>
