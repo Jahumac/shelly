@@ -2,6 +2,31 @@
 {% block title %}Accounts · Shelly{% endblock %}
 {% block content %}
 
+{# ── Hero ── #}
+<section class="card highlight mb-1">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Portfolio Value</p>
+      <h2 class="hero-value hero-value-xl">£{{ '{:,.2f}'.format(total_value) }}</h2>
+      <p class="hero-subtitle">Spread across {{ accounts | length }} accounts</p>
+    </div>
+    <div class="hero-turtle-wrap">
+      <img src="{{ url_for('static', filename='icons/shelly/Accounts.png') }}" alt="" class="hero-turtle">
+    </div>
+  </div>
+
+  <div class="hero-strip">
+    <div class="hero-strip-stat">
+      <span>Total monthly in</span>
+      <strong>£{{ '{:,.0f}'.format(total_monthly) }}</strong>
+    </div>
+    <div class="hero-strip-stat">
+      <span>Avg. per account</span>
+      <strong>£{{ '{:,.0f}'.format(total_value / (accounts | length)) if accounts else '0' }}</strong>
+    </div>
+  </div>
+</section>
+
 <div class="section-header">
   <div>
     <p class="eyebrow">Portfolio</p>
