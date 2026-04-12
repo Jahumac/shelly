@@ -1123,6 +1123,30 @@ button.badge-like-button {
     padding: 0.9rem 1rem;
   }
 
+  .card,
+  .panel {
+    padding: 1.05rem;
+  }
+
+  .eyebrow {
+    margin-bottom: 0.25rem;
+  }
+
+  .card p,
+  .panel p {
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .badge-row {
+    margin-top: 0.6rem;
+    gap: 0.45rem;
+  }
+
+  .section-header {
+    margin-bottom: 0.7rem;
+  }
+
 
 @media (max-width: 480px) {
   .page-shell {
@@ -1154,6 +1178,10 @@ button.badge-like-button {
   .badge-row {
     margin-top: 0.5rem;
     gap: 0.45rem;
+  }
+
+  .badge {
+    padding: 0.55rem 0.9rem;
   }
 
   .hero-value {
@@ -1224,6 +1252,11 @@ button.badge-like-button {
   .holding-update-meta span {
     font-size: 0.9rem;
     line-height: 1.55;
+  }
+
+  .card p,
+  .panel p {
+    margin-bottom: 0.2rem;
   }
 
   .acct-balance {
