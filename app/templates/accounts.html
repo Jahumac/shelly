@@ -201,6 +201,7 @@
         {% if detail_mode != 'edit' %}<a class="badge" href="/accounts/{{ selected.id }}?mode=edit">Edit</a>{% endif %}
         {% if detail_mode != 'edit' and selected.valuation_mode == 'holdings' %}<button type="button" class="badge" id="top-add-holding">+ Add holding</button>{% endif %}
         <form method="post" class="form-reset" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="delete_account">
           <button type="submit" class="badge badge-danger"
             data-confirm="This will permanently remove {{ selected.name }} and all its holdings. Shelly can't undo this one."
@@ -215,6 +216,7 @@
 
     {% if detail_mode == 'edit' %}
       <form method="post" class="settings-form mt-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="form_name" value="account">
         <section class="panel panel-sm">
           <h3 class="section-title">Edit Account</h3>
@@ -366,6 +368,7 @@
           <a class="badge" href="/accounts/{{ selected.id }}#holdings-section">← Cancel</a>
         </div>
         <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ edit_holding.id }}/edit" class="settings-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-grid">
             <label>
               <span>Units</span>
@@ -782,6 +785,7 @@
           </div>
           {% if positions %}
           <form method="post" action="/holdings/trigger-price-update" class="form-reset">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="badge badge-meta" title="Fetch latest prices from Yahoo Finance">↻ Refresh prices</button>
           </form>
           {% endif %}
@@ -791,6 +795,7 @@
         {% if selected.valuation_mode == 'holdings' %}
         <div class="panel mt-1 mb-1" style="background: var(--surface-2); padding: 1rem; border-radius: var(--radius-md);">
           <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div style="flex:1; min-width: 10rem;">
               <label class="text-sm text-muted uppercase">Uninvested Cash (£)</label>
               <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025" style="width:100%;" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
@@ -809,7 +814,7 @@
         {% if positions %}
           {# ── Desktop: full table ── #}
           <div class="responsive-table-wrap mt-075 holdings-desktop">
-            <table class="data-table">
+            <table class="data-table holdings-table">
               <thead>
                 <tr>
                   <th>Holding</th>
@@ -836,7 +841,7 @@
                     <input type="number" step="any" name="units" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.units or 0) }}" style="width: 5rem; padding: 0.2rem; text-align: right;" class="input-standard">
                   </td>
                   <td class="num">
-                    <div style="display:flex; align-items:center; gap: 0.2rem; justify-content: flex-end;">
+                    <div class="money-input">
                       <span>£</span>
                       <input type="number" step="any" name="price" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.price or 0) }}" style="width: 5rem; padding: 0.2rem; text-align: right;" class="input-standard">
                     </div>
@@ -846,9 +851,11 @@
                   <td class="text-right text-nowrap">
                     <div class="badge-row badge-row-end">
                       <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-{{ position.id }}" class="form-reset">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="badge badge-meta">Save</button>
                       </form>
                       <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit"
                                 data-confirm="Remove {{ position.holding_name }} from this account?"
                                 data-confirm-title="Remove holding?"
@@ -876,7 +883,9 @@
                 <span class="holding-card-value">£{{ '{:,.2f}'.format(position.value or 0) }}</span>
               </div>
               <div class="holding-card-stats">
-                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-mob-{{ position.id }}" class="form-reset" style="display:contents;"></form>
+                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-mob-{{ position.id }}" class="form-reset" style="display:contents;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                </form>
                 <div style="display:flex; flex-direction:column; gap:0.2rem;">
                   <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;">Units</span>
                   <input type="number" step="any" name="units" form="edit-holding-mob-{{ position.id }}" value="{{ '{:.4f}'.format(position.units or 0) }}" class="input-standard" style="width:100%; padding:0.2rem;">
@@ -891,6 +900,7 @@
               <div class="holding-card-actions">
                 <button type="submit" form="edit-holding-mob-{{ position.id }}" class="badge badge-meta">Save</button>
                 <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit"
                           data-confirm="Remove {{ position.holding_name }} from this account?"
                           data-confirm-title="Remove holding?"
@@ -910,6 +920,7 @@
           {# Mode A: search by ticker #}
           <div id="ah-mode-ticker">
             <form method="post" action="/accounts/{{ selected.id }}/holdings/add" id="add-holding-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="add-holding-fields">
                 <div class="add-holding-field">
                   <label for="ah-ticker">Ticker</label>
@@ -936,6 +947,7 @@
           {# Mode B: manual / custom holding #}
           <div id="ah-mode-manual" class="hidden">
             <form method="post" action="/accounts/{{ selected.id }}/holdings/add-manual" id="add-manual-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="add-holding-fields" style="flex-wrap:wrap;gap:0.6rem;">
                 <div class="add-holding-field" style="flex:1;min-width:12rem;">
                   <label for="am-name">Fund / holding name</label>
@@ -1141,6 +1153,7 @@
                 <span class="override-badge">Active</span>
               {% endif %}
               <form method="post" class="form-reset">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="form_name" value="delete_override">
                 <input type="hidden" name="override_id" value="{{ ov.id }}">
                 <button type="submit" class="badge badge-danger badge-meta">Remove</button>
@@ -1154,6 +1167,7 @@
         {% endif %}
 
         <form method="post" class="settings-form mt-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="add_override">
           <div class="form-grid">
             <label><span>From month</span><input type="month" name="from_month" required></label>

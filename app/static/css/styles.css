@@ -1675,6 +1675,22 @@ button.badge-like-button {
   color: var(--text);
 }
 
+.holdings-table td {
+  vertical-align: top;
+}
+
+.money-input {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.money-input span {
+  color: var(--muted);
+  line-height: 1;
+}
+
 .data-table tbody tr:hover {
   background: rgba(56,189,248,0.04);
 }
