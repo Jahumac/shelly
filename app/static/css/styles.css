@@ -1402,6 +1402,21 @@ button.badge-like-button {
   .hero-top {
     flex-wrap: wrap;
   }
+  .section-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .section-header > div {
+    min-width: 0;
+    flex: 1 1 14rem;
+  }
+  .section-header .badge-row {
+    margin-top: 0;
+  }
+  .hero-actions-col {
+    width: 100%;
+    align-items: flex-start;
+  }
   .hero-stats {
     width: 100%;
     grid-template-columns: repeat(2, 1fr);

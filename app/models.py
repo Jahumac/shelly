@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS holding_catalogue (
     ticker TEXT,
     asset_type TEXT,
     bucket TEXT,
+    dividend_yield_pct REAL,
     notes TEXT,
     is_active INTEGER DEFAULT 1,
     last_price REAL,
@@ -204,7 +205,12 @@ CREATE TABLE IF NOT EXISTS dividend_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id),
     account_id INTEGER NOT NULL REFERENCES accounts(id),
+    holding_catalogue_id INTEGER,
     amount REAL NOT NULL,
+    month_key TEXT,
+    source TEXT NOT NULL DEFAULT 'manual',
+    yield_pct REAL,
+    basis_value REAL,
     dividend_date TEXT NOT NULL,
     note TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -396,6 +402,30 @@ def init_db():
                     conn.execute(f"ALTER TABLE accounts ADD COLUMN {col_name} {col_def}")
             except Exception as e:
                 current_app.logger.error(f"Migration error (accounts.{col_name}): {e}")
+
+        for col_name, col_def in [
+            ("dividend_yield_pct", "REAL"),
+        ]:
+            try:
+                info = conn.execute("PRAGMA table_info(holding_catalogue)").fetchall()
+                if not any(row["name"] == col_name for row in info):
+                    conn.execute(f"ALTER TABLE holding_catalogue ADD COLUMN {col_name} {col_def}")
+            except Exception as e:
+                current_app.logger.error(f"Migration error (holding_catalogue.{col_name}): {e}")
+
+        for col_name, col_def in [
+            ("holding_catalogue_id", "INTEGER"),
+            ("month_key", "TEXT"),
+            ("source", "TEXT DEFAULT 'manual'"),
+            ("yield_pct", "REAL"),
+            ("basis_value", "REAL"),
+        ]:
+            try:
+                info = conn.execute("PRAGMA table_info(dividend_records)").fetchall()
+                if not any(row["name"] == col_name for row in info):
+                    conn.execute(f"ALTER TABLE dividend_records ADD COLUMN {col_name} {col_def}")
+            except Exception as e:
+                current_app.logger.error(f"Migration error (dividend_records.{col_name}): {e}")
 
         # ── Legacy column additions (other tables) ───────────────────────────
         for col_sql in [
@@ -1428,11 +1458,21 @@ def add_holding_catalogue_item(payload, user_id):
                 (ticker, user_id),
             ).fetchone()
             if existing:
+                if payload.get("dividend_yield_pct") is not None:
+                    conn.execute(
+                        """
+                        UPDATE holding_catalogue
+                        SET dividend_yield_pct = COALESCE(dividend_yield_pct, ?)
+                        WHERE id = ?
+                        """,
+                        (payload.get("dividend_yield_pct"), existing["id"]),
+                    )
+                    conn.commit()
                 return existing["id"]
         cursor = conn.execute(
             """
-            INSERT INTO holding_catalogue (user_id, holding_name, ticker, asset_type, bucket, notes, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO holding_catalogue (user_id, holding_name, ticker, asset_type, bucket, dividend_yield_pct, notes, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (
                 user_id,
@@ -1440,11 +1480,25 @@ def add_holding_catalogue_item(payload, user_id):
                 ticker,
                 payload.get("asset_type", ""),
                 payload.get("bucket", ""),
+                payload.get("dividend_yield_pct"),
                 payload.get("notes", ""),
             ),
         )
         conn.commit()
         return cursor.lastrowid
+
+
+def update_holding_catalogue_yield(catalogue_id, user_id, dividend_yield_pct):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE holding_catalogue
+            SET dividend_yield_pct = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (dividend_yield_pct, catalogue_id, user_id),
+        )
+        conn.commit()
 
 
 def fetch_catalogue_holding(catalogue_id):
