@@ -44,6 +44,7 @@ def settings():
             "retirement_goal_value": assumptions["retirement_goal_value"] if assumptions else 1000000,
             "isa_allowance": float(request.form.get("isa_allowance", 20000)),
             "lisa_allowance": float(request.form.get("lisa_allowance", 4000)),
+            "dividend_allowance": float(request.form.get("dividend_allowance", 500)),
             "annual_income": float(request.form.get("annual_income", 0) or 0),
             "pension_annual_allowance": float(request.form.get("pension_annual_allowance", 60000) or 60000),
             "mpaa_enabled": 1 if request.form.get("mpaa_enabled") else 0,

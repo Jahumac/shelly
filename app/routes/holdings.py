@@ -8,6 +8,7 @@ from app.calculations import effective_account_value
 from app.models import (
     fetch_all_accounts,
     fetch_catalogue_holding,
+    fetch_first_position_for_catalogue_holding,
     fetch_holding_catalogue,
     fetch_holding_totals_by_account,
     save_daily_snapshot,
@@ -48,8 +49,24 @@ def holding_detail(catalogue_id):
     ticker = (item.get("ticker") or "").strip()
     if ticker:
         history_data = fetch_history(ticker, period=history_period)
+
+    first_pos = fetch_first_position_for_catalogue_holding(catalogue_id, current_user.id)
+    view_in_account_url = None
+    if first_pos:
+        view_in_account_url = url_for(
+            "accounts.account_detail",
+            account_id=int(first_pos["account_id"]),
+            holding_id=int(first_pos["holding_id"]),
+            mode="view",
+        ) + "#holdings-section"
     
-    return render_template("holding_detail.html", item=item, history_data=history_data, history_period=period)
+    return render_template(
+        "holding_detail.html",
+        item=item,
+        history_data=history_data,
+        history_period=period,
+        view_in_account_url=view_in_account_url,
+    )
 
 
 @holdings_bp.route("/api/lookup")

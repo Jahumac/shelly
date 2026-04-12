@@ -11,7 +11,7 @@
     <div>
       <p class="eyebrow">Tax Year {{ tax_year }}</p>
       <h2 class="hero-value">Allowances</h2>
-      <p class="hero-subtitle">Track ISA, LISA and pension contributions across all accounts</p>
+      <p class="hero-subtitle">Track ISA, LISA, pension and dividends across all accounts</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
@@ -28,7 +28,7 @@
   <div class="card allowance-card">
     <h2>ISA Allowance</h2>
     <p>£{{ '{:,.0f}'.format(usage.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(isa_allowance) }}</span></p>
-    <div class="progress"><div class="progress-bar" style="width: {{ (isa_progress * 100)|round(1) }}%;"></div></div>
+    <div class="progress"><div class="progress-bar" data-pct="{{ (isa_progress * 100)|round(1) }}"></div></div>
     <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
     {% if usage.projected_isa != usage.isa_used %}
     <small style="display:block; margin-top:0.25rem; color:var(--muted);">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
@@ -37,13 +37,13 @@
   <div class="card allowance-card">
     <h2>LISA Allowance</h2>
     <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
-    <div class="progress"><div class="progress-bar" style="width: {{ (lisa_progress * 100)|round(1) }}%;"></div></div>
+    <div class="progress"><div class="progress-bar" data-pct="{{ (lisa_progress * 100)|round(1) }}"></div></div>
     <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
   </div>
   <div class="card allowance-card">
     <h2>Pension Annual Allowance</h2>
     <p>£{{ '{:,.0f}'.format(pension_usage.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</span></p>
-    <div class="progress"><div class="progress-bar" style="width: {{ (pension_progress * 100)|round(1) }}%;"></div></div>
+    <div class="progress"><div class="progress-bar" data-pct="{{ (pension_progress * 100)|round(1) }}"></div></div>
     <small>
       {{ '{:.1f}'.format(pension_progress * 100) }}% used
       · Personal tax-relief limit: £{{ '{:,.0f}'.format(pension_limits.personal_relief_limit) }}
@@ -53,6 +53,12 @@
       On track: £{{ '{:,.0f}'.format(pension_usage.projected_total) }} / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }} by end of tax year
     </small>
     {% endif %}
+  </div>
+  <div class="card allowance-card">
+    <h2>Dividend Allowance</h2>
+    <p>£{{ '{:,.0f}'.format(dividend_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(dividend_allowance) }}</span></p>
+    <div class="progress"><div class="progress-bar" data-pct="{{ (dividend_progress * 100)|round(1) }}"></div></div>
+    <small>{{ '{:.1f}'.format(dividend_progress * 100) }}% used · taxable accounts only</small>
   </div>
 </section>
 
@@ -205,8 +211,7 @@
     </div>
   </div>
   <p class="helper-text" style="margin-bottom: 1rem;">
-    Shelly totals your pension contributions from {{ pension_usage.months }} month{{ 's' if pension_usage.months != 1 }} of regular contributions so far
-    ({{ pension_usage.total_months }} months in the full tax year)
+    Shelly totals your pension contributions from regular payments so far (based on each account’s posting day, or your salary day)
     plus any one-off contributions you record below.
   </p>
   {% if pension_usage.breakdown %}
@@ -217,7 +222,7 @@
         <th>Account</th>
         <th style="text-align:center">Type</th>
         <th style="text-align:right">Monthly (gross)</th>
-        <th style="text-align:right">× {{ pension_usage.months }} mo</th>
+        <th style="text-align:right">Regular to date</th>
         <th style="text-align:right">One-offs</th>
         <th style="text-align:right">Total</th>
       </tr>
@@ -228,7 +233,7 @@
         <td>{{ b.account_name }}</td>
         <td style="text-align:center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
         <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
-        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_sum) }}</td>
+        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_sum) }} <span class="text-muted">({{ b.months }} mo)</span></td>
         <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
         <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(b.monthly_sum + b.adhoc_total) }}</strong></td>
       </tr>
@@ -338,4 +343,91 @@
   </table>
 </section>
 {% endif %}
+
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Dividends</p>
+      <h2>Record Dividend Income</h2>
+    </div>
+  </div>
+  {% if taxable_accounts %}
+  <form method="post" action="/allowance/dividend/add" class="allowance-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="allowance-form-row">
+      <label>
+        <span>Account</span>
+        <select name="account_id" required>
+          {% for a in taxable_accounts %}
+          <option value="{{ a.id }}">{{ a.name }}{% if a.wrapper_type %} ({{ a.wrapper_type }}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Amount</span>
+        <input type="number" step="0.01" name="amount" min="0" required>
+      </label>
+      <label>
+        <span>Date</span>
+        <input type="date" name="dividend_date" value="{{ today }}" required>
+      </label>
+      <label>
+        <span>Note</span>
+        <input type="text" name="note" placeholder="Optional">
+      </label>
+      <button type="submit">Add dividend</button>
+    </div>
+    <p class="helper-text mt-05">Dividends inside ISA/LISA are tax-free and not counted here.</p>
+  </form>
+  {% else %}
+  <p class="helper-text">No taxable (non-ISA, non-pension) accounts found. Create one under <a href="/accounts/">Accounts</a>.</p>
+  {% endif %}
+</section>
+
+{% if dividend_records %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">History</p>
+      <h2>Dividend Income ({{ tax_year }})</h2>
+    </div>
+  </div>
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Account</th>
+        <th style="text-align:right">Amount</th>
+        <th>Note</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dividend_records %}
+      <tr>
+        <td>{{ d.dividend_date }}</td>
+        <td>{{ d.account_name }}</td>
+        <td style="text-align:right">£{{ '{:,.2f}'.format(d.amount) }}</td>
+        <td>{{ d.note or '–' }}</td>
+        <td style="text-align:right">
+          <form method="post" action="/allowance/dividend/delete/{{ d.id }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<script>
+  document.querySelectorAll('.progress-bar[data-pct]').forEach(function (el) {
+    var pct = parseFloat(el.dataset.pct || '0');
+    if (!isFinite(pct) || pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    el.style.width = pct + '%';
+  });
+</script>
 {% endblock %}

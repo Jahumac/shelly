@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     tags TEXT DEFAULT '',
     current_value REAL DEFAULT 0,
     monthly_contribution REAL DEFAULT 0,
+    pension_contribution_day INTEGER DEFAULT 0,
     goal_value REAL,
     valuation_mode TEXT DEFAULT 'manual',
     growth_mode TEXT DEFAULT 'default',
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS assumptions (
     retirement_goal_value REAL DEFAULT 1000000,
     isa_allowance REAL DEFAULT 20000,
     lisa_allowance REAL DEFAULT 4000,
+    dividend_allowance REAL DEFAULT 500,
     target_dev_pct REAL DEFAULT 0.90,
     target_em_pct REAL DEFAULT 0.10,
     emergency_fund_target REAL DEFAULT 3000,
@@ -194,6 +196,16 @@ CREATE TABLE IF NOT EXISTS pension_contributions (
     amount REAL NOT NULL,
     kind TEXT NOT NULL DEFAULT 'personal',
     contribution_date TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS dividend_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    account_id INTEGER NOT NULL REFERENCES accounts(id),
+    amount REAL NOT NULL,
+    dividend_date TEXT NOT NULL,
     note TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -375,6 +387,7 @@ def init_db():
             ("growth_mode", "TEXT DEFAULT 'default'"),
             ("growth_rate_override", "REAL"),
             ("tags", "TEXT DEFAULT ''"),
+            ("pension_contribution_day", "INTEGER DEFAULT 0"),
         ]:
             try:
                 # Check if column exists first
@@ -388,6 +401,7 @@ def init_db():
         for col_sql in [
             "ALTER TABLE assumptions ADD COLUMN dashboard_name TEXT DEFAULT 'Shelly'",
             "ALTER TABLE assumptions ADD COLUMN retirement_goal_value REAL DEFAULT 1000000",
+            "ALTER TABLE assumptions ADD COLUMN dividend_allowance REAL DEFAULT 500",
             "ALTER TABLE holdings ADD COLUMN holding_catalogue_id INTEGER",
             "ALTER TABLE goals ADD COLUMN selected_tags TEXT DEFAULT ''",
             "ALTER TABLE monthly_snapshots ADD COLUMN month_key TEXT",
@@ -932,6 +946,43 @@ def delete_pension_contribution(contribution_id, user_id):
         )
         conn.commit()
 
+
+def add_dividend_record(user_id, account_id, amount, dividend_date, note=None):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO dividend_records (user_id, account_id, amount, dividend_date, note)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (user_id, account_id, amount, dividend_date, note),
+        )
+        conn.commit()
+
+
+def fetch_dividend_records(user_id, tax_year_start, tax_year_end):
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT d.*, a.name AS account_name, a.wrapper_type
+            FROM dividend_records d
+            JOIN accounts a ON a.id = d.account_id
+            WHERE d.user_id = ?
+              AND d.dividend_date >= ?
+              AND d.dividend_date <= ?
+            ORDER BY d.dividend_date DESC
+            """,
+            (user_id, tax_year_start, tax_year_end),
+        ).fetchall()
+
+
+def delete_dividend_record(record_id, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM dividend_records WHERE id = ? AND user_id = ?",
+            (record_id, user_id),
+        )
+        conn.commit()
+
 def fetch_or_create_monthly_review(month_key, user_id):
     with get_connection() as conn:
         review = conn.execute(
@@ -1054,6 +1105,7 @@ def update_assumptions(payload, user_id):
                 retirement_goal_value = ?,
                 isa_allowance = ?,
                 lisa_allowance = ?,
+                dividend_allowance = ?,
                 annual_income = ?,
                 pension_annual_allowance = ?,
                 mpaa_enabled = ?,
@@ -1079,6 +1131,7 @@ def update_assumptions(payload, user_id):
                 payload["retirement_goal_value"],
                 payload["isa_allowance"],
                 payload["lisa_allowance"],
+                payload.get("dividend_allowance", 500),
                 payload.get("annual_income", 0),
                 payload.get("pension_annual_allowance", 60000),
                 payload.get("mpaa_enabled", 0),
@@ -1129,6 +1182,7 @@ def update_account(payload):
                 tags = ?,
                 current_value = ?,
                 monthly_contribution = ?,
+                pension_contribution_day = ?,
                 goal_value = ?,
                 valuation_mode = ?,
                 growth_mode = ?,
@@ -1155,6 +1209,7 @@ def update_account(payload):
                 payload["tags"],
                 payload["current_value"],
                 payload["monthly_contribution"],
+                payload.get("pension_contribution_day", 0),
                 payload["goal_value"],
                 payload["valuation_mode"],
                 payload["growth_mode"],
@@ -1196,13 +1251,13 @@ def create_account(payload, user_id):
             """
             INSERT INTO accounts (
                 user_id, name, provider, wrapper_type, category, tags, current_value,
-                monthly_contribution, goal_value, valuation_mode, growth_mode,
+                monthly_contribution, pension_contribution_day, goal_value, valuation_mode, growth_mode,
                 growth_rate_override, owner, is_active, notes, last_updated,
                 employer_contribution, contribution_method, annual_fee_pct,
                 platform_fee_pct, platform_fee_flat, platform_fee_cap, fund_fee_pct,
                 uninvested_cash, cash_interest_rate
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -1213,6 +1268,7 @@ def create_account(payload, user_id):
                 payload["tags"],
                 payload["current_value"],
                 payload["monthly_contribution"],
+                payload.get("pension_contribution_day", 0),
                 payload["goal_value"],
                 payload["valuation_mode"],
                 payload["growth_mode"],
@@ -1396,6 +1452,23 @@ def fetch_catalogue_holding(catalogue_id):
         return conn.execute(
             "SELECT * FROM holding_catalogue WHERE id = ?",
             (catalogue_id,),
+        ).fetchone()
+
+
+def fetch_first_position_for_catalogue_holding(catalogue_id, user_id):
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT h.id AS holding_id, h.account_id, a.name AS account_name
+            FROM holdings h
+            JOIN accounts a ON a.id = h.account_id
+            WHERE h.holding_catalogue_id = ?
+              AND a.user_id = ?
+              AND a.is_active = 1
+            ORDER BY a.id ASC, h.id ASC
+            LIMIT 1
+            """,
+            (catalogue_id, user_id),
         ).fetchone()
 
 

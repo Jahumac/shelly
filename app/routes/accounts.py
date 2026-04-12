@@ -69,6 +69,7 @@ def _account_payload_from_form(form):
         "tags": form.get("tags", ""),
         "current_value": _optional_float(form.get("current_value"), 0.0),
         "monthly_contribution": _optional_float(form.get("monthly_contribution"), 0.0),
+        "pension_contribution_day": int(form.get("pension_contribution_day", 0) or 0),
         "goal_value": _optional_float(form.get("goal_value"), None),
         "valuation_mode": form.get("valuation_mode", "manual"),
         "growth_mode": form.get("growth_mode", "default"),

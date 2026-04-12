@@ -269,7 +269,7 @@ def fetch_history(ticker: str, period: str = "1y"):
                     continue
                 dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
                 if period == "1d":
-                    label = dt.strftime("%Y-%m-%d %H:%M")
+                    label = dt.strftime("%H:%M")
                 else:
                     label = dt.strftime("%Y-%m-%d")
                 history_data.append({
@@ -284,12 +284,18 @@ def fetch_history(ticker: str, period: str = "1y"):
     try:
         if YFINANCE_AVAILABLE:
             t = yf.Ticker(symbol)
-            hist = t.history(period=period)
+            if period == "1d":
+                hist = t.history(period="1d", interval="5m")
+            else:
+                hist = t.history(period=period)
             if hist is None or hist.empty:
                 if not symbol.endswith(".L"):
                     symbol_l = symbol + ".L"
                     t = yf.Ticker(symbol_l)
-                    hist = t.history(period=period)
+                    if period == "1d":
+                        hist = t.history(period="1d", interval="5m")
+                    else:
+                        hist = t.history(period=period)
 
             if hist is not None and not hist.empty:
                 currency = t.info.get("currency") if hasattr(t, "info") and isinstance(t.info, dict) else "GBP"
@@ -299,10 +305,10 @@ def fetch_history(ticker: str, period: str = "1y"):
                 for date, row in hist.iterrows():
                     price = float(row["Close"]) / divider
                     history_data.append({
-                        "date": date.strftime("%Y-%m-%d"),
+                        "date": date.strftime("%H:%M") if period == "1d" else date.strftime("%Y-%m-%d"),
                         "price": round(price, 4)
                     })
-                return history_data
+                return history_data or None
 
         http_data = _fetch_history_http(symbol)
         if http_data:

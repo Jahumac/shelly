@@ -73,6 +73,11 @@
         <small class="form-hint">Sub-limit within ISA allowance</small>
       </label>
       <label>
+        <span>Dividend allowance</span>
+        <input type="number" step="0.01" name="dividend_allowance" value="{{ assumptions.dividend_allowance if assumptions and assumptions.dividend_allowance is not none else 500 }}">
+        <small class="form-hint">Tax-free dividend income outside ISA (UK allowance)</small>
+      </label>
+      <label>
         <span>Annual income (£)</span>
         <input type="number" step="0.01" name="annual_income" value="{{ assumptions.annual_income if assumptions and assumptions.annual_income is not none else 0 }}">
         <small class="form-hint">Used to estimate your personal pension tax-relief limit (typically up to 100% of relevant earnings)</small>

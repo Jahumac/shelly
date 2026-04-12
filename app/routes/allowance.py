@@ -17,12 +17,15 @@ from app.calculations import (
 from app.models import (
     add_isa_contribution,
     add_pension_contribution,
+    add_dividend_record,
     delete_isa_contribution,
     delete_pension_contribution,
+    delete_dividend_record,
     fetch_all_accounts,
     fetch_assumptions,
     fetch_isa_contributions,
     fetch_pension_contributions,
+    fetch_dividend_records,
 )
 
 allowance_bp = Blueprint("allowance", __name__)
@@ -56,6 +59,12 @@ def allowance_overview():
     pension_limits = pension_allowance_limits(dict(assumptions) if assumptions else {})
     pension_accounts = [a for a in accounts if is_pension_account(dict(a))]
 
+    dividend_allowance = float(assumptions["dividend_allowance"]) if assumptions and assumptions.get("dividend_allowance") is not None else 500
+    dividend_records = fetch_dividend_records(uid, ty_start, ty_end)
+    dividend_used = sum(float(r["amount"] or 0) for r in dividend_records) if dividend_records else 0.0
+    dividend_progress = allowance_progress(dividend_used, dividend_allowance) if dividend_allowance else 0
+    taxable_accounts = [a for a in accounts if (a["wrapper_type"] or "") not in ISA_WRAPPER_TYPES and not is_pension_account(dict(a))]
+
     return render_template(
         "allowance.html",
         tax_year=uk_tax_year_label(now_date),
@@ -71,6 +80,11 @@ def allowance_overview():
         pension_contributions=pension_contribs,
         isa_accounts=isa_accounts,
         pension_accounts=pension_accounts,
+        dividend_allowance=dividend_allowance,
+        dividend_used=dividend_used,
+        dividend_progress=dividend_progress,
+        dividend_records=dividend_records,
+        taxable_accounts=taxable_accounts,
         today=now_date.isoformat(),
         active_page="overview",
     )
@@ -129,4 +143,30 @@ def add_pension_topup():
 def remove_pension_topup(contribution_id):
     delete_pension_contribution(contribution_id, current_user.id)
     flash("Contribution removed.", "success")
+    return redirect(url_for("allowance.allowance_overview"))
+
+
+@allowance_bp.route("/dividend/add", methods=["POST"])
+@login_required
+def add_dividend():
+    uid = current_user.id
+    account_id = request.form.get("account_id", type=int)
+    amount = request.form.get("amount", type=float)
+    dividend_date = request.form.get("dividend_date") or datetime.now().date().isoformat()
+    note = request.form.get("note", "").strip() or None
+
+    if not account_id or not amount or amount <= 0:
+        flash("Please select an account and enter a valid amount.", "error")
+        return redirect(url_for("allowance.allowance_overview"))
+
+    add_dividend_record(uid, account_id, amount, dividend_date, note)
+    flash(f"Recorded £{amount:,.2f} dividend.", "success")
+    return redirect(url_for("allowance.allowance_overview"))
+
+
+@allowance_bp.route("/dividend/delete/<int:record_id>", methods=["POST"])
+@login_required
+def delete_dividend(record_id):
+    delete_dividend_record(record_id, current_user.id)
+    flash("Dividend removed.", "success")
     return redirect(url_for("allowance.allowance_overview"))

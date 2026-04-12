@@ -855,6 +855,15 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
         if not is_pension_account(acc):
             continue
 
+        try:
+            acc_day = int(acc.get("pension_contribution_day") or 0)
+        except Exception:
+            acc_day = 0
+        if not acc_day:
+            acc_day = salary_day
+        acc_months = months_in_tax_year(today, acc_day)
+        acc_total_months = full_year_contribution_months(acc_day)
+
         b = contribution_breakdown(acc, assumptions)
 
         monthly_total = float(b.get("total_into_pot") or 0)
@@ -877,12 +886,12 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
             monthly_personal_gross = max(0.0, (monthly_personal_net + monthly_tax_relief))
             monthly_employer_gross = max(0.0, monthly_employer)
 
-        total = monthly_total * months
-        projected = monthly_total * total_months
+        total = monthly_total * acc_months
+        projected = monthly_total * acc_total_months
 
         used_total += total
-        used_personal += monthly_personal_gross * months
-        used_employer += monthly_employer_gross * months
+        used_personal += monthly_personal_gross * acc_months
+        used_employer += monthly_employer_gross * acc_months
         projected_total += projected
 
         breakdown.append({
@@ -896,7 +905,8 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
             "monthly_total": monthly_total,
             "monthly_personal": monthly_personal_gross,
             "monthly_employer": monthly_employer_gross,
-            "months": months,
+            "months": acc_months,
+            "total_months": acc_total_months,
             "monthly_sum": total,
             "adhoc_total": 0.0,
             "adhoc_personal": 0.0,

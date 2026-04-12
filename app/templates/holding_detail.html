@@ -16,7 +16,11 @@
       {% endif %}
     </div>
     <div class="badge-row">
-      <span class="badge badge-meta">{{ item.bucket or 'Other' }}</span>
+      {% if view_in_account_url %}
+        <a class="badge badge-meta" href="{{ view_in_account_url }}" title="View this holding in your account">{{ item.bucket or 'Other' }}</a>
+      {% else %}
+        <span class="badge badge-meta">{{ item.bucket or 'Other' }}</span>
+      {% endif %}
     </div>
   </div>
 
@@ -68,14 +72,14 @@
   </div>
   
   <div class="chart-wrap mt-1">
-    <canvas id="historyChart" role="img" aria-label="Holding price history chart"></canvas>
+    <canvas id="historyChart" role="img" aria-label="Holding price history chart" data-history='{{ history_data | tojson | safe }}'></canvas>
   </div>
   <p id="history-chart-error" class="helper-text mt-05" style="display:none;"></p>
 
   <script>
   (function () {
     try {
-      var rawData = {{ history_data | tojson | safe }};
+      var rawData = JSON.parse((document.getElementById('historyChart') || {}).dataset ? (document.getElementById('historyChart').dataset.history || '[]') : '[]');
       var labels = rawData.map(function(d) { return d.date; });
       var values = rawData.map(function(d) { return d.price; });
       var canvas = document.getElementById('historyChart');
