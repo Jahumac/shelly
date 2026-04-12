@@ -6,7 +6,14 @@
 {% block content %}
 
 <div class="mb-1">
-  <a href="javascript:history.back()" class="badge">← Back</a>
+  <nav class="breadcrumb">
+    <a href="/accounts/" class="breadcrumb-item">Accounts</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{{ item.holding_name }} History</span>
+  </nav>
+</div>
+<div class="badge-row mb-1">
+  <a href="/accounts/" class="badge badge-primary-action">← Back to Accounts</a>
 </div>
 
 <section class="card mb-1">

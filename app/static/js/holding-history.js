@@ -120,7 +120,8 @@
 
     function fallbackNavigate() {
       try { sessionStorage.setItem('holdingHistoryScrollY', String(y)); } catch (e) {}
-      window.location.href = '/holdings/' + holdingId + '?period=' + encodeURIComponent(period);
+      var nextUrl = '/holdings/' + holdingId + '?period=' + encodeURIComponent(period);
+      window.location.replace(nextUrl);
     }
 
     fetch(reqUrl, {
