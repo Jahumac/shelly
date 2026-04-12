@@ -12,3 +12,8 @@ class TestAssetVersioning(unittest.TestCase):
         p = Path(__file__).resolve().parents[1] / "app" / "templates" / "holding_detail.html"
         txt = p.read_text(encoding="utf-8")
         self.assertIn("js/holding-history.js') }}?v={{ app_version", txt)
+
+    def test_service_worker_cache_name_matches_version(self):
+        p = Path(__file__).resolve().parents[1] / "app" / "static" / "sw.js"
+        txt = p.read_text(encoding="utf-8")
+        self.assertIn("shelly-v1.5.4", txt)

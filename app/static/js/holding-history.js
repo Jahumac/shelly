@@ -8,6 +8,18 @@
   var controls = document.querySelectorAll('[data-history-period]');
   var holdingId = canvas.getAttribute('data-holding-id');
 
+  try {
+    var restoreKey = 'holdingHistoryScrollY';
+    var y0 = sessionStorage.getItem(restoreKey);
+    if (y0 !== null) {
+      sessionStorage.removeItem(restoreKey);
+      var yNum = Number(y0);
+      if (isFinite(yNum) && yNum >= 0) {
+        setTimeout(function () { window.scrollTo(0, yNum); }, 0);
+      }
+    }
+  } catch (e) {}
+
   function setError(msg) {
     if (!errorEl) return;
     if (!msg) {
@@ -105,6 +117,12 @@
     setError(null);
 
     var reqUrl = '/holdings/' + holdingId + '/history?period=' + encodeURIComponent(period);
+
+    function fallbackNavigate() {
+      try { sessionStorage.setItem('holdingHistoryScrollY', String(y)); } catch (e) {}
+      window.location.href = '/holdings/' + holdingId + '?period=' + encodeURIComponent(period);
+    }
+
     fetch(reqUrl, {
       headers: { 'Accept': 'application/json' },
       credentials: 'include',
@@ -140,13 +158,13 @@
       })
       .catch(function (err) {
         if (err && err.message === 'non_json_response') {
-          window.location.href = '/holdings/' + holdingId + '?period=' + encodeURIComponent(period);
+          fallbackNavigate();
           return;
         }
         if (navigator && navigator.onLine === false) {
           setError('Offline. Reconnect and try again.');
         } else {
-          setError('Could not load data. Check your connection and try again.');
+          fallbackNavigate();
         }
       })
       .finally(function () {
