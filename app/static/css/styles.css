@@ -236,11 +236,11 @@ nav a.active {
 .card p,
 .panel p {
   margin-bottom: 0.25rem;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .eyebrow {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.25rem;
   color: var(--accent);
   font-size: 0.8rem;
   letter-spacing: 0.08em;
@@ -2077,18 +2077,18 @@ button.badge-like-button {
   flex: 1 1 0;
   min-width: 3rem;
   text-align: center;
-  padding: 0.5rem 0.25rem;
+  padding: 0.35rem 0.25rem;
   border-radius: 10px;
   text-decoration: none;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   transition: background 0.15s, color 0.15s, box-shadow 0.15s;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.15rem;
   position: relative;
 }
 .budget-month-pill:hover {
@@ -4528,14 +4528,14 @@ a.link-accent:hover {
     padding: 1rem;
   }
   .card p, .panel p {
-    margin-bottom: 0.5rem;
-    font-size: 1rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.95rem;
   }
   .section-header {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
   .badge-row {
-    margin-top: 0.75rem;
-    gap: 0.5rem;
+    margin-top: 0.5rem;
+    gap: 0.35rem;
   }
 }

@@ -328,13 +328,6 @@
           window.location.href = row.dataset.href;
         });
       });
-
-      var focusPanel = document.querySelector('[data-focus-panel]');
-      if (focusPanel) {
-        requestAnimationFrame(function () {
-          focusPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
     });
 
     (function () {
