@@ -104,16 +104,29 @@
     var y = window.scrollY || window.pageYOffset || 0;
     setError(null);
 
-    fetch('/holdings/' + holdingId + '/history?period=' + encodeURIComponent(period), {
+    var reqUrl = '/holdings/' + holdingId + '/history?period=' + encodeURIComponent(period);
+    fetch(reqUrl, {
       headers: { 'Accept': 'application/json' },
-      credentials: 'same-origin'
+      credentials: 'include'
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        var ct = (r.headers.get('content-type') || '').toLowerCase();
+        if (r.redirected || ct.indexOf('application/json') === -1) {
+          throw new Error('non_json_response');
+        }
+        return r.json().then(function (payload) {
+          return { ok: r.ok, status: r.status, payload: payload };
+        });
+      })
       .then(function (payload) {
-        var labels = payload.labels || [];
-        var values = payload.values || [];
+        if (!payload.ok) {
+          setError((payload.payload && payload.payload.message) || 'Could not load data. Please try again.');
+          return;
+        }
+        var labels = payload.payload.labels || [];
+        var values = payload.payload.values || [];
         if (!labels.length || !values.length) {
-          setError(payload.message || 'No data available for this range.');
+          setError(payload.payload.message || 'No data available for this range.');
           if (window.__holdingHistoryChart) {
             window.__holdingHistoryChart.destroy();
             window.__holdingHistoryChart = null;
@@ -124,7 +137,11 @@
         setActive(period);
         updateUrl(period);
       })
-      .catch(function () {
+      .catch(function (err) {
+        if (err && err.message === 'non_json_response') {
+          window.location.href = reqUrl.replace('/history', '') + '&ajax=0';
+          return;
+        }
         setError('Could not load data. Check your connection and try again.');
       })
       .finally(function () {

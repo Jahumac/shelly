@@ -8,12 +8,13 @@
  *  - Images/fonts: Cache-first, long-lived
  */
 
-const CACHE_NAME = 'shelly-v1.5.0';
+const CACHE_NAME = 'shelly-v1.5.1';
 
 /* App shell files to pre-cache on install */
 const APP_SHELL = [
   '/static/css/styles.css',
   '/static/js/charts.js',
+  '/static/js/holding-history.js',
   '/static/manifest.json',
   '/static/icons/icon-180.png',
   '/static/icons/icon-192.png',

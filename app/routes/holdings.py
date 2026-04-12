@@ -73,8 +73,10 @@ def holding_detail(catalogue_id):
 
 
 @holdings_bp.route("/<int:catalogue_id>/history")
-@login_required
 def holding_history(catalogue_id):
+    if not current_user.is_authenticated:
+        return jsonify({"error": "auth", "message": "Please sign in to view history"}), 401
+
     item_row = fetch_catalogue_holding(catalogue_id)
     if not item_row:
         return jsonify({"error": "not_found"}), 404
@@ -95,7 +97,9 @@ def holding_history(catalogue_id):
     message = None
     if not labels:
         message = "No historical price data available"
-    return jsonify({"period": period, "labels": labels, "values": values, "message": message}), 200
+    resp = jsonify({"period": period, "labels": labels, "values": values, "message": message})
+    resp.headers["Cache-Control"] = "no-store"
+    return resp, 200
 
 
 @holdings_bp.route("/<int:catalogue_id>/yield", methods=["POST"])
