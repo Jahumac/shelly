@@ -29,6 +29,11 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -146,6 +151,16 @@ nav a.active {
   font-size: 0.88rem;
   margin-bottom: 1rem;
   border: 1px solid var(--border);
+}
+
+.offline-banner {
+  background: rgba(248,113,113,0.1);
+  color: var(--error);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 .flash-success {
   background: rgba(34,197,94,0.1);
@@ -1085,6 +1100,18 @@ button.badge-like-button {
 @media (max-width: 768px) {
   .page-shell {
     padding: 1rem;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  input[type="email"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px;
   }
 
   .site-header {

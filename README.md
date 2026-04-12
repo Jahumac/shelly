@@ -1,6 +1,6 @@
 # shelly-finance
 
-A self-hosted personal finance dashboard for UK investors 🐢. Track your accounts, holdings, budget, goals and retirement projections — all from your own machine. Your data never leaves your device.
+A self-hosted personal finance dashboard for UK investors 🐢. Track your accounts, holdings, budget, goals and retirement projections — hosted on your own server/home network.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue) ![Flask](https://img.shields.io/badge/Flask-3.x-green) ![SQLite](https://img.shields.io/badge/SQLite-local-lightgrey) ![License](https://img.shields.io/badge/License-MIT-yellow)
 

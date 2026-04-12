@@ -8,7 +8,7 @@
  *  - Images/fonts: Cache-first, long-lived
  */
 
-const CACHE_NAME = 'shelly-v2.1.3.2';
+const CACHE_NAME = 'shelly-v1.4.0';
 
 /* App shell files to pre-cache on install */
 const APP_SHELL = [
@@ -120,14 +120,21 @@ async function networkFirstPage(request) {
 }
 
 async function networkFirstAPI(request) {
+  const url = new URL(request.url);
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && url.pathname !== '/api/ping') {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());
     }
     return response;
   } catch (e) {
+    if (url.pathname === '/api/ping') {
+      return new Response(JSON.stringify({ error: 'Offline' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const cached = await caches.match(request);
     if (cached) return cached;
     return new Response(JSON.stringify({ error: 'Offline' }), {

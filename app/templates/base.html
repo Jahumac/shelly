@@ -43,6 +43,7 @@
     </nav>
   </header>
   <main class="page-shell">
+    <div id="offline-banner" class="offline-banner hidden">Offline mode: pages you’ve opened before may load, but changes won’t be saved.</div>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -114,6 +115,11 @@
       window.fetch = function() {
         var args = Array.prototype.slice.call(arguments);
         if (args.length > 1 && args[1] && args[1].method && args[1].method.toUpperCase() === 'POST') {
+          if (!navigator.onLine) {
+            var banner = document.getElementById('offline-banner');
+            if (banner) banner.classList.remove('hidden');
+            return Promise.reject(new Error('Offline'));
+          }
           args[1].headers = args[1].headers || {};
           if (args[1].headers instanceof Headers) {
             args[1].headers.set('X-CSRFToken', csrfToken);
@@ -330,11 +336,58 @@
       }
     });
 
+    (function () {
+      var banner = document.getElementById('offline-banner');
+      if (!banner) return;
+      var lastPingOk = true;
+
+      function show(msg) {
+        banner.textContent = msg;
+        document.body.classList.add('is-offline');
+        banner.classList.remove('hidden');
+      }
+
+      function hide() {
+        document.body.classList.remove('is-offline');
+        banner.classList.add('hidden');
+      }
+
+      function checkServer() {
+        if (!navigator.onLine) {
+          lastPingOk = false;
+          show('Offline mode: pages you’ve opened before may load, but changes won’t be saved.');
+          return;
+        }
+        fetch('/api/ping', { cache: 'no-store' })
+          .then(function (r) {
+            lastPingOk = !!(r && r.ok);
+            if (lastPingOk) hide();
+            else show('Can’t reach the server right now — you can browse cached pages, but changes won’t be saved.');
+          })
+          .catch(function () {
+            lastPingOk = false;
+            show('Can’t reach the server right now — you can browse cached pages, but changes won’t be saved.');
+          });
+      }
+
+      checkServer();
+      window.addEventListener('online', checkServer);
+      window.addEventListener('offline', checkServer);
+      window.__shellyIsOffline = function () { return !navigator.onLine || !lastPingOk; };
+    })();
+
     /* ── Form submit: disable button & show spinner ────────────────── */
     document.querySelectorAll('form').forEach(function(form) {
       /* Skip forms with AJAX handling (budget inline saves) */
       if (form.classList.contains('budget-amount-form')) return;
-      form.addEventListener('submit', function() {
+      form.addEventListener('submit', function(e) {
+        var isPost = form.method && form.method.toUpperCase() === 'POST';
+        if (isPost && window.__shellyIsOffline && window.__shellyIsOffline()) {
+          e.preventDefault();
+          var banner = document.getElementById('offline-banner');
+          if (banner) banner.classList.remove('hidden');
+          return;
+        }
         var btn = form.querySelector('button[type="submit"]');
         if (btn && !btn.classList.contains('btn-loading')) {
           btn.classList.add('btn-loading');

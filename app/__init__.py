@@ -7,7 +7,7 @@ from .models import count_users, fetch_assumptions, get_user_by_id, init_db, clo
 from .services.scheduler import init_scheduler
 
 from .extensions import limiter
-__version__ = "1.3.1"
+__version__ = "1.4.0"
 from .routes.auth import auth_bp
 from .routes.overview import overview_bp
 from .routes.goals import goals_bp
@@ -71,6 +71,10 @@ def create_app():
                                    mimetype='application/javascript',
                                    max_age=0)
 
+    @app.route("/api/ping")
+    def api_ping():
+        return jsonify({"ok": True})
+
     with app.app_context():
         init_db()
         init_scheduler(app)
@@ -80,7 +84,7 @@ def create_app():
     def redirect_to_setup_if_needed():
         from flask import request
         # Allow the setup page, login page, and static assets through
-        if request.endpoint in ("auth.setup", "auth.login", "static", "service_worker", None):
+        if request.endpoint in ("auth.setup", "auth.login", "static", "service_worker", "api_ping", None):
             return
         if count_users() == 0:
             return redirect(url_for("auth.setup"))
