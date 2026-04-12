@@ -159,16 +159,22 @@
 
 {% elif page_mode == 'diagnostics' %}
 
-<section class="card highlight mb-1 month-accent-{{ current_month_num }}">
-  <div class="section-header">
+<section class="card highlight mb-1 month-accent-{{ current_month_num }} settings-diagnostics-hero">
+  <div class="hero-top">
     <div>
       <p class="eyebrow">Diagnostics</p>
-      <h2>System Health</h2>
+      <h2 class="hero-value" style="font-size:2rem;">System Health</h2>
       <p class="hero-subtitle">Quick status checks for scheduler, prices and database</p>
     </div>
-    <a class="badge" href="/settings/">Back</a>
+    <div class="hero-turtle-wrap">
+      <img src="{{ url_for('static', filename='icons/shelly/Settings.png') }}" alt="" class="hero-turtle">
+    </div>
   </div>
 </section>
+
+<div class="row-end">
+  <a class="badge" href="/settings/">Back</a>
+</div>
 
 <section class="panel">
   <div class="section-header">
