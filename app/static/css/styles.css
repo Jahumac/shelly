@@ -261,7 +261,7 @@ nav a.active {
 
 .goal-card-title {
   margin-bottom: 0.25rem;
-  color: var(--text) !important;
+  /* color inherits from .card h2:not(.hero-value) — no override needed. */
 }
 
 .goal-card-meta {
@@ -376,6 +376,19 @@ nav a.active {
   border-radius: 999px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Badge variants — pick by semantic role, not by colour:
+     .badge                 default pill (neutral secondary action)
+     .badge.badge-primary-action   primary call-to-action ("Save", "Add")
+     .badge.badge-danger           destructive action ("Delete", "Remove")
+     .badge.badge-meta             tertiary / info chip ("Refresh prices")
+     .badge.badge-outline          ghost / low-emphasis action
+     .badge.badge-accent           accent/highlight for wizard primary
+     .badge.badge-tag              static tag-style label (not clickable)
+     .badge-sm                     size modifier — smaller padding/font
+     .badge-complete               status indicator (completed)
+   Group into a .badge-row for spacing/wrap.
+   ──────────────────────────────────────────────────────────────────── */
 .badge-row {
   display: flex;
   gap: 0.5rem;
@@ -928,8 +941,9 @@ button.badge-like-button {
   font-size: 0.92rem;
 }
 
-.mt-1 { margin-top: 1rem; }
-.mb-1 { margin-bottom: 1rem; }
+/* .mt-1 / .mb-1 moved to the utility block further down — kept here only
+   as historical reference. The canonical definitions live with the full
+   margin scale near line 3820. */
 .panel-sm { padding: 1rem; }           /* nested / compact panels */
 .row-end { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
 
@@ -2026,7 +2040,8 @@ button.badge-like-button {
   margin-right: 0.5rem;
 }
 .budget-row-actions {
-  gap: 0.35rem !important;
+  /* Overrides .badge-row gap (0.5rem) — wins on source order, not specificity. */
+  gap: 0.35rem;
   flex-shrink: 0;
 }
 .budget-row-selected {
@@ -3817,13 +3832,18 @@ button.badge-like-button {
 
 /* ── Utility classes (replacing inline styles) ────────────────────────── */
 
-/* Margins */
+/* Margins — scale: 025/05/075/1/125/15 = 0.25/0.5/0.75/1/1.25/1.5rem */
 .mt-0    { margin-top: 0; }
+.mt-025  { margin-top: 0.25rem; }
 .mt-05   { margin-top: 0.5rem; }
 .mt-075  { margin-top: 0.75rem; }
+.mt-1    { margin-top: 1rem; }
 .mt-125  { margin-top: 1.25rem; }
 .mt-15   { margin-top: 1.5rem; }
-.mb-05   { margin-top: 0.5rem; }
+.mb-025  { margin-bottom: 0.25rem; }
+.mb-05   { margin-bottom: 0.5rem; }
+.mb-075  { margin-bottom: 0.75rem; }
+.mb-1    { margin-bottom: 1rem; }
 
 /* Forms */
 .form-reset    { margin: 0; }
@@ -4203,17 +4223,16 @@ a.link-accent:hover {
   color: var(--accent);
 }
 
-/* Accent badge variant for primary wizard buttons */
+/* Accent badge variant for primary wizard buttons.
+   Wins over the base .badge colours by source order (this rule
+   appears later in the file). */
 .badge-accent {
-  background: var(--accent) !important;
-  color: #fff !important;
+  background: var(--accent);
+  color: #fff;
 }
 .badge-accent:hover {
   filter: brightness(1.15);
 }
-
-/* Helper spacing */
-.mt-half { margin-top: 0.5rem; }
 
 /* ── Danger Zone ───────────────────────────────────────────────────── */
 /* Self-assessment relief row in contribution preview */
@@ -4231,7 +4250,8 @@ a.link-accent:hover {
   background: linear-gradient(135deg, rgba(248, 113, 113, 0.04) 0%, transparent 100%);
 }
 .danger-eyebrow {
-  color: #f87171 !important;
+  /* Overrides .eyebrow colour; wins on source order. */
+  color: var(--danger);
 }
 
 /* ── Monthly review nudge ────────────────────────────────────────────── */

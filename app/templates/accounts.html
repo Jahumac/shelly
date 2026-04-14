@@ -255,8 +255,11 @@
                 {% endfor %}
               </div>
               <div class="tag-add-row" style="margin-top:0.4rem; display:flex; gap:0.4rem; align-items:center;">
-                <input type="text" data-new-tag-input placeholder="Add custom tag…" style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
-                <button type="button" class="badge badge-outline" data-add-tag-btn style="white-space:nowrap;">+ Add</button>
+                <input type="text" data-new-tag-input aria-label="New custom tag name"
+                       placeholder="Add custom tag…"
+                       style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
+                <button type="button" class="badge badge-outline" data-add-tag-btn
+                        aria-label="Add custom tag" style="white-space:nowrap;">+ Add</button>
               </div>
             </label>
             <label>
@@ -1430,8 +1433,11 @@
               {% endfor %}
             </div>
             <div class="tag-add-row" style="margin-top:0.4rem; display:flex; gap:0.4rem; align-items:center;">
-              <input type="text" data-new-tag-input placeholder="Add custom tag…" style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
-              <button type="button" class="badge badge-outline" data-add-tag-btn style="white-space:nowrap;">+ Add</button>
+              <input type="text" data-new-tag-input aria-label="New custom tag name"
+                     placeholder="Add custom tag…"
+                     style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
+              <button type="button" class="badge badge-outline" data-add-tag-btn
+                      aria-label="Add custom tag" style="white-space:nowrap;">+ Add</button>
             </div>
           </label>
           <label><span>Account goal</span><input type="number" step="0.01" name="goal_value" placeholder="Optional target balance"></label>
