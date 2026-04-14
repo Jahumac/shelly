@@ -1,0 +1,226 @@
+"""Budget items, sections, and per-month entries.
+
+A budget_item is a recurring line ("Rent", "Groceries"). A section groups
+items ("Income", "Fixed expenses"). An entry is the actual amount for a
+given month. Default is the item's default_amount; entries override.
+"""
+from ._conn import get_connection
+
+
+def fetch_budget_items(user_id):
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM budget_items WHERE is_active = 1 AND user_id = ? ORDER BY section, sort_order, id",
+            (user_id,),
+        ).fetchall()
+
+
+def fetch_budget_item(item_id):
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM budget_items WHERE id = ?", (item_id,)
+        ).fetchone()
+
+
+def create_budget_item(payload, user_id):
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO budget_items (user_id, name, section, default_amount, linked_account_id, notes, sort_order, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                user_id,
+                payload["name"],
+                payload["section"],
+                payload["default_amount"],
+                payload.get("linked_account_id"),
+                payload.get("notes", ""),
+                payload.get("sort_order", 0),
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def update_budget_item(payload, user_id):
+    """Update a budget item, scoped to user_id."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE budget_items
+            SET name = ?, section = ?, default_amount = ?, linked_account_id = ?, notes = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (
+                payload["name"],
+                payload["section"],
+                payload["default_amount"],
+                payload.get("linked_account_id"),
+                payload.get("notes", ""),
+                payload["id"],
+                user_id,
+            ),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def delete_budget_item(item_id, user_id):
+    """Soft-delete a budget item, scoped to user_id."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE budget_items SET is_active = 0 WHERE id = ? AND user_id = ?",
+            (item_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def delete_budget_items_by_section(section_key, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE budget_items SET is_active = 0 WHERE section = ? AND user_id = ?",
+            (section_key, user_id),
+        )
+        conn.commit()
+
+
+_DEFAULT_SECTIONS = [
+    ("income", "Income", 0),
+    ("fixed", "Fixed Expenses", 1),
+    ("debt", "Debt Repayment", 2),
+    ("investment", "Investments & Savings", 3),
+    ("discretionary", "Discretionary", 4),
+]
+
+
+def fetch_budget_sections(user_id):
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM budget_sections WHERE user_id = ? ORDER BY sort_order, id",
+            (user_id,),
+        ).fetchall()
+        # Always fill in any missing defaults (handles partial seeding from old migration bug)
+        existing_keys = {r["key"] for r in rows}
+        missing = [(k, l, o) for k, l, o in _DEFAULT_SECTIONS if k not in existing_keys]
+        if missing:
+            conn.executemany(
+                "INSERT OR IGNORE INTO budget_sections (user_id, key, label, sort_order) VALUES (?, ?, ?, ?)",
+                [(user_id, k, l, o) for k, l, o in missing],
+            )
+            conn.commit()
+            rows = conn.execute(
+                "SELECT * FROM budget_sections WHERE user_id = ? ORDER BY sort_order, id",
+                (user_id,),
+            ).fetchall()
+        return rows
+
+
+def create_budget_section(label, user_id):
+    with get_connection() as conn:
+        key = label.lower().replace(" ", "_").replace("&", "and")
+        existing = conn.execute(
+            "SELECT MAX(sort_order) as m FROM budget_sections WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        sort_order = (existing["m"] or 0) + 1
+        conn.execute(
+            "INSERT OR IGNORE INTO budget_sections (user_id, key, label, sort_order) VALUES (?, ?, ?, ?)",
+            (user_id, key, label, sort_order),
+        )
+        conn.commit()
+        return key
+
+
+def update_budget_section(key, label, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE budget_sections SET label = ? WHERE key = ? AND user_id = ?",
+            (label, key, user_id),
+        )
+        conn.commit()
+
+
+def delete_budget_section(key, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE budget_items SET is_active = 0 WHERE section = ? AND user_id = ?",
+            (key, user_id),
+        )
+        conn.execute(
+            "DELETE FROM budget_sections WHERE key = ? AND user_id = ?",
+            (key, user_id),
+        )
+        conn.commit()
+
+
+def fetch_budget_entries(month_key, user_id):
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT be.* FROM budget_entries be
+            JOIN budget_items bi ON bi.id = be.budget_item_id
+            WHERE be.month_key = ? AND bi.user_id = ?
+            """,
+            (month_key, user_id),
+        ).fetchall()
+
+
+def fetch_prior_month_budget_entries(month_key, user_id):
+    """Return entries from the most recent month that has saved entries before month_key, for the given user."""
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT be.month_key FROM budget_entries be
+            JOIN budget_items bi ON bi.id = be.budget_item_id
+            WHERE be.month_key < ? AND bi.user_id = ?
+            ORDER BY be.month_key DESC
+            LIMIT 1
+            """,
+            (month_key, user_id),
+        ).fetchone()
+        if row is None:
+            return []
+        prior_key = row["month_key"]
+        return conn.execute(
+            """
+            SELECT be.* FROM budget_entries be
+            JOIN budget_items bi ON bi.id = be.budget_item_id
+            WHERE be.month_key = ? AND bi.user_id = ?
+            """,
+            (prior_key, user_id),
+        ).fetchall()
+
+
+def fetch_months_with_budget_entries(user_id):
+    """Return a set of month_key strings (e.g. '2026-04') that have saved budget entries."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT be.month_key
+            FROM budget_entries be
+            JOIN budget_items bi ON bi.id = be.budget_item_id
+            WHERE bi.user_id = ?
+            ORDER BY be.month_key
+            """,
+            (user_id,),
+        ).fetchall()
+        return {r["month_key"] for r in rows}
+
+
+def upsert_budget_entry(month_key, item_id, amount):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO budget_entries (month_key, budget_item_id, amount)
+            VALUES (?, ?, ?)
+            ON CONFLICT(month_key, budget_item_id) DO UPDATE SET amount = excluded.amount
+            """,
+            (month_key, item_id, amount),
+        )
+        conn.commit()
+
+
+# ── Monthly snapshots ─────────────────────────────────────────────────────────
+
