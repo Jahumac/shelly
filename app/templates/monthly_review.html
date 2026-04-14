@@ -26,7 +26,8 @@
       <h2 class="hero-value">{{ month_label }}</h2>
       <p class="hero-subtitle">Shelly's monthly check-in — update your numbers and lock in the snapshot</p>
     </div>
-    <div class="hero-actions-col">
+    <div class="hero-right-col">
+      <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
       {% if review.status == 'complete' %}
         <span class="badge badge-complete">✓ Completed</span>
       {% else %}
@@ -53,9 +54,6 @@
         <span class="budget-month-nav-label">{{ month_label }}</span>
         <button type="button" class="badge badge-meta review-next-month" aria-label="Next month">▶</button>
       </div>
-    </div>
-    <div class="hero-turtle-wrap">
-      <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
   <div class="hero-strip">
