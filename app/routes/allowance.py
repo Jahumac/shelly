@@ -15,14 +15,17 @@ from app.calculations import (
     ISA_WRAPPER_TYPES,
 )
 from app.models import (
+    add_cgt_disposal,
     add_isa_contribution,
     add_pension_contribution,
     add_dividend_record,
+    delete_cgt_disposal,
     delete_isa_contribution,
     delete_pension_contribution,
     delete_dividend_record,
     fetch_all_accounts,
     fetch_assumptions,
+    fetch_cgt_disposals,
     fetch_isa_contributions,
     fetch_pension_contributions,
     fetch_dividend_records,
@@ -66,6 +69,27 @@ def allowance_overview():
     dividend_progress = allowance_progress(dividend_used, dividend_allowance) if dividend_allowance else 0
     taxable_accounts = [a for a in accounts if (a["wrapper_type"] or "") not in ISA_WRAPPER_TYPES and not is_pension_account(dict(a))]
 
+    # ── Pension tax relief estimate ──────────────────────────────────────────
+    tax_band = (assumptions["tax_band"] if assumptions and assumptions["tax_band"] else "basic") or "basic"
+    personal_pension_total = sum(
+        float(c["amount"] or 0) for c in pension_contribs
+        if (c["kind"] or "personal") == "personal"
+    )
+    # Gross contribution entered by user; basic rate relief = 20% of gross
+    basic_relief = personal_pension_total * 0.20
+    extra_relief = personal_pension_total * 0.20 if tax_band == "higher" else (
+        personal_pension_total * 0.25 if tax_band == "additional" else 0.0
+    )
+
+    # ── CGT disposals ────────────────────────────────────────────────────────
+    CGT_ANNUAL_EXEMPTION = 3000.0  # 2025-26
+    cgt_disposals = fetch_cgt_disposals(uid, ty_start, ty_end)
+    cgt_gains = sum(max(float(d["proceeds"]) - float(d["cost_basis"]), 0) for d in cgt_disposals)
+    cgt_losses = sum(max(float(d["cost_basis"]) - float(d["proceeds"]), 0) for d in cgt_disposals)
+    cgt_net = cgt_gains - cgt_losses
+    cgt_remaining = max(CGT_ANNUAL_EXEMPTION - cgt_net, 0)
+    cgt_over_exemption = max(cgt_net - CGT_ANNUAL_EXEMPTION, 0)
+
     return render_template(
         "allowance.html",
         tax_year=uk_tax_year_label(now_date),
@@ -88,6 +112,17 @@ def allowance_overview():
         taxable_accounts=taxable_accounts,
         today=now_date.isoformat(),
         active_page="overview",
+        tax_band=tax_band,
+        personal_pension_total=personal_pension_total,
+        basic_relief=basic_relief,
+        extra_relief=extra_relief,
+        cgt_disposals=cgt_disposals,
+        cgt_gains=cgt_gains,
+        cgt_losses=cgt_losses,
+        cgt_net=cgt_net,
+        cgt_remaining=cgt_remaining,
+        cgt_over_exemption=cgt_over_exemption,
+        cgt_annual_exemption=CGT_ANNUAL_EXEMPTION,
     )
 
 
@@ -171,3 +206,31 @@ def delete_dividend(record_id):
     delete_dividend_record(record_id, current_user.id)
     flash("Dividend removed.", "success")
     return redirect(url_for("allowance.allowance_overview"))
+
+
+@allowance_bp.route("/cgt/add", methods=["POST"])
+@login_required
+def add_cgt():
+    uid = current_user.id
+    asset_name = request.form.get("asset_name", "").strip()
+    proceeds = request.form.get("proceeds", type=float)
+    cost_basis = request.form.get("cost_basis", type=float)
+    disposal_date = request.form.get("disposal_date") or datetime.now().date().isoformat()
+    note = request.form.get("note", "").strip() or None
+
+    if not asset_name or proceeds is None or cost_basis is None or proceeds < 0 or cost_basis < 0:
+        flash("Please fill in all required fields.", "error")
+        return redirect(url_for("allowance.allowance_overview") + "#cgt")
+
+    add_cgt_disposal(uid, disposal_date, asset_name, proceeds, cost_basis, note)
+    gain = proceeds - cost_basis
+    flash(f"Recorded disposal of {asset_name} — {'gain' if gain >= 0 else 'loss'} of £{abs(gain):,.2f}.", "success")
+    return redirect(url_for("allowance.allowance_overview") + "#cgt")
+
+
+@allowance_bp.route("/cgt/delete/<int:disposal_id>", methods=["POST"])
+@login_required
+def remove_cgt(disposal_id):
+    delete_cgt_disposal(disposal_id, current_user.id)
+    flash("Disposal removed.", "success")
+    return redirect(url_for("allowance.allowance_overview") + "#cgt")

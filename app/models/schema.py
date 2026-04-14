@@ -213,6 +213,17 @@ CREATE TABLE IF NOT EXISTS dividend_records (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS cgt_disposals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    disposal_date TEXT NOT NULL,
+    asset_name TEXT NOT NULL,
+    proceeds REAL NOT NULL,
+    cost_basis REAL NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     name TEXT PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -629,6 +640,7 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_custom_tags_user ON custom_tags(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token)",
             "CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_cgt_disposals_user ON cgt_disposals(user_id, disposal_date)",
         ]:
             try:
                 conn.execute(stmt)

@@ -234,6 +234,43 @@ def delete_dividend_record(record_id, user_id):
         conn.commit()
 
 
+# ── CGT disposals ─────────────────────────────────────────────────────────────
+
+def add_cgt_disposal(user_id, disposal_date, asset_name, proceeds, cost_basis, note=None):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO cgt_disposals (user_id, disposal_date, asset_name, proceeds, cost_basis, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, disposal_date, asset_name, proceeds, cost_basis, note),
+        )
+        conn.commit()
+
+
+def fetch_cgt_disposals(user_id, tax_year_start, tax_year_end):
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT * FROM cgt_disposals
+            WHERE user_id = ?
+              AND disposal_date >= ?
+              AND disposal_date <= ?
+            ORDER BY disposal_date DESC
+            """,
+            (user_id, tax_year_start, tax_year_end),
+        ).fetchall()
+
+
+def delete_cgt_disposal(disposal_id, user_id):
+    with get_connection() as conn:
+        conn.execute(
+            "DELETE FROM cgt_disposals WHERE id = ? AND user_id = ?",
+            (disposal_id, user_id),
+        )
+        conn.commit()
+
+
 # ── Monthly reviews ───────────────────────────────────────────────────────────
 
 def fetch_or_create_monthly_review(month_key, user_id):

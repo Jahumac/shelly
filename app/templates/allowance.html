@@ -39,6 +39,9 @@
     <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
     <div class="progress" role="progressbar" aria-valuenow="{{ (lisa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="LISA allowance used"><div class="progress-bar" data-pct="{{ (lisa_progress * 100)|round(1) }}"></div></div>
     <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
+    {% if usage.lisa_used > 0 %}
+    <small class="block mt-025" style="color:var(--accent-3)">⚠ Withdrawing before age 60 (except for a first home purchase) incurs a 25% government penalty — you'd lose more than just the bonus.</small>
+    {% endif %}
   </div>
   <div class="card allowance-card">
     <h2>Pension Annual Allowance</h2>
@@ -251,6 +254,16 @@
   {% else %}
   <p class="helper-text">No pension accounts found. <a href="/accounts/?mode=create" class="link-accent">Add a SIPP or Workplace Pension account</a> to start tracking.</p>
   {% endif %}
+  {% if personal_pension_total > 0 %}
+  <div class="helper-text mt-1" style="border-top:1px solid var(--border);padding-top:0.75rem;">
+    <strong>Estimated tax relief on personal contributions (£{{ '{:,.0f}'.format(personal_pension_total) }} gross)</strong><br>
+    Basic rate (20%) — applied automatically by your provider: <strong>£{{ '{:,.0f}'.format(basic_relief) }}</strong>
+    {% if tax_band in ('higher', 'additional') %}
+    <br>Additional relief to claim via Self Assessment ({{ '20%' if tax_band == 'higher' else '25%' }}): <strong>£{{ '{:,.0f}'.format(extra_relief) }}</strong>
+    <br><small style="color:var(--accent-3)">Claim this on your Self Assessment tax return under "Pension contributions".</small>
+    {% endif %}
+  </div>
+  {% endif %}
 </section>
 
 {# ── Record a pension contribution ───────────────────────────────────────── #}
@@ -421,6 +434,113 @@
   </table>
 </section>
 {% endif %}
+
+{# ── Capital Gains Tax ───────────────────────────────────────────────────── #}
+<section class="card mb-1" id="cgt">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Capital Gains</p>
+      <h2>CGT Tracker</h2>
+    </div>
+  </div>
+  <p class="helper-text mb-1">
+    Record disposals from taxable accounts (GIA) to track your annual CGT exemption (£{{ '{:,.0f}'.format(cgt_annual_exemption) }} for {{ tax_year }}).
+    Gains inside an ISA or pension are not subject to CGT.
+  </p>
+
+  {% if cgt_disposals %}
+  <div class="hero-strip mb-1" style="margin-bottom:0.75rem;">
+    <div class="hero-stat">
+      <span class="hero-stat-label">Total gains</span>
+      <span class="hero-stat-value {% if cgt_gains > 0 %}stat-positive-text{% endif %}">£{{ '{:,.0f}'.format(cgt_gains) }}</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-label">Total losses</span>
+      <span class="hero-stat-value {% if cgt_losses > 0 %}stat-negative-text{% endif %}">£{{ '{:,.0f}'.format(cgt_losses) }}</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-label">Net gain</span>
+      <span class="hero-stat-value {% if cgt_net > 0 %}stat-positive-text{% elif cgt_net < 0 %}stat-negative-text{% endif %}">£{{ '{:,.0f}'.format(cgt_net) }}</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-label">Exemption remaining</span>
+      <span class="hero-stat-value">£{{ '{:,.0f}'.format(cgt_remaining) }}</span>
+    </div>
+  </div>
+  {% if cgt_over_exemption > 0 %}
+  <p class="helper-text mb-1" style="color:var(--danger);">
+    ⚠ Your net gains exceed the annual exemption by <strong>£{{ '{:,.2f}'.format(cgt_over_exemption) }}</strong>.
+    You may need to declare this on your Self Assessment tax return.
+  </p>
+  {% endif %}
+
+  <div class="table-scroll mb-1">
+  <table class="mini-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Asset</th>
+        <th class="text-right">Proceeds</th>
+        <th class="text-right">Cost basis</th>
+        <th class="text-right">Gain / Loss</th>
+        <th>Note</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in cgt_disposals %}
+      {% set gl = d.proceeds - d.cost_basis %}
+      <tr>
+        <td>{{ d.disposal_date }}</td>
+        <td>{{ d.asset_name }}</td>
+        <td class="text-right">£{{ '{:,.2f}'.format(d.proceeds) }}</td>
+        <td class="text-right">£{{ '{:,.2f}'.format(d.cost_basis) }}</td>
+        <td class="text-right {% if gl >= 0 %}stat-positive-text{% else %}stat-negative-text{% endif %}">
+          {% if gl >= 0 %}+{% endif %}£{{ '{:,.2f}'.format(gl) }}
+        </td>
+        <td>{{ d.note or '–' }}</td>
+        <td class="text-right">
+          <form method="post" action="/allowance/cgt/delete/{{ d.id }}" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="badge badge-sm badge-danger cursor-pointer" aria-label="Remove disposal of {{ d.asset_name }}">✕</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/allowance/cgt/add" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <label>
+        <span>Asset name</span>
+        <input type="text" name="asset_name" placeholder="e.g. Vanguard FTSE All-World ETF" required>
+      </label>
+      <label>
+        <span>Disposal date</span>
+        <input type="date" name="disposal_date" value="{{ today }}" required>
+      </label>
+      <label>
+        <span>Proceeds (£)</span>
+        <input type="number" name="proceeds" step="0.01" min="0" placeholder="5000.00" required>
+      </label>
+      <label>
+        <span>Cost basis (£)</span>
+        <input type="number" name="cost_basis" step="0.01" min="0" placeholder="4200.00" required>
+      </label>
+      <label class="form-full-col">
+        <span>Note (optional)</span>
+        <input type="text" name="note" placeholder="e.g. Partial sale to rebalance">
+      </label>
+    </div>
+    <div class="row-end mt-1">
+      <button type="submit" class="badge badge-primary-action">Record disposal</button>
+    </div>
+  </form>
+</section>
 
 <script>
   document.querySelectorAll('.progress-bar[data-pct]').forEach(function (el) {
