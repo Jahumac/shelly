@@ -1,0 +1,302 @@
+{# Holdings section of the Account detail view — positions list, cash
+   balance, and the inline add-holding bar with ticker preview and
+   manual-entry helpers. Rendered when viewing an account (not editing).
+   Depends on parent context: selected, positions, ticker_recent_count,
+   top_holdings, sidebar_stats. #}
+      <section class="panel mt-1" id="holdings-section">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Positions</p>
+            <h3>Holdings</h3>
+          </div>
+          {% if positions %}
+          <form method="post" action="/holdings/trigger-price-update" class="form-reset">
+            <button type="submit" class="badge badge-meta" title="Fetch latest prices from Yahoo Finance">↻ Refresh prices</button>
+          </form>
+          {% endif %}
+        </div>
+
+        {# ── Uninvested Cash ── #}
+        {% if selected.valuation_mode == 'holdings' %}
+        <div class="panel mt-1 mb-1" style="background: var(--surface-2); padding: 1rem; border-radius: var(--radius-md);">
+          <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
+            <div style="flex:1; min-width: 10rem;">
+              <label class="text-sm text-muted uppercase">Uninvested Cash (£)</label>
+              <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
+            </div>
+            <div style="flex:1; min-width: 10rem;">
+              <label class="text-sm text-muted uppercase">Cash Interest Rate (%)</label>
+              <input type="number" step="any" name="cash_interest_rate" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format((selected.cash_interest_rate or 0) * 100) }}">
+            </div>
+            <div>
+              <button type="submit" class="badge badge-meta">Save Cash Balance</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+        {% if positions %}
+          {# ── Holdings list: one responsive component (grid) for both desktop and mobile. All sizing lives in the `.holdings-*` CSS block. #}
+          <div class="holdings-list" role="table" aria-label="Portfolio holdings">
+            <div class="holdings-row holdings-row-head" role="row">
+              <div role="columnheader">Holding</div>
+              <div role="columnheader" class="text-center">Bucket</div>
+              <div role="columnheader" class="text-center">Units</div>
+              <div role="columnheader" class="text-center">Price</div>
+              <div role="columnheader" class="text-center">Value</div>
+              <div role="columnheader"></div>
+            </div>
+            {% for position in positions %}
+            <div class="holdings-row" role="row">
+              <div class="holdings-cell-name" role="cell">
+                {% if position.holding_catalogue_id %}
+                  <a href="/holdings/{{ position.holding_catalogue_id }}" class="link-accent"><strong>{{ position.holding_name }}</strong></a>
+                {% else %}
+                  <strong>{{ position.holding_name }}</strong>
+                {% endif %}
+                {% if position.ticker %}<small class="text-muted">{{ position.ticker }}</small>{% endif %}
+              </div>
+              <div class="holdings-cell-bucket" role="cell">{{ position.bucket or '' }}</div>
+              <div class="holdings-cell-units" role="cell">
+                <span class="holdings-label">Units</span>
+                <input type="number" step="any" name="units" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.units or 0) }}" class="holdings-input">
+              </div>
+              <div class="holdings-cell-price" role="cell">
+                <span class="holdings-label">Price (£)</span>
+                <input type="number" step="any" name="price" form="edit-holding-{{ position.id }}" value="{{ '{:.4f}'.format(position.price or 0) }}" class="holdings-input">
+                {% if position.price_updated_at %}<small class="holdings-timestamp">{{ position.price_updated_at[:16] }}</small>{% endif %}
+              </div>
+              <div class="holdings-cell-value" role="cell">
+                <span class="holdings-label">Value</span>
+                £{{ '{:,.2f}'.format(position.value or 0) }}
+              </div>
+              <div class="holdings-cell-actions" role="cell">
+                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-{{ position.id }}" class="form-reset">
+                  <button type="submit" class="badge badge-sm">Save</button>
+                </form>
+                <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
+                  <button type="submit"
+                          data-confirm="Remove {{ position.holding_name }} from this account?"
+                          data-confirm-title="Remove holding?"
+                          data-confirm-ok="Yes, remove it"
+                          data-confirm-cancel="Keep it"
+                          class="badge badge-sm badge-danger">Remove</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {# ── Inline add-holding bar ──────────────────────────────────────── #}
+        <div class="add-holding-bar" id="add-holding-bar" style="display:none;">
+
+          {# Mode A: search by ticker #}
+          <div id="ah-mode-ticker">
+            <form method="post" action="/accounts/{{ selected.id }}/holdings/add" id="add-holding-form">
+              <div class="add-holding-fields">
+                <div class="add-holding-field">
+                  <label for="ah-ticker">Ticker</label>
+                  <input type="text" id="ah-ticker" name="ticker" class="input-standard"
+                         placeholder="e.g. VWRP" autocapitalize="characters" autocomplete="off">
+                </div>
+                <div class="add-holding-field">
+                  <label for="ah-units">Units</label>
+                  <input type="number" id="ah-units" name="units" class="input-standard" step="any" placeholder="e.g. 42.5">
+                </div>
+                <div class="add-holding-field add-holding-preview-wrap">
+                  <label>Est. value</label>
+                  <span id="ah-preview" class="add-holding-preview">—</span>
+                </div>
+                <button type="submit" class="badge badge-primary-action add-holding-submit">Add</button>
+              </div>
+              <p id="ah-status" class="text-sm" style="margin:0.4rem 0 0.2rem;min-height:1.25rem;"></p>
+            </form>
+            <button type="button" id="ah-switch-manual" class="btn-link text-sm text-muted">
+              No ticker / pension fund? Add manually →
+            </button>
+          </div>
+
+          {# Mode B: manual / custom holding #}
+          <div id="ah-mode-manual" class="hidden">
+            <form method="post" action="/accounts/{{ selected.id }}/holdings/add-manual" id="add-manual-form">
+              <div class="add-holding-fields flex-wrap gap-06">
+                <div class="add-holding-field" style="flex:1;min-width:12rem;">
+                  <label for="am-name">Fund / holding name</label>
+                  <input type="text" id="am-name" name="name" class="input-full"
+                         placeholder="e.g. Nest Higher Risk Fund">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-ticker">Ticker (optional)</label>
+                  <input type="text" id="am-ticker" name="ticker" class="input-medium"
+                         placeholder="Leave blank if none" autocapitalize="characters">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-type">Type</label>
+                  <select id="am-type" name="asset_type">
+                    <option value="Pension Fund">Pension Fund</option>
+                    <option value="Fund">Fund</option>
+                    <option value="ETF">ETF</option>
+                    <option value="Share">Share</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bond">Bond</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-units">Units</label>
+                  <input type="number" id="am-units" name="units" class="input-narrow" step="any" placeholder="e.g. 100">
+                </div>
+                <div class="add-holding-field">
+                  <label for="am-price">Price (£/unit)</label>
+                  <input type="number" id="am-price" name="price" class="input-narrow" step="any" placeholder="e.g. 1.25">
+                </div>
+                <div class="add-holding-field add-holding-preview-wrap">
+                  <label>Est. value</label>
+                  <span id="am-preview" class="add-holding-preview">—</span>
+                </div>
+                <button type="submit" class="badge badge-primary-action add-holding-submit">Add</button>
+              </div>
+            </form>
+            <button type="button" id="ah-switch-ticker" class="btn-link text-sm text-muted mt-05">
+              ← Search by ticker instead
+            </button>
+          </div>
+          <div class="mt-05">
+            <button type="button" id="ah-cancel" class="badge badge-meta">✕ Cancel</button>
+          </div>
+        </div>
+
+        <script>
+        (function() {
+          var bar         = document.getElementById('add-holding-bar');
+          var toggle      = document.getElementById('top-add-holding');
+          var cancelBtn   = document.getElementById('ah-cancel');
+          var modeTicker  = document.getElementById('ah-mode-ticker');
+          var modeManual  = document.getElementById('ah-mode-manual');
+          var toManual    = document.getElementById('ah-switch-manual');
+          var toTicker    = document.getElementById('ah-switch-ticker');
+
+          if (!toggle) return; /* not a holdings account */
+
+          function closeForm() {
+            bar.style.display = 'none';
+            toggle.textContent = '+ Add holding';
+          }
+
+          /* open/close from header button */
+          toggle.addEventListener('click', function() {
+            var open = bar.style.display !== 'none';
+            if (open) {
+              closeForm();
+            } else {
+              bar.style.display = 'block';
+              toggle.textContent = '✕ Cancel';
+              bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              document.getElementById('ah-ticker').focus();
+            }
+          });
+
+          /* cancel button inside the form */
+          cancelBtn.addEventListener('click', closeForm);
+
+          /* mode switch */
+          toManual.addEventListener('click', function() {
+            modeTicker.style.display = 'none';
+            modeManual.style.display = 'block';
+            document.getElementById('am-name').focus();
+          });
+          toTicker.addEventListener('click', function() {
+            modeManual.style.display = 'none';
+            modeTicker.style.display = 'block';
+            document.getElementById('ah-ticker').focus();
+          });
+
+          /* ── Ticker mode logic ── */
+          var ticker  = document.getElementById('ah-ticker');
+          var units   = document.getElementById('ah-units');
+          var preview = document.getElementById('ah-preview');
+          var status  = document.getElementById('ah-status');
+          var cachedPrice = null;
+          var lookupTimer = null;
+
+          function fmtGBP(v) {
+            return '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+          }
+
+          function updateTickerPreview() {
+            var u = parseFloat(units.value);
+            if (cachedPrice && u > 0) {
+              preview.textContent = fmtGBP(u * cachedPrice);
+              preview.style.color = 'var(--accent)';
+            } else {
+              preview.textContent = '—';
+              preview.style.color = 'var(--muted)';
+            }
+          }
+
+          function doLookup() {
+            var t = ticker.value.trim();
+            if (!t || t.length < 2) { cachedPrice = null; status.textContent = ''; updateTickerPreview(); return; }
+            status.textContent = 'Looking up…';
+            status.style.color = 'var(--muted)';
+            fetch('/holdings/api/price?ticker=' + encodeURIComponent(t))
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (d.price) {
+                  cachedPrice = d.price;
+                  status.textContent = '£' + d.price.toFixed(4) + '/unit' +
+                    (d.change_pct != null ? '  ' + (d.change_pct >= 0 ? '+' : '') + d.change_pct.toFixed(2) + '%' : '');
+                  status.style.color = '#86efac';
+                } else {
+                  cachedPrice = null;
+                  status.innerHTML = 'Not found on Yahoo Finance. <button type="button" onclick="document.getElementById(\'ah-switch-manual\').click()" ' +
+                    'style="color:#93c5fd;background:none;border:none;padding:0;cursor:pointer;font-size:inherit;text-decoration:underline;">' +
+                    'Add manually instead →</button>';
+                  status.style.color = '#fca5a5';
+                }
+                updateTickerPreview();
+              })
+              .catch(function() {
+                cachedPrice = null;
+                status.textContent = 'Price lookup failed — check connection';
+                status.style.color = '#fca5a5';
+              });
+          }
+
+          ticker.addEventListener('input', function() {
+            clearTimeout(lookupTimer);
+            cachedPrice = null; updateTickerPreview();
+            lookupTimer = setTimeout(doLookup, 700);
+          });
+          ticker.addEventListener('blur', function() { clearTimeout(lookupTimer); doLookup(); });
+          units.addEventListener('input', updateTickerPreview);
+
+          document.getElementById('add-holding-form').addEventListener('submit', function(e) {
+            if (!cachedPrice) {
+              e.preventDefault();
+              status.textContent = 'Wait for price lookup before adding';
+              status.style.color = '#fca5a5';
+            }
+          });
+
+          /* ── Manual mode live value preview ── */
+          var amUnits = document.getElementById('am-units');
+          var amPrice = document.getElementById('am-price');
+          var amPrev  = document.getElementById('am-preview');
+          function updateManualPreview() {
+            var u = parseFloat(amUnits.value);
+            var p = parseFloat(amPrice.value);
+            if (u > 0 && p > 0) {
+              amPrev.textContent = fmtGBP(u * p);
+              amPrev.style.color = 'var(--accent)';
+            } else {
+              amPrev.textContent = '—';
+              amPrev.style.color = 'var(--muted)';
+            }
+          }
+          amUnits.addEventListener('input', updateManualPreview);
+          amPrice.addEventListener('input', updateManualPreview);
+        })();
+        </script>
+      </section>
