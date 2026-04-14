@@ -305,8 +305,6 @@
   <a class="badge" href="/settings/?mode=diagnostics" style="margin-left:0.5rem;">Diagnostics</a>
 </div>
 
-{% endif %}
-
 {% if current_user.is_authenticated and current_user.is_admin %}
 <section class="panel mt-1">
   <div class="section-header">
@@ -394,5 +392,7 @@
   });
 })();
 </script>
+
+{% endif %}
 
 {% endblock %}
