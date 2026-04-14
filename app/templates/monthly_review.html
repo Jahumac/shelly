@@ -27,34 +27,36 @@
       <h2 class="hero-value">{{ month_label }}</h2>
       <p class="hero-subtitle">Shelly's monthly check-in — update your numbers and lock in the snapshot</p>
     </div>
-    <div class="hero-right-col">
+    <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
-      {% if review.status == 'complete' %}
-        <span class="badge badge-complete">✓ Completed</span>
-      {% else %}
-        <form method="post" class="form-reset" id="mark-complete-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="form_name" value="mark_complete">
-          <input type="hidden" name="month" value="{{ month_key }}">
-          <button type="button" class="badge badge-primary-action" id="mark-complete-btn">Mark as Complete</button>
-        </form>
+    </div>
+  </div>
+  <div class="review-actions-strip">
+    {% if review.status == 'complete' %}
+      <span class="badge badge-complete">✓ Completed</span>
+    {% else %}
+      <form method="post" class="form-reset" id="mark-complete-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="form_name" value="mark_complete">
+        <input type="hidden" name="month" value="{{ month_key }}">
+        <button type="button" class="badge badge-primary-action" id="mark-complete-btn">Mark as Complete</button>
+      </form>
 
-        <dialog id="confirm-complete-dialog" class="confirm-dialog">
-          <div class="confirm-dialog-content">
-            <h3>Lock in {{ month_label }}?</h3>
-            <p>Shelly will snapshot your net worth for this month. You can still tweak values afterwards — Shelly's thorough, not inflexible.</p>
-            <div class="confirm-dialog-actions">
-              <button type="button" class="badge badge-primary-action" id="confirm-complete-yes">Yes, mark complete</button>
-              <button type="button" class="badge" id="confirm-complete-no">Cancel</button>
-            </div>
+      <dialog id="confirm-complete-dialog" class="confirm-dialog">
+        <div class="confirm-dialog-content">
+          <h3>Lock in {{ month_label }}?</h3>
+          <p>Shelly will snapshot your net worth for this month. You can still tweak values afterwards — Shelly's thorough, not inflexible.</p>
+          <div class="confirm-dialog-actions">
+            <button type="button" class="badge badge-primary-action" id="confirm-complete-yes">Yes, mark complete</button>
+            <button type="button" class="badge" id="confirm-complete-no">Cancel</button>
           </div>
-        </dialog>
-      {% endif %}
-      <div class="budget-month-nav">
-        <button type="button" class="badge badge-meta review-prev-month" aria-label="Previous month">◀</button>
-        <span class="budget-month-nav-label">{{ month_label }}</span>
-        <button type="button" class="badge badge-meta review-next-month" aria-label="Next month">▶</button>
-      </div>
+        </div>
+      </dialog>
+    {% endif %}
+    <div class="budget-month-nav">
+      <button type="button" class="badge badge-meta review-prev-month" aria-label="Previous month">◀</button>
+      <span class="budget-month-nav-label">{{ month_label }}</span>
+      <button type="button" class="badge badge-meta review-next-month" aria-label="Next month">▶</button>
     </div>
   </div>
   <div class="hero-strip">
