@@ -1081,6 +1081,19 @@ button.badge-like-button {
   text-align: right;
 }
 
+/* Anchor the numeric cells and actions to the top of the row so their
+   first line shares one baseline. The Price cell's input + timestamp
+   stack otherwise centers higher than the Units-only cell. */
+.holdings-cell-units,
+.holdings-cell-price,
+.holdings-cell-value,
+.holdings-cell-actions {
+  align-self: start;
+  /* Small nudge so the £ text and Save/Remove buttons visually sit on
+     the input's baseline rather than against the row's top edge. */
+  padding-top: 0.35rem;
+}
+
 .holdings-cell-value {
   font-weight: 600;
   white-space: nowrap;
