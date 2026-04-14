@@ -4379,6 +4379,23 @@ a.link-accent:hover {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, transparent 100%);
 }
 
+/* ── Alert banners ───────────────────────────────────────────────────── */
+.alert-banner {
+  border-left: 3px solid var(--accent);
+}
+.alert-banner.alert-warning {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.07) 0%, transparent 100%);
+}
+.alert-banner.alert-danger {
+  border-left-color: var(--danger);
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.07) 0%, transparent 100%);
+}
+.alert-banner.alert-info {
+  border-left-color: var(--accent);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, transparent 100%);
+}
+
 /* ── Mini table (allowance breakdown, contribution history) ──────────── */
 .table-scroll {
   overflow-x: auto;

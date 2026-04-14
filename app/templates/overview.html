@@ -72,6 +72,24 @@
 </section>
 {% endif %}
 
+{# ── Alerts ───────────────────────────────────────────────────────────────── #}
+{% for alert in alerts %}
+<section class="card alert-banner alert-{{ alert.kind }} mb-1">
+  <div class="flex flex-center flex-wrap gap-075">
+    <div style="flex:1; min-width:200px;">
+      <p class="m-0">{{ alert.message }}</p>
+    </div>
+    {% if alert.cta_form_action %}
+    <form method="post" action="{{ alert.cta_form_action }}" class="form-reset">
+      <button type="submit" class="badge badge-meta">{{ alert.cta_text }}</button>
+    </form>
+    {% elif alert.cta_href %}
+    <a href="{{ alert.cta_href }}" class="badge badge-meta">{{ alert.cta_text }}</a>
+    {% endif %}
+  </div>
+</section>
+{% endfor %}
+
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
 {% include '_month_strip.html' %}
 

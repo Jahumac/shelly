@@ -143,6 +143,64 @@ def overview():
         except Exception:
             last_price_update_display = str(last_price_update)[:16]
 
+    # ── Alerts ────────────────────────────────────────────────────────────────
+    alerts = []
+
+    # Price stale: only nag if auto-update is on and prices haven't refreshed in 24h
+    if assumptions and assumptions["auto_update_prices"]:
+        price_stale = True
+        if last_price_update:
+            try:
+                if isinstance(last_price_update, str) and last_price_update.endswith(" UTC"):
+                    lpu_dt = datetime.strptime(last_price_update, "%Y-%m-%d %H:%M UTC").replace(tzinfo=timezone.utc)
+                else:
+                    lpu_dt = datetime.fromisoformat(str(last_price_update))
+                    if lpu_dt.tzinfo is None:
+                        lpu_dt = lpu_dt.replace(tzinfo=timezone.utc)
+                price_stale = (datetime.now(timezone.utc) - lpu_dt).total_seconds() > 86400
+            except Exception:
+                price_stale = True
+        if price_stale:
+            alerts.append({
+                "kind": "warning",
+                "message": "Prices haven't updated in over 24 hours — the scheduler may have missed a window.",
+                "cta_text": "↻ Refresh now",
+                "cta_href": None,
+                "cta_form_action": "/holdings/trigger-price-update",
+            })
+
+    # ISA projected to exceed allowance
+    isa_allowance_val = float(assumptions["isa_allowance"]) if assumptions and assumptions["isa_allowance"] else 0
+    if isa_allowance_val > 0 and metrics["projected_isa"] > isa_allowance_val:
+        over = metrics["projected_isa"] - isa_allowance_val
+        alerts.append({
+            "kind": "danger",
+            "message": f"You're on track to exceed your ISA allowance by £{over:,.0f} this tax year.",
+            "cta_text": "View allowance",
+            "cta_href": "/allowance/",
+        })
+
+    # Pension projected to exceed allowance
+    if pension_allowance > 0 and metrics["projected_pension"] > pension_allowance:
+        over = metrics["projected_pension"] - pension_allowance
+        alerts.append({
+            "kind": "danger",
+            "message": f"You're on track to exceed your pension annual allowance by £{over:,.0f} this tax year.",
+            "cta_text": "View allowance",
+            "cta_href": "/allowance/#pension",
+        })
+
+    # Tax year ending soon with unused ISA allowance
+    days_left = metrics["tax_year_days_left"]
+    isa_remaining = isa_allowance_val - metrics["isa_used"]
+    if 0 < days_left <= 30 and isa_remaining > 500:
+        alerts.append({
+            "kind": "info",
+            "message": f"{days_left} days left in the tax year — £{isa_remaining:,.0f} of your ISA allowance is still unused.",
+            "cta_text": "Record top-up",
+            "cta_href": "/allowance/#topup",
+        })
+
     return render_template(
         "overview.html",
         metrics=metrics,
@@ -157,5 +215,6 @@ def overview():
         last_price_update_display=last_price_update_display,
         review_nudge=review_nudge,
         review_ready=review_ready,
+        alerts=alerts,
         active_page="overview",
     )
