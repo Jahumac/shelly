@@ -18,13 +18,13 @@
 
         {# ── Uninvested Cash ── #}
         {% if selected.valuation_mode == 'holdings' %}
-        <div class="panel mt-1 mb-1" style="background: var(--surface-2); padding: 1rem; border-radius: var(--radius-md);">
-          <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
-            <div style="flex:1; min-width: 10rem;">
+        <div class="holdings-cash-panel">
+          <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset holdings-cash-form">
+            <div class="holdings-cash-field">
               <label class="text-sm text-muted uppercase">Uninvested Cash (£)</label>
               <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
             </div>
-            <div style="flex:1; min-width: 10rem;">
+            <div class="holdings-cash-field">
               <label class="text-sm text-muted uppercase">Cash Interest Rate (%)</label>
               <input type="number" step="any" name="cash_interest_rate" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format((selected.cash_interest_rate or 0) * 100) }}">
             </div>

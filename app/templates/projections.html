@@ -36,7 +36,7 @@
 </section>
 
 <div class="row-end">
-  <a class="badge" href="/projections/export.xlsx">↓ Download Excel</a>
+  <a class="badge badge-meta" href="/projections/export.xlsx">↓ Export (.xlsx)</a>
 </div>
 
 {# ── Summary cards ────────────────────────────────────────────────────────── #}
@@ -64,7 +64,7 @@
   {% if metrics.total_fee_impact > 0 %}
   <div class="card stat-card">
     <h2>Lifetime Cost of Fees</h2>
-    <p style="color:#DC2626;">£{{ '{:,.0f}'.format(metrics.total_fee_impact) }}</p>
+    <p class="text-danger">£{{ '{:,.0f}'.format(metrics.total_fee_impact) }}</p>
     <small>Difference between gross and net growth</small>
   </div>
   {% endif %}
@@ -98,12 +98,12 @@
         <span class="budget-row-note" style="color:var(--accent-3);">Plus £{{ '{:,.0f}'.format(row.self_assessment) }}/mo reclaimable via self-assessment</span>
         {% endif %}
         {% if row.fee_impact > 0 %}
-        <span class="budget-row-note" style="color:#DC2626;">Fees cost you £{{ '{:,.0f}'.format(row.fee_impact) }} over the period</span>
+        <span class="budget-row-note text-danger">Fees cost you £{{ '{:,.0f}'.format(row.fee_impact) }} over the period</span>
         {% endif %}
       </div>
-      <div class="budget-row-right" style="gap:1.5rem;">
-        <span class="muted-cell" style="font-size:0.82rem;">now £{{ '{:,.0f}'.format(row.current_value) }}</span>
-        <strong style="color:var(--accent-2);">£{{ '{:,.0f}'.format(row.projected_value) }}</strong>
+      <div class="budget-row-right proj-row-right">
+        <span class="muted-cell proj-row-current">now £{{ '{:,.0f}'.format(row.current_value) }}</span>
+        <strong class="text-accent-2">£{{ '{:,.0f}'.format(row.projected_value) }}</strong>
       </div>
     </div>
     {% endfor %}
