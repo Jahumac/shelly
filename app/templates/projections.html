@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import hero_stat %}
 {% block title %}Projections · Shelly{% endblock %}
 {% block content %}
 
@@ -16,12 +17,21 @@
   <div class="hero-top">
     <div>
       <p class="eyebrow">Projections</p>
-      <h2 class="hero-value">Retirement Projections</h2>
-      <p class="hero-subtitle">Compound interest: the one thing that moves slower than a turtle but somehow makes you rich.</p>
+      <h2 class="hero-value">£{{ '{:,.0f}'.format(metrics.total_projected) }}</h2>
+      <p class="hero-subtitle">Projected at retirement · age {{ metrics.retirement_age }} · {{ '{:.1f}'.format(metrics.growth_rate * 100) }}% annual growth</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Goals.png') }}" alt="" class="hero-turtle">
     </div>
+  </div>
+  <div class="hero-strip">
+    {% call hero_stat('Today') %}<strong>£{{ '{:,.0f}'.format(metrics.total_current) }}</strong>{% endcall %}
+    {% call hero_stat('Monthly in') %}<strong>£{{ '{:,.0f}'.format(metrics.total_monthly) }}</strong>{% endcall %}
+    {% call hero_stat('Years to go') %}<strong>{{ '{:.0f}'.format(metrics.years_remaining) }}</strong>{% endcall %}
+    {% call hero_stat('Your age') %}<strong>{{ metrics.current_age | int }} → {{ metrics.retirement_age }}</strong>{% endcall %}
+    {% if metrics.total_fee_impact > 0 %}
+    {% call hero_stat('Cost of fees') %}<strong class="text-danger">£{{ '{:,.0f}'.format(metrics.total_fee_impact) }}</strong>{% endcall %}
+    {% endif %}
   </div>
 </section>
 

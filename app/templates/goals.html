@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import empty_state %}
+{% from '_macros.html' import hero_stat, empty_state %}
 {% block title %}Goals · Shelly{% endblock %}
 {% block content %}
 
@@ -22,17 +22,28 @@
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
 {% include '_month_strip.html' %}
 
+{% set total_saved = goal_cards | sum(attribute='current') %}
+{% set total_target = goal_cards | sum(attribute='target') %}
+{% set goals_complete = goal_cards | selectattr('progress', 'ge', 1.0) | list | length %}
 <section class="card highlight mb-1 month-accent-{{ current_month_num }}">
   <div class="hero-top">
     <div>
       <p class="eyebrow">Goals</p>
-      <h2 class="hero-value">Tracked Goals</h2>
+      <h2 class="hero-value">{{ goal_cards | length }} goal{{ 's' if goal_cards | length != 1 }}</h2>
       <p class="hero-subtitle">Goals give Shelly something to aim for. Tag your accounts, set a target, and watch the progress bar crawl forward — turtle-style.</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Goals.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
+  {% if goal_cards %}
+  <div class="hero-strip">
+    {% call hero_stat('Total saved') %}<strong>£{{ '{:,.0f}'.format(total_saved) }}</strong>{% endcall %}
+    {% call hero_stat('Total target') %}<strong>£{{ '{:,.0f}'.format(total_target) }}</strong>{% endcall %}
+    {% call hero_stat('Remaining') %}<strong>£{{ '{:,.0f}'.format([total_target - total_saved, 0] | max) }}</strong>{% endcall %}
+    {% call hero_stat('Completed') %}<strong>{{ goals_complete }} / {{ goal_cards | length }}</strong>{% endcall %}
+  </div>
+  {% endif %}
 </section>
 
 <div class="row-end">
