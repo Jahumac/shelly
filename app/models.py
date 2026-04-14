@@ -365,8 +365,13 @@ def get_connection():
     if "db" not in g:
         db_path = Path(current_app.config["DB_PATH"])
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        g.db = sqlite3.connect(db_path)
-        g.db.row_factory = sqlite3.Row
+        conn = sqlite3.connect(db_path, timeout=5.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA busy_timeout=5000")
+        g.db = conn
     return g.db
 
 
@@ -726,6 +731,42 @@ def init_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+
+        # ── Performance indexes on foreign-key and frequently-queried columns ──
+        for stmt in [
+            "CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_accounts_active ON accounts(user_id, is_active)",
+            "CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_holding_catalogue_user_id ON holding_catalogue(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_holdings_account_id ON holdings(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_holdings_catalogue_id ON holdings(holding_catalogue_id)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_account_id ON monthly_snapshots(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_date ON monthly_snapshots(snapshot_date)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_month_key ON monthly_snapshots(month_key)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_reviews_user_month ON monthly_reviews(user_id, month_key)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_review_items_review_id ON monthly_review_items(review_id)",
+            "CREATE INDEX IF NOT EXISTS idx_monthly_review_items_account_id ON monthly_review_items(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_budget_items_user_id ON budget_items(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_budget_items_linked_account ON budget_items(linked_account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_budget_entries_month ON budget_entries(month_key)",
+            "CREATE INDEX IF NOT EXISTS idx_budget_entries_item ON budget_entries(budget_item_id)",
+            "CREATE INDEX IF NOT EXISTS idx_budget_sections_user_id ON budget_sections(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_contribution_overrides_account ON contribution_overrides(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_isa_contributions_user ON isa_contributions(user_id, contribution_date)",
+            "CREATE INDEX IF NOT EXISTS idx_isa_contributions_account ON isa_contributions(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_pension_contributions_user ON pension_contributions(user_id, contribution_date)",
+            "CREATE INDEX IF NOT EXISTS idx_pension_contributions_account ON pension_contributions(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_dividend_records_user ON dividend_records(user_id, dividend_date)",
+            "CREATE INDEX IF NOT EXISTS idx_dividend_records_account ON dividend_records(account_id)",
+            "CREATE INDEX IF NOT EXISTS idx_scheduler_runs_user_date ON scheduler_runs(user_id, run_date)",
+            "CREATE INDEX IF NOT EXISTS idx_portfolio_daily_user_date ON portfolio_daily_snapshots(user_id, snapshot_date)",
+            "CREATE INDEX IF NOT EXISTS idx_custom_tags_user ON custom_tags(user_id)",
+        ]:
+            try:
+                conn.execute(stmt)
+            except Exception as e:
+                current_app.logger.warning(f"Index create failed ({stmt.split()[-1]}): {e}")
+
         conn.commit()
 
 

@@ -19,7 +19,9 @@ def _load_or_create_secret_key():
 class Config:
     BASE_DIR = Path(__file__).resolve().parent.parent
     DATA_DIR = BASE_DIR / "data"
-    DB_PATH = DATA_DIR / "finance.db"
+    DB_PATH = Path(os.environ["DB_PATH"]) if os.environ.get("DB_PATH") else DATA_DIR / "finance.db"
     SECRET_KEY = _load_or_create_secret_key()
     DEMO_READ_ONLY_USERNAME = os.environ.get("DEMO_READ_ONLY_USERNAME", "demo")
     DEMO_PUBLIC_LOGIN_ENABLED = os.environ.get("DEMO_PUBLIC_LOGIN_ENABLED", "0") == "1"
+    WTF_CSRF_ENABLED = os.environ.get("WTF_CSRF_ENABLED", "1") != "0"
+    TESTING = os.environ.get("FLASK_TESTING", "0") == "1"

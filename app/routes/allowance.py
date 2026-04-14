@@ -59,7 +59,8 @@ def allowance_overview():
     pension_limits = pension_allowance_limits(dict(assumptions) if assumptions else {})
     pension_accounts = [a for a in accounts if is_pension_account(dict(a))]
 
-    dividend_allowance = float(assumptions["dividend_allowance"]) if assumptions and assumptions.get("dividend_allowance") is not None else 500
+    _dividend_raw = assumptions["dividend_allowance"] if (assumptions is not None and "dividend_allowance" in assumptions.keys()) else None
+    dividend_allowance = float(_dividend_raw) if _dividend_raw is not None else 500
     dividend_records = fetch_dividend_records(uid, ty_start, ty_end)
     dividend_used = sum(float(r["amount"] or 0) for r in dividend_records) if dividend_records else 0.0
     dividend_progress = allowance_progress(dividend_used, dividend_allowance) if dividend_allowance else 0

@@ -323,7 +323,7 @@
           {# ── Advanced: Fees (below the main form grid) ─────────── #}
           <details class="fee-details" style="margin-top:1rem;" {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}open{% endif %}>
             <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
-            <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+            <div class="fee-fields">
               <label>
                 <span>Platform fee (%)</span>
                 <input type="number" step="0.001" name="platform_fee_pct" value="{{ selected.platform_fee_pct or '' }}" placeholder="e.g. 0.15" min="0" max="5">
@@ -1250,7 +1250,7 @@
         {# ── Advanced: Fees (collapsible, below the main grid) ────── #}
         <details class="fee-details" style="margin-top:1rem;">
           <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
-          <div class="fee-fields" style="margin-top:0.75rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:0.75rem;">
+          <div class="fee-fields">
             <label>
               <span>Platform fee (%)</span>
               <input type="number" step="0.001" name="platform_fee_pct" placeholder="e.g. 0.15" min="0" max="5">

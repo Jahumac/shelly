@@ -1,3 +1,42 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Responsive convention (adopt for new components; existing CSS not migrated)
+   ────────────────────────────────────────────────────────────────────────────
+   • Mobile-first: write the narrow-viewport rule, then widen with min-width.
+   • Use ONE of these canonical breakpoints — do not invent new ones:
+       --bp-sm: 640px   (phone → tablet)
+       --bp-md: 1024px  (tablet → desktop)
+   • Never put grid-template-columns in inline style=""; use .responsive-grid
+     or a component class so breakpoints stay in one place.
+   • Legacy rules still use 600/640/680/768 — leave them be, migrate opportunistically.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Reusable mobile-first grid. Collapses to a single column on phones and
+   expands to as many columns as fit above 640px. */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .responsive-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+/* Fee-fields section inside the account form. Kept narrow on phones so
+   labels don't wrap awkwardly. */
+.fee-fields {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@media (min-width: 640px) {
+  .fee-fields {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
 :root {
   color-scheme: dark;
   --bg: #0f172a;

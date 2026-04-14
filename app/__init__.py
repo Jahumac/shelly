@@ -77,7 +77,8 @@ def create_app():
 
     with app.app_context():
         init_db()
-        init_scheduler(app)
+        if not app.config.get("TESTING"):
+            init_scheduler(app)
 
     # ── Redirect to setup if no users exist ──────────────────────────────────
     @app.before_request
