@@ -2,8 +2,11 @@
 {% block title %}Allowances · Shelly{% endblock %}
 {% block content %}
 
-{# ── Month strip ─────────────────────────────────────────────────────────── #}
-{% include '_month_strip.html' %}
+<nav class="subnav">
+  <a href="/budget/">Budget Plan</a>
+  <a href="/monthly-review/">Monthly Update</a>
+  <a href="/allowance/" class="subnav-active">Allowances</a>
+</nav>
 
 {# ── Hero ────────────────────────────────────────────────────────────────── #}
 <section class="card highlight mb-1 month-accent-{{ current_month_num }}">
@@ -18,10 +21,6 @@
     </div>
   </div>
 </section>
-
-<div class="row-end">
-  <a class="badge" href="/">Back to Overview</a>
-</div>
 
 {# ── Allowance Summary ──────────────────────────────────────────────────── #}
 <section class="card-grid allowance-grid mb-1">
@@ -365,9 +364,10 @@
     </div>
   </div>
   {% if taxable_accounts %}
-  <form method="post" action="/allowance/dividend/add" class="allowance-form">
+  <p class="helper-text mb-1">Dividends inside an ISA or LISA are tax-free and not counted here.</p>
+  <form method="post" action="/allowance/dividend/add" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="allowance-form-row">
+    <div class="form-grid">
       <label>
         <span>Account</span>
         <select name="account_id" required>
@@ -377,20 +377,21 @@
         </select>
       </label>
       <label>
-        <span>Amount</span>
-        <input type="number" step="0.01" name="amount" min="0" required>
+        <span>Amount (£)</span>
+        <input type="number" step="0.01" name="amount" min="0" placeholder="12.50" required>
       </label>
       <label>
         <span>Date</span>
         <input type="date" name="dividend_date" value="{{ today }}" required>
       </label>
       <label>
-        <span>Note</span>
-        <input type="text" name="note" placeholder="Optional">
+        <span>Note (optional)</span>
+        <input type="text" name="note" placeholder="e.g. Quarterly dividend from VHYL">
       </label>
+    </div>
+    <div class="row-end mt-1">
       <button type="submit" class="badge badge-primary-action">Add dividend</button>
     </div>
-    <p class="helper-text mt-05">Dividends inside ISA/LISA are tax-free and not counted here.</p>
   </form>
   {% else %}
   <p class="helper-text">No taxable (non-ISA, non-pension) accounts found. Create one under <a href="/accounts/">Accounts</a>.</p>
