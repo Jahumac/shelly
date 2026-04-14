@@ -82,17 +82,20 @@
   function lineDataset(cfg) {
     cfg = cfg || {};
     var color = cfg.color;
-    var hasFill = cfg.fillAlphaHex !== null && cfg.fillAlphaHex !== undefined;
-    var cutoff = (cfg.pointCutoff == null) ? 24 : cfg.pointCutoff;
     var values = cfg.values || [];
+    var cutoff = (cfg.pointCutoff == null) ? 24 : cfg.pointCutoff;
+    var hasBg = cfg.backgroundColor != null;
+    var hasHex = cfg.fillAlphaHex != null;
+    var fill = hasBg || hasHex;
+    var bg = hasBg ? cfg.backgroundColor : (hasHex ? (color + cfg.fillAlphaHex) : 'transparent');
     return {
       data: values,
       borderColor: color,
-      backgroundColor: hasFill ? (cfg.backgroundColor || (color + cfg.fillAlphaHex)) : 'transparent',
+      backgroundColor: bg,
       borderWidth: cfg.borderWidth || 2,
       pointRadius: (cfg.pointRadius != null) ? cfg.pointRadius : (values.length <= cutoff ? 3 : 0),
       pointBackgroundColor: color,
-      fill: hasFill,
+      fill: fill,
       tension: (cfg.tension != null) ? cfg.tension : 0.25,
     };
   }

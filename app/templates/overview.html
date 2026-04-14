@@ -261,12 +261,7 @@
   var labels = {{ history_labels | tojson }};
   var values = {{ history_values | tojson }};
   var ctx = document.getElementById('netWorthChart').getContext('2d');
-  var S = getComputedStyle(document.documentElement);
-  var CSS = {
-    accent: S.getPropertyValue('--accent').trim(),
-    muted:  S.getPropertyValue('--muted').trim(),
-    grid:   S.getPropertyValue('--chart-grid').trim(),
-  };
+  var c = ChartHelpers.colors();
 
   var fmtLabels = labels.map(function(k) {
     var parts = k.split('-');
@@ -278,45 +273,20 @@
     type: 'line',
     data: {
       labels: fmtLabels,
-      datasets: [{
-        data: values,
-        borderColor: CSS.accent,
-        backgroundColor: CSS.accent + '14',
-        borderWidth: 2,
+      datasets: [ChartHelpers.lineDataset({
+        values: values,
+        color: c.accent,
+        fillAlphaHex: '14',
         pointRadius: values.length <= 12 ? 4 : 2,
-        pointBackgroundColor: CSS.accent,
-        fill: true,
-        tension: 0.35
-      }]
+        tension: 0.35,
+      })]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: CSS.grid },
-          ticks: { color: CSS.muted, font: { size: 11 } }
-        },
-        y: {
-          grid: { color: CSS.grid },
-          ticks: {
-            color: CSS.muted,
-            font: { size: 11 },
-            callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); }
-          }
-        }
+    options: ChartHelpers.lineOptions({
+      tooltip: ChartHelpers.gbpTooltip(0),
+      extraScales: {
+        y: { ticks: { color: c.muted, font: { size: 11 }, callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); } } }
       }
-    }
+    })
   });
 })();
 </script>
@@ -584,45 +554,20 @@
         type: 'line',
         data: {
           labels: fmtLabels,
-          datasets: [{
-            data: data.values,
-            borderColor: CSS.accent,
+          datasets: [ChartHelpers.lineDataset({
+            values: data.values,
+            color: CSS.accent,
             backgroundColor: gradient,
-            borderWidth: 2,
-            pointRadius: data.values.length <= 30 ? 3 : 0,
-            pointBackgroundColor: CSS.accent,
-            fill: true,
-            tension: 0.25
-          }]
+            pointCutoff: 30,
+            tension: 0.25,
+          })]
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: function(ctx) {
-                  return ' £' + ctx.parsed.y.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: CSS.grid },
-              ticks: { color: CSS.muted, font: { size: 11 } }
-            },
-            y: {
-              grid: { color: CSS.grid },
-              ticks: {
-                color: CSS.muted,
-                font: { size: 11 },
-                callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); }
-              }
-            }
+        options: ChartHelpers.lineOptions({
+          tooltip: ChartHelpers.gbpTooltip(2),
+          extraScales: {
+            y: { ticks: { color: CSS.muted, font: { size: 11 }, callback: function(v) { return '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v); } } }
           }
-        }
+        })
       });
     } else {
       if (chart && typeof chart.destroy === 'function') {
