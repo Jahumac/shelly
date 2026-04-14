@@ -38,19 +38,21 @@
 
 {#
   empty_state — the "no items yet" block shown on empty list/dashboard pages.
-  Kept narrow so we don't cover every conceivable variation; one-off empty
-  states can still be written inline.
+  Uses the app's standard shelly-icon hero + h3 title + prose + optional CTA.
 
   Usage:
-    {{ empty_state('goals', 'You haven\'t set any goals yet.',
-                   cta_text='Add a goal', cta_href='/goals/?mode=create') }}
+    {{ empty_state('No goals yet',
+                   'A turtle without a destination is just wandering...',
+                   cta_text='+ Create your first goal',
+                   cta_href='/goals/?mode=create') }}
 #}
-{% macro empty_state(icon_name, message, cta_text=None, cta_href=None) -%}
+{% macro empty_state(title, message, cta_text=None, cta_href=None) -%}
 <div class="empty-state">
   <div class="empty-state-icon">
-    <img src="{{ url_for('static', filename='icons/shelly/' ~ icon_name ~ '.png') }}" alt="">
+    <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-lg">
   </div>
-  <p class="empty-state-text">{{ message }}</p>
+  <h3>{{ title }}</h3>
+  <p>{{ message }}</p>
   {% if cta_text and cta_href -%}
     <a class="badge badge-primary-action" href="{{ cta_href }}">{{ cta_text }}</a>
   {%- endif %}

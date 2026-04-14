@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import hero_stat %}
+{% from '_macros.html' import hero_stat, empty_state %}
 {% block title %}Instruments · Shelly{% endblock %}
 {% block content %}
 {% set page_mode = request.args.get('mode', 'list') %}
@@ -106,12 +106,9 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">
-    <div class="empty-state-icon"><img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-lg"></div>
-    <h3>No instruments yet</h3>
-    <p>This is where Shelly keeps the master list. Add holdings to your accounts and they'll appear here — one tidy view of everything you own.</p>
-    <a href="/accounts/" class="badge badge-primary-action">Go to Accounts</a>
-  </div>
+  {{ empty_state('No instruments yet',
+                 "This is where Shelly keeps the master list. Add holdings to your accounts and they'll appear here — one tidy view of everything you own.",
+                 cta_text='Go to Accounts', cta_href='/accounts/') }}
   {% endif %}
 </section>
 

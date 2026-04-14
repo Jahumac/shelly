@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from '_macros.html' import hero_stat %}
+{% from '_macros.html' import hero_stat, empty_state %}
 {% block title %}Performance{% endblock %}
 {% block content %}
 
@@ -58,12 +58,9 @@
 
 {% if not perf or perf.n_months < 1 %}
 <section class="card">
-  <div class="empty-state">
-    <div class="empty-state-icon"><img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-lg"></div>
-    <h3>Not enough data yet</h3>
-    <p>Even Shelly needs at least two data points to draw a line. Complete two monthly reviews and the performance charts will appear — patience is a virtue.</p>
-    <a href="/monthly-review/" class="badge badge-primary-action">Go to Monthly Update</a>
-  </div>
+  {{ empty_state('Not enough data yet',
+                 'Even Shelly needs at least two data points to draw a line. Complete two monthly reviews and the performance charts will appear — patience is a virtue.',
+                 cta_text='Go to Monthly Update', cta_href='/monthly-review/') }}
 </section>
 
 {% else %}

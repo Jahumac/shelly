@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import hero_stat %}
+{% from '_macros.html' import hero_stat, empty_state %}
 {% block title %}Overview · Shelly{% endblock %}
 {% block content %}
 
@@ -245,12 +245,9 @@
         <small>{{ account.provider }} · {{ account.wrapper_type }}</small>
       </a>
     {% else %}
-      <div class="empty-state">
-        <div class="empty-state-icon"><img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-lg"></div>
-        <h3>Nothing in the shell yet</h3>
-        <p>Every journey starts with a single step — even for a turtle. Add your first account and Shelly will start crunching the numbers.</p>
-        <a href="/accounts/?mode=create" class="badge badge-primary-action">+ Add your first account</a>
-      </div>
+      {{ empty_state('Nothing in the shell yet',
+                     'Every journey starts with a single step — even for a turtle. Add your first account and Shelly will start crunching the numbers.',
+                     cta_text='+ Add your first account', cta_href='/accounts/?mode=create') }}
     {% endfor %}
   </div>
 </section>

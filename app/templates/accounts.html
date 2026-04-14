@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import hero_stat %}
+{% from '_macros.html' import hero_stat, empty_state %}
 {% block title %}Accounts · Shelly{% endblock %}
 {% block content %}
 {% set page_mode = request.args.get('mode', 'list') %}
@@ -171,12 +171,9 @@
   </a>
   {% else %}
   <div class="card">
-    <div class="empty-state">
-      <div class="empty-state-icon"><img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-lg"></div>
-      <h3>No accounts yet</h3>
-      <p>Shelly can't track what Shelly can't see. Add your first account — ISA, pension, savings, the works — and let the slow, steady magic begin.</p>
-      <a href="/accounts/?mode=create" class="badge badge-primary-action">+ Add your first account</a>
-    </div>
+    {{ empty_state('No accounts yet',
+                   "Shelly can't track what Shelly can't see. Add your first account — ISA, pension, savings, the works — and let the slow, steady magic begin.",
+                   cta_text='+ Add your first account', cta_href='/accounts/?mode=create') }}
   </div>
   {% endfor %}
 </div>
