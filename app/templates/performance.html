@@ -50,11 +50,14 @@
     {% endcall %}
     {% call hero_stat('Contributed') %}<strong>£{{ '{:,.0f}'.format(perf.total_contributed) }}</strong>{% endcall %}
   </div>
-  <div class="badge-row" style="margin-top: 1rem;">
-    <a href="/performance/export.xlsx" class="badge badge-meta">Download monthly report (.xlsx)</a>
-  </div>
   {% endif %}
 </section>
+
+{% if perf %}
+<div class="row-end mb-1">
+  <a href="/performance/export.xlsx" class="badge badge-meta">↓ Monthly report (.xlsx)</a>
+</div>
+{% endif %}
 
 {% if not perf or perf.n_months < 1 %}
 <section class="card">

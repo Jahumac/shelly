@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from '_macros.html' import hero_stat %}
 {% block title %}Allowances · Shelly{% endblock %}
 {% block content %}
 
@@ -19,6 +20,13 @@
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
     </div>
+  </div>
+  <div class="hero-strip">
+    {% call hero_stat('ISA used') %}<strong>£{{ '{:,.0f}'.format(usage.isa_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(isa_allowance) }}</small>{% endcall %}
+    {% call hero_stat('LISA used') %}<strong>£{{ '{:,.0f}'.format(usage.lisa_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(lisa_allowance) }}</small>{% endcall %}
+    {% call hero_stat('Pension used') %}<strong>£{{ '{:,.0f}'.format(pension_usage.pension_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</small>{% endcall %}
+    {% call hero_stat('Dividends') %}<strong>£{{ '{:,.0f}'.format(dividend_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(dividend_allowance) }}</small>{% endcall %}
+    {% call hero_stat('CGT net gain') %}<strong>£{{ '{:,.0f}'.format(cgt_net) }}</strong>{% endcall %}
   </div>
 </section>
 

@@ -7,6 +7,13 @@
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
 {% include '_month_strip.html' %}
 
+{% if page_mode != 'edit' %}
+<nav class="subnav">
+  <a href="/settings/" {% if page_mode != 'diagnostics' %}class="subnav-active"{% endif %}>Settings</a>
+  <a href="/settings/?mode=diagnostics" {% if page_mode == 'diagnostics' %}class="subnav-active"{% endif %}>Diagnostics</a>
+</nav>
+{% endif %}
+
 {% if page_mode == 'edit' %}
 
 {# ── Edit mode ────────────────────────────────────────────────────────────── #}
@@ -162,18 +169,21 @@
   <div class="hero-top">
     <div>
       <p class="eyebrow">Diagnostics</p>
-      <h2>System Health</h2>
+      <h2 class="hero-value">System Health</h2>
       <p class="hero-subtitle">Quick status checks for scheduler, prices and database</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Settings.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
+  <div class="hero-strip">
+    {% call hero_stat('Database') %}<strong>{% if diagnostics and diagnostics.db_ok %}OK{% else %}Error{% endif %}</strong>{% endcall %}
+    {% call hero_stat('Accounts') %}<strong>{{ diagnostics.counts.accounts if diagnostics and diagnostics.counts else 0 }}</strong>{% endcall %}
+    {% call hero_stat('Holdings') %}<strong>{{ diagnostics.counts.holdings if diagnostics and diagnostics.counts else 0 }}</strong>{% endcall %}
+    {% call hero_stat('Daily snapshots') %}<strong>{{ diagnostics.counts.portfolio_daily_snapshots if diagnostics and diagnostics.counts else 0 }}</strong>{% endcall %}
+    {% call hero_stat('Last scheduler run') %}<strong>{{ diagnostics.scheduler_last_run.run_date ~ ' ' ~ diagnostics.scheduler_last_run.slot if diagnostics and diagnostics.scheduler_last_run else '—' }}</strong>{% endcall %}
+  </div>
 </section>
-
-<div class="badge-row mb-1">
-  <a class="badge" href="/settings/">← Back to Settings</a>
-</div>
 
 <section class="panel">
   <div class="section-header">
