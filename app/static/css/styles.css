@@ -1970,13 +1970,6 @@ button.badge-like-button {
   color: inherit;
 }
 
-.budget-inherited-note {
-  font-size: 0.82rem;
-  color: var(--muted);
-  font-style: italic;
-  margin-top: 0.15rem;
-}
-
 /* Budget linked hint */
 .budget-linked-hint {
   font-size: 0.78rem;
