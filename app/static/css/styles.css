@@ -594,7 +594,8 @@ nav a.active {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* 240px min (was 220) so labels like "Pension allowance (£)" don't wrap. */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
 }
 
@@ -1712,6 +1713,13 @@ button.badge-like-button {
   padding: 0.55rem 0.75rem;
   border-bottom: 1px solid rgba(51,65,85,0.4);
   color: var(--text);
+}
+
+/* Holdings table (account detail): top-align cells so the Price input
+   stays level with Units/Value when a price-updated-at timestamp pushes
+   the cell taller than its neighbours. */
+.holdings-desktop .data-table td {
+  vertical-align: top;
 }
 
 .data-table tbody tr:hover {
