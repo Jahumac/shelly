@@ -111,6 +111,7 @@ def allowance_overview():
         dividend_records=dividend_records,
         taxable_accounts=taxable_accounts,
         today=now_date.isoformat(),
+        current_month_num=now_date.month,
         active_page="budget",
         tax_band=tax_band,
         personal_pension_total=personal_pension_total,
