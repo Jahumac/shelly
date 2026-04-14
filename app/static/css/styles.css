@@ -1081,6 +1081,13 @@ button.badge-like-button {
 .holdings-cell-value {
   font-weight: 600;
   white-space: nowrap;
+  /* Matches .holdings-input's right padding so header, input text, and value
+     text all line up at the same x-position on the right edge. */
+  padding-right: 0.5rem;
+}
+
+.holdings-row-head > div {
+  padding-right: 0.5rem;
 }
 
 .holdings-timestamp {
