@@ -1747,6 +1747,13 @@ button.badge-like-button {
   vertical-align: middle;
 }
 
+/* Keep Save + Remove on one line — .badge-row defaults to flex-wrap:wrap
+   which stacks them vertically in this narrow column. */
+.holdings-desktop .data-table td.holdings-actions-cell .badge-row {
+  flex-wrap: nowrap;
+  margin-top: 0;
+}
+
 .data-table tbody tr:hover {
   background: rgba(56,189,248,0.04);
 }
