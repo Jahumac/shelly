@@ -79,8 +79,10 @@ def settings():
         # First-time profile setup: bounce back to overview so the user
         # sees their onboarding progress tick forward
         if had_no_dob and new_dob:
+            flash("Settings saved.", "success")
             return redirect(url_for("overview.overview"))
 
+        flash("Settings saved.", "success")
         return redirect(url_for("settings.settings"))
 
     computed_age = int(current_age_from_assumptions(assumptions)) if assumptions else 0
