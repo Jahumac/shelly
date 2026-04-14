@@ -82,6 +82,51 @@ exist yet for that month.
 ### `GET /assumptions`
 Growth rate, retirement age, ISA/LISA allowances, etc.
 
+### `GET /health`  _(no auth)_
+Liveness probe for uptime monitors. Returns 200 with DB status and last
+backup time, or 503 if the DB is unreachable.
+```json
+{
+  "ok": true,
+  "checks": { "database": "ok", "last_backup": "2026-04-14T03:00:02" },
+  "timestamp": "2026-04-14T12:00:00+00:00"
+}
+```
+
+---
+
+## Write endpoints
+
+All writes require auth and are scoped to the token's user (attempting
+to mutate another user's data returns 404).
+
+### `POST /accounts/<id>/balance`
+Update a manual-valuation account's balance. Also records a monthly
+snapshot so history stays consistent with the monthly-review flow.
+```json
+{ "current_value": 12345.67, "month": "2026-04" }    ← month optional
+```
+
+### `POST /contributions/isa`
+Log an ISA contribution.
+```json
+{ "account_id": 3, "amount": 500, "date": "2026-04-10", "note": "optional" }
+```
+
+### `POST /contributions/pension`
+Log a pension contribution. `kind` is one of: `personal`, `employer`,
+`salary_sacrifice`.
+```json
+{ "account_id": 7, "amount": 400, "date": "2026-04-10",
+  "kind": "personal", "note": "optional" }
+```
+
+### `POST /dividends`
+Log a dividend receipt.
+```json
+{ "account_id": 2, "amount": 50, "date": "2026-04-10", "note": "optional" }
+```
+
 ---
 
 ## Example

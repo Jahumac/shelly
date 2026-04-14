@@ -14,8 +14,14 @@ from functools import wraps
 
 from flask import Blueprint, current_app, g, jsonify, request
 
+from datetime import datetime, timezone
+from pathlib import Path
+
 from app.calculations import is_price_stale
 from app.models import (
+    add_dividend_record,
+    add_isa_contribution,
+    add_pension_contribution,
     fetch_account,
     fetch_all_accounts,
     fetch_all_goals,
@@ -24,7 +30,11 @@ from app.models import (
     fetch_budget_entries,
     fetch_budget_items,
     fetch_holdings_for_account,
+    fetch_latest_price_update,
     fetch_user_by_api_token,
+    get_connection,
+    update_account,
+    upsert_monthly_snapshot,
 )
 
 api_bp = Blueprint("api_v1", __name__, url_prefix="/api/v1")
@@ -190,6 +200,147 @@ def get_assumptions():
         return jsonify({})
     # Return as dict; Row → dict is fine since all columns are primitive.
     return jsonify({k: row[k] for k in row.keys()})
+
+
+# ── Write endpoints ──────────────────────────────────────────────────────────
+# Kept small and deliberate. Each write is scoped to the token's user and
+# validated at the model layer (ownership checks apply the same as the web UI).
+
+def _parse_amount(raw):
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
+@api_bp.route("/accounts/<int:account_id>/balance", methods=["POST"])
+@api_auth_required
+def update_account_balance(account_id):
+    """Update a manual-valuation account's current balance. Also records
+    a monthly snapshot so performance history stays consistent with the
+    web-based monthly review flow."""
+    payload = request.get_json(silent=True) or {}
+    balance = _parse_amount(payload.get("current_value"))
+    if balance is None:
+        return _err("bad_request", "current_value (number >= 0) required", 400)
+
+    account = fetch_account(account_id, g.api_user.id)
+    if account is None:
+        return _err("not_found", "Account not found", 404)
+
+    # Preserve all other fields — update_account needs a complete payload.
+    update_payload = {k: account[k] for k in account.keys()}
+    update_payload["current_value"] = balance
+    update_payload["last_updated"] = datetime.now().isoformat()
+    update_account(update_payload)
+
+    month_key = payload.get("month") or datetime.now().strftime("%Y-%m")
+    upsert_monthly_snapshot(account_id, month_key, balance)
+
+    return jsonify({"ok": True, "account_id": account_id,
+                    "current_value": balance, "month": month_key})
+
+
+@api_bp.route("/contributions/isa", methods=["POST"])
+@api_auth_required
+def log_isa_contribution():
+    payload = request.get_json(silent=True) or {}
+    account_id = payload.get("account_id")
+    amount = _parse_amount(payload.get("amount"))
+    date = (payload.get("date") or "").strip()
+
+    if amount is None or not account_id or not date:
+        return _err("bad_request",
+                    "account_id, amount (>= 0), and date (YYYY-MM-DD) required", 400)
+    if fetch_account(int(account_id), g.api_user.id) is None:
+        return _err("not_found", "Account not found", 404)
+
+    add_isa_contribution(g.api_user.id, int(account_id), amount, date,
+                         payload.get("note"))
+    return jsonify({"ok": True}), 201
+
+
+@api_bp.route("/contributions/pension", methods=["POST"])
+@api_auth_required
+def log_pension_contribution():
+    payload = request.get_json(silent=True) or {}
+    account_id = payload.get("account_id")
+    amount = _parse_amount(payload.get("amount"))
+    date = (payload.get("date") or "").strip()
+    kind = (payload.get("kind") or "personal").strip()
+
+    if amount is None or not account_id or not date:
+        return _err("bad_request",
+                    "account_id, amount (>= 0), and date (YYYY-MM-DD) required", 400)
+    if kind not in ("personal", "employer", "salary_sacrifice"):
+        return _err("bad_request",
+                    "kind must be one of: personal, employer, salary_sacrifice", 400)
+    if fetch_account(int(account_id), g.api_user.id) is None:
+        return _err("not_found", "Account not found", 404)
+
+    add_pension_contribution(g.api_user.id, int(account_id), amount, kind,
+                             date, payload.get("note"))
+    return jsonify({"ok": True}), 201
+
+
+@api_bp.route("/dividends", methods=["POST"])
+@api_auth_required
+def log_dividend():
+    payload = request.get_json(silent=True) or {}
+    account_id = payload.get("account_id")
+    amount = _parse_amount(payload.get("amount"))
+    date = (payload.get("date") or "").strip()
+
+    if amount is None or not account_id or not date:
+        return _err("bad_request",
+                    "account_id, amount (>= 0), and date (YYYY-MM-DD) required", 400)
+    if fetch_account(int(account_id), g.api_user.id) is None:
+        return _err("not_found", "Account not found", 404)
+
+    add_dividend_record(g.api_user.id, int(account_id), amount, date,
+                        payload.get("note"))
+    return jsonify({"ok": True}), 201
+
+
+# ── Health check (unauthenticated) ────────────────────────────────────────────
+# Meant for uptime monitors and mobile clients to decide whether to retry.
+# Purposefully returns no user-specific info so it's safe to expose.
+
+@api_bp.route("/health")
+def health():
+    status = {"ok": True, "checks": {}}
+    # DB connectivity
+    try:
+        with get_connection() as conn:
+            conn.execute("SELECT 1").fetchone()
+        status["checks"]["database"] = "ok"
+    except Exception as e:
+        status["ok"] = False
+        status["checks"]["database"] = f"error: {e.__class__.__name__}"
+
+    # Most recent backup (file presence only — doesn't verify contents)
+    try:
+        data_dir = Path(current_app.config.get("DATA_DIR",
+                        Path(current_app.config["DB_PATH"]).parent))
+        backup_dir = data_dir / "backups"
+        if backup_dir.exists():
+            backups = sorted(backup_dir.glob("finance-*.db"))
+            backups = [p for p in backups if not p.is_symlink()]
+            if backups:
+                newest = backups[-1]
+                mtime = datetime.fromtimestamp(newest.stat().st_mtime).isoformat()
+                status["checks"]["last_backup"] = mtime
+            else:
+                status["checks"]["last_backup"] = "none"
+        else:
+            status["checks"]["last_backup"] = "none"
+    except Exception:
+        status["checks"]["last_backup"] = "error"
+
+    # Timestamp so clients can tell if the response itself is cached stale
+    status["timestamp"] = datetime.now(timezone.utc).isoformat()
+    return jsonify(status), (200 if status["ok"] else 503)
 
 
 # ── Error handlers scoped to this blueprint ──────────────────────────────────

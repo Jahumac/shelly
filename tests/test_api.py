@@ -117,6 +117,123 @@ def test_unknown_api_route_returns_json_404(api):
 
 # ── End-to-end: create account via web, fetch via API ────────────────────────
 
+# ── Write endpoints ───────────────────────────────────────────────────────────
+
+def test_update_account_balance_requires_ownership(app, client, token):
+    """Cannot update an account that belongs to another user."""
+    with app.app_context():
+        from app.models import create_user, get_connection
+        other_uid = create_user("eve", "password123")
+        with get_connection() as conn:
+            other_account = conn.execute(
+                "INSERT INTO accounts (user_id, name, current_value, is_active) "
+                "VALUES (?, 'Eve ISA', 1000, 1)",
+                (other_uid,),
+            ).lastrowid
+            conn.commit()
+    resp = client.post(
+        f"/api/v1/accounts/{other_account}/balance",
+        json={"current_value": 999999},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 404
+
+
+def test_update_account_balance_succeeds_for_owner(app, client, token):
+    with app.app_context():
+        from app.models import get_connection, get_user_by_username
+        uid = get_user_by_username("apiuser").id
+        with get_connection() as conn:
+            aid = conn.execute(
+                "INSERT INTO accounts (user_id, name, current_value, is_active) "
+                "VALUES (?, 'Mine', 100, 1)",
+                (uid,),
+            ).lastrowid
+            conn.commit()
+    resp = client.post(
+        f"/api/v1/accounts/{aid}/balance",
+        json={"current_value": 5555, "month": "2026-04"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["current_value"] == 5555
+
+
+def test_update_account_balance_rejects_negative(app, client, token):
+    resp = client.post(
+        "/api/v1/accounts/1/balance",
+        json={"current_value": -100},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+
+
+def test_isa_contribution_rejects_missing_fields(client, token):
+    resp = client.post(
+        "/api/v1/contributions/isa",
+        json={"amount": 500},  # no account_id, no date
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+
+
+def test_isa_contribution_accepted(app, client, token):
+    with app.app_context():
+        from app.models import get_connection, get_user_by_username
+        uid = get_user_by_username("apiuser").id
+        with get_connection() as conn:
+            aid = conn.execute(
+                "INSERT INTO accounts (user_id, name, wrapper_type, is_active) "
+                "VALUES (?, 'My ISA', 'Stocks & Shares ISA', 1)",
+                (uid,),
+            ).lastrowid
+            conn.commit()
+    resp = client.post(
+        "/api/v1/contributions/isa",
+        json={"account_id": aid, "amount": 500, "date": "2026-04-10"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+
+
+def test_isa_contribution_rejects_foreign_account(app, client, token):
+    with app.app_context():
+        from app.models import create_user, get_connection
+        other_uid = create_user("mallory", "password123")
+        with get_connection() as conn:
+            foreign_aid = conn.execute(
+                "INSERT INTO accounts (user_id, name, is_active) VALUES (?, 'theirs', 1)",
+                (other_uid,),
+            ).lastrowid
+            conn.commit()
+    resp = client.post(
+        "/api/v1/contributions/isa",
+        json={"account_id": foreign_aid, "amount": 500, "date": "2026-04-10"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 404
+
+
+def test_pension_contribution_rejects_bad_kind(app, client, token):
+    resp = client.post(
+        "/api/v1/contributions/pension",
+        json={"account_id": 1, "amount": 100, "date": "2026-04-10", "kind": "wat"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+
+
+# ── Health check ──────────────────────────────────────────────────────────────
+
+def test_health_check_no_auth_required(client):
+    resp = client.get("/api/v1/health")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert body["checks"]["database"] == "ok"
+    assert "timestamp" in body
+
+
 def test_api_returns_data_created_via_db(app, client, token):
     """Proves the API reads the same DB the web UI writes to."""
     with app.app_context():
