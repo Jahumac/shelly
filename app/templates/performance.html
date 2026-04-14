@@ -123,22 +123,14 @@
   var actual  = {{ perf.actual_values | tojson }};
   var plan    = {{ perf.projected_values | tojson }};
   var bench   = {{ (perf.benchmark_values or []) | tojson }};
-  var S = getComputedStyle(document.documentElement);
-  var CSS = {
-    accent:   S.getPropertyValue('--accent').trim(),
-    accent2:  S.getPropertyValue('--accent-2').trim(),
-    muted:    S.getPropertyValue('--muted').trim(),
-    panel2:   S.getPropertyValue('--panel-2').trim(),
-    border:   S.getPropertyValue('--border').trim(),
-    gridAlt:  S.getPropertyValue('--chart-grid-alt').trim(),
-  };
+  var c = ChartHelpers.colors();
 
   var datasets = [
     {
       label: 'Actual',
       data: actual,
-      borderColor: CSS.accent2,
-      backgroundColor: CSS.accent2 + '14',
+      borderColor: c.accent2,
+      backgroundColor: c.accent2 + '14',
       fill: true,
       tension: 0.35,
       pointRadius: actual.length <= 24 ? 4 : 2,
@@ -148,7 +140,7 @@
     {
       label: 'Plan (' + {{ assumed_rate_pct }} + '%)',
       data: plan,
-      borderColor: CSS.muted + '80',
+      borderColor: c.muted + '80',
       borderDash: [6, 4],
       backgroundColor: 'transparent',
       fill: false,
@@ -163,7 +155,7 @@
     datasets.push({
       label: 'Benchmark',
       data: bench,
-      borderColor: CSS.accent,
+      borderColor: c.accent,
       backgroundColor: 'transparent',
       fill: false,
       tension: 0.35,
@@ -176,36 +168,23 @@
   new Chart(document.getElementById('perfChart'), {
     type: 'line',
     data: { labels: labels, datasets: datasets },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: CSS.panel2,
-          borderColor: CSS.border,
-          borderWidth: 1,
-          callbacks: {
-            label: function(ctx) {
-              return ' ' + ctx.dataset.label + ': £' + Math.round(ctx.parsed.y).toLocaleString('en-GB');
-            }
+    options: ChartHelpers.lineOptions({
+      tooltip: {
+        backgroundColor: c.panel2,
+        borderColor: c.border,
+        borderWidth: 1,
+        callbacks: {
+          label: function(ctx) {
+            return ' ' + ctx.dataset.label + ': £' + Math.round(ctx.parsed.y).toLocaleString('en-GB');
           }
         }
       },
-      scales: {
-        x: {
-          grid:  { color: CSS.gridAlt },
-          ticks: { color: CSS.muted, maxRotation: 45 }
-        },
-        y: {
-          grid:  { color: CSS.gridAlt },
-          ticks: {
-            color: CSS.muted,
-            callback: function(v) { return '£' + Math.round(v).toLocaleString('en-GB'); }
-          }
-        }
-      }
-    }
+      extraScales: {
+        x: { grid: { color: c.gridAlt }, ticks: { color: c.muted, maxRotation: 45 } },
+        y: { grid: { color: c.gridAlt }, ticks: { color: c.muted, callback: function(v) { return '£' + Math.round(v).toLocaleString('en-GB'); } } }
+      },
+      extra: { interaction: { mode: 'index', intersect: false } }
+    })
   });
 })();
 </script>
