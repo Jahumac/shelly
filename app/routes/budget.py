@@ -461,8 +461,9 @@ def budget_items_view():
 @budget_bp.route("/items/<int:item_id>", methods=["POST"])
 @login_required
 def budget_item_action(item_id):
+    uid = current_user.id
     if request.form.get("form_name") == "delete":
-        delete_budget_item(item_id)
+        delete_budget_item(item_id, uid)
         return redirect(url_for("budget.budget_items_view"))
 
     linked_raw = request.form.get("linked_account_id", "")
@@ -473,5 +474,5 @@ def budget_item_action(item_id):
         "default_amount": _optional_float(request.form.get("default_amount"), 0.0),
         "linked_account_id": int(linked_raw) if linked_raw else None,
         "notes": request.form.get("notes", "").strip(),
-    })
+    }, uid)
     return redirect(url_for("budget.budget_items_view"))

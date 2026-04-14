@@ -66,14 +66,14 @@ def goals():
         if form_name == "delete_goal":
             goal_id = int(request.form.get("goal_id", 0))
             if goal_id:
-                delete_goal(goal_id)
+                delete_goal(goal_id, uid)
             return redirect(url_for("goals.goals"))
 
         payload = _goal_payload_from_form(request.form)
         goal_id = request.form.get("goal_id")
         if goal_id:
             payload["id"] = int(goal_id)
-            update_goal(payload)
+            update_goal(payload, uid)
         else:
             create_goal(payload, uid)
         return redirect(url_for("goals.goals"))
@@ -89,7 +89,7 @@ def goals():
     page_mode = request.args.get("mode", "view")
     selected_goal_id = request.args.get("goal_id", type=int)
     if selected_goal_id:
-        selected_goal = fetch_goal(selected_goal_id)
+        selected_goal = fetch_goal(selected_goal_id, uid)
         if selected_goal:
             selected_goal_tags = _split_tags(selected_goal["selected_tags"]) if "selected_tags" in selected_goal.keys() else []
             if page_mode == "view":

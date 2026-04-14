@@ -586,13 +586,17 @@ def update_cash(account_id):
 @accounts_bp.route("/<int:account_id>/holdings/<int:holding_id>/delete", methods=["POST"])
 @login_required
 def account_delete_holding(account_id, holding_id):
-    delete_holding(holding_id)
+    delete_holding(holding_id, current_user.id)
     return redirect(url_for("accounts.account_detail", account_id=account_id))
 
 
 @accounts_bp.route("/<int:account_id>/holdings/<int:holding_id>/edit", methods=["POST"])
 @login_required
 def account_edit_holding(account_id, holding_id):
+    # Verify the account belongs to the current user before doing anything.
+    if fetch_account(account_id, current_user.id) is None:
+        return redirect(url_for("accounts.accounts"))
+
     units = _optional_float(request.form.get("units"), None)
     price = _optional_float(request.form.get("price"), None)
     notes = request.form.get("notes", "").strip()
@@ -620,7 +624,7 @@ def account_edit_holding(account_id, holding_id):
         "price": price if price is not None else float(existing["price"] or 0),
         "notes": notes,
     }
-    update_holding(payload)
+    update_holding(payload, current_user.id)
 
     # Also update catalogue price if modified
     if price is not None and existing["holding_catalogue_id"]:

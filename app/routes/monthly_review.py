@@ -77,10 +77,11 @@ def monthly_review():
                     "units": units,
                     "price": price,
                     "notes": request.form.get("notes", ""),
-                }
+                },
+                uid,
             )
         elif form_name == "update_account_balance":
-            account = fetch_account(int(request.form.get("account_id")))
+            account = fetch_account(int(request.form.get("account_id")), uid)
             if account:
                 new_balance = _optional_float(request.form.get("current_value"), account["current_value"])
                 update_account(
@@ -269,7 +270,7 @@ def confirm_import():
             continue
 
         session_row = allowed[hid_str]
-        holding = fetch_holding(int(hid_str))
+        holding = fetch_holding(int(hid_str), current_user.id)
         if not holding:
             skipped += 1
             continue
@@ -294,7 +295,7 @@ def confirm_import():
             "units": final_units,
             "price": final_price,
             "notes": holding["notes"] or "",
-        })
+        }, current_user.id)
         updated += 1
 
     # Clear session data after successful apply

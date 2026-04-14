@@ -825,8 +825,15 @@ def fetch_all_goals(user_id):
         ).fetchall()
 
 
-def fetch_goal(goal_id):
+def fetch_goal(goal_id, user_id=None):
+    """Return a goal by id. If user_id is given, only returns the row
+    when it belongs to that user — otherwise returns None."""
     with get_connection() as conn:
+        if user_id is not None:
+            return conn.execute(
+                "SELECT * FROM goals WHERE id = ? AND user_id = ?",
+                (goal_id, user_id),
+            ).fetchone()
         return conn.execute(
             "SELECT * FROM goals WHERE id = ?",
             (goal_id,),
@@ -853,9 +860,11 @@ def create_goal(payload, user_id):
         return cursor.lastrowid
 
 
-def update_goal(payload):
+def update_goal(payload, user_id):
+    """Update a goal. Scoped to user_id — attempting to update another
+    user's goal is a silent no-op (rowcount will be 0)."""
     with get_connection() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             UPDATE goals
             SET name = ?,
@@ -863,7 +872,7 @@ def update_goal(payload):
                 goal_type = ?,
                 selected_tags = ?,
                 notes = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
             (
                 payload["name"],
@@ -872,18 +881,22 @@ def update_goal(payload):
                 payload.get("selected_tags", ""),
                 payload.get("notes", ""),
                 payload["id"],
+                user_id,
             ),
         )
         conn.commit()
+        return cursor.rowcount > 0
 
 
-def delete_goal(goal_id):
+def delete_goal(goal_id, user_id):
+    """Delete a goal scoped to user_id. Returns True if a row was deleted."""
     with get_connection() as conn:
-        conn.execute(
-            "DELETE FROM goals WHERE id = ?",
-            (goal_id,),
+        cursor = conn.execute(
+            "DELETE FROM goals WHERE id = ? AND user_id = ?",
+            (goal_id, user_id),
         )
         conn.commit()
+        return cursor.rowcount > 0
 
 
 def fetch_allowance_tracking(user_id=None):
@@ -1598,8 +1611,19 @@ def add_holding(payload):
         conn.commit()
 
 
-def fetch_holding(holding_id):
+def fetch_holding(holding_id, user_id=None):
+    """Return a holding by id. If user_id is given, the row is only
+    returned when its account belongs to that user."""
     with get_connection() as conn:
+        if user_id is not None:
+            return conn.execute(
+                """
+                SELECT h.* FROM holdings h
+                JOIN accounts a ON a.id = h.account_id
+                WHERE h.id = ? AND a.user_id = ?
+                """,
+                (holding_id, user_id),
+            ).fetchone()
         return conn.execute(
             "SELECT * FROM holdings WHERE id = ?",
             (holding_id,),
@@ -1634,9 +1658,12 @@ def fetch_all_holdings_grouped(user_id):
         ).fetchall()
 
 
-def update_holding(payload):
+def update_holding(payload, user_id):
+    """Update a holding, scoped so the mutation only applies if the
+    holding belongs to an account owned by user_id. Returns True on
+    a real update, False if the id didn't match that user."""
     with get_connection() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             UPDATE holdings
             SET account_id = ?,
@@ -1650,6 +1677,7 @@ def update_holding(payload):
                 price = ?,
                 notes = ?
             WHERE id = ?
+              AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)
             """,
             (
                 payload["account_id"],
@@ -1663,16 +1691,26 @@ def update_holding(payload):
                 payload["price"],
                 payload["notes"],
                 payload["id"],
+                user_id,
             ),
         )
         conn.commit()
+        return cursor.rowcount > 0
 
 
-def delete_holding(holding_id):
-    """Delete a single holding (account position) by its id."""
+def delete_holding(holding_id, user_id):
+    """Delete a holding only if it belongs to an account owned by user_id."""
     with get_connection() as conn:
-        conn.execute("DELETE FROM holdings WHERE id = ?", (holding_id,))
+        cursor = conn.execute(
+            """
+            DELETE FROM holdings
+            WHERE id = ?
+              AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)
+            """,
+            (holding_id, user_id),
+        )
         conn.commit()
+        return cursor.rowcount > 0
 
 
 def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int) -> None:
@@ -1923,13 +1961,14 @@ def create_budget_item(payload, user_id):
         return cursor.lastrowid
 
 
-def update_budget_item(payload):
+def update_budget_item(payload, user_id):
+    """Update a budget item, scoped to user_id."""
     with get_connection() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             UPDATE budget_items
             SET name = ?, section = ?, default_amount = ?, linked_account_id = ?, notes = ?
-            WHERE id = ?
+            WHERE id = ? AND user_id = ?
             """,
             (
                 payload["name"],
@@ -1938,15 +1977,22 @@ def update_budget_item(payload):
                 payload.get("linked_account_id"),
                 payload.get("notes", ""),
                 payload["id"],
+                user_id,
             ),
         )
         conn.commit()
+        return cursor.rowcount > 0
 
 
-def delete_budget_item(item_id):
+def delete_budget_item(item_id, user_id):
+    """Soft-delete a budget item, scoped to user_id."""
     with get_connection() as conn:
-        conn.execute("UPDATE budget_items SET is_active = 0 WHERE id = ?", (item_id,))
+        cursor = conn.execute(
+            "UPDATE budget_items SET is_active = 0 WHERE id = ? AND user_id = ?",
+            (item_id, user_id),
+        )
         conn.commit()
+        return cursor.rowcount > 0
 
 
 def delete_budget_items_by_section(section_key, user_id):

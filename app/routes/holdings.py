@@ -132,7 +132,7 @@ def api_save_price():
     units = float(data.get("units", 0))
     holding_catalogue_id = data.get("holding_catalogue_id")
 
-    update_holding({
+    ok = update_holding({
         "id": holding_id,
         "account_id": int(data.get("account_id", 0)),
         "holding_catalogue_id": holding_catalogue_id,
@@ -144,7 +144,9 @@ def api_save_price():
         "units": units,
         "price": price,
         "notes": data.get("notes", ""),
-    })
+    }, current_user.id)
+    if not ok:
+        return jsonify({"error": "holding not found"}), 404
 
     price_source = (data.get("price_source") or "").strip().lower()
     currency_raw = (data.get("currency_raw") or "").strip() or None
