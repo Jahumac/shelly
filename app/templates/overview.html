@@ -93,7 +93,7 @@
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
 {% include '_month_strip.html' %}
 
-{# ── Hero ─────────────────────────────────────────────────────────────────── #}
+{# ── Hero: Net Worth + Key Stats ─────────────────────────────────────────── #}
 <section class="card highlight mb-1 month-accent-{{ current_month_num }}">
   <div class="hero-top">
     <div>
@@ -105,7 +105,6 @@
       <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
-
   <div class="hero-strip">
     {% call hero_stat('Monthly contributions') %}<strong>£{{ '{:,.0f}'.format(metrics.monthly_total) }}</strong>{% endcall %}
     {% call hero_stat('Projected at retirement') %}<strong>£{{ '{:,.0f}'.format(metrics.projected_total) }}</strong>{% endcall %}
@@ -115,39 +114,40 @@
       {% call hero_stat('Goal progress') %}<strong>{{ '{:.1f}'.format(metrics.goal_progress * 100) }}%</strong>{% endcall %}
     {% endif %}
   </div>
+</section>
 
-  {# Portfolio chart #}
-  <div class="mt-125">
-    <div class="flex flex-between flex-center mb-075">
-      <p class="chart-label">Portfolio Value</p>
-      <div class="period-selector flex gap-05">
-        <button class="period-btn" data-period="1D">1D</button>
-        <button class="period-btn" data-period="1M">1M</button>
-        <button class="period-btn" data-period="6M">6M</button>
-        <button class="period-btn" data-period="1Y">1Y</button>
-        <button class="period-btn active" data-period="ALL">ALL</button>
-      </div>
+{# ── Portfolio Value ───────────────────────────────────────────────────────── #}
+<section class="card mb-1">
+  <div class="section-header mb-075">
+    <p class="chart-label m-0">Portfolio Value</p>
+    <div class="period-selector flex gap-05">
+      <button class="period-btn" data-period="1D">1D</button>
+      <button class="period-btn" data-period="1M">1M</button>
+      <button class="period-btn" data-period="6M">6M</button>
+      <button class="period-btn" data-period="1Y">1Y</button>
+      <button class="period-btn active" data-period="ALL">ALL</button>
     </div>
-    <div class="chart-wrap chart-wrap-sm">
-      <canvas id="dailyPortfolioChart" role="img" aria-label="Daily portfolio value chart"></canvas>
-    </div>
-    <p id="portfolio-chart-error" class="helper-text mt-05 hidden"></p>
-    <div id="chartStats" class="flex flex-between mt-075" style="font-size:0.9rem;">
-      <div>
-        <p class="text-muted m-0">Latest Value</p>
-        <p id="latestValue" class="m-0 text-bold"></p>
-      </div>
-      <div class="text-right">
-        <p class="text-muted m-0">Change</p>
-        <p id="changeValue" class="m-0 text-bold"></p>
-      </div>
-    </div>
-    {% if daily_labels | length == 0 %}
-    <p class="helper-text mt-05">No daily snapshots yet — hit ↻ Refresh to save your first point.</p>
-    {% elif daily_labels | length == 1 %}
-    <p class="helper-text mt-05">One snapshot so far — Shelly will draw a proper line once there are two days of data.</p>
-    {% endif %}
   </div>
+
+  <div class="chart-wrap chart-wrap-sm">
+    <canvas id="dailyPortfolioChart" role="img" aria-label="Daily portfolio value chart"></canvas>
+  </div>
+  <p id="portfolio-chart-error" class="helper-text mt-05 hidden"></p>
+  <div id="chartStats" class="flex flex-between mt-075" style="font-size:0.9rem;">
+    <div>
+      <p class="text-muted m-0">Latest Value</p>
+      <p id="latestValue" class="m-0 text-bold"></p>
+    </div>
+    <div class="text-right">
+      <p class="text-muted m-0">Change</p>
+      <p id="changeValue" class="m-0 text-bold"></p>
+    </div>
+  </div>
+  {% if daily_labels | length == 0 %}
+  <p class="helper-text mt-05">No daily snapshots yet — hit ↻ Refresh to save your first point.</p>
+  {% elif daily_labels | length == 1 %}
+  <p class="helper-text mt-05">One snapshot so far — Shelly will draw a proper line once there are two days of data.</p>
+  {% endif %}
 
   {% if daily_labels | length < 2 and history_labels | length >= 2 %}
   <div class="mt-125">
@@ -166,20 +166,15 @@
   </p>
   {% endif %}
 
-  {# Last updated indicator #}
-  <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+  <div class="section-footer mt-1">
     <div>
-      <p class="text-muted m-0" style="font-size:0.9rem;">Prices last updated</p>
+      <p class="text-muted m-0 text-sm-2">Prices last updated</p>
       <p class="m-0 text-bold">
         {% if last_price_update_display %}{{ last_price_update_display }}{% elif last_price_update %}{{ last_price_update[:16] }}{% elif last_snapshot_date %}{{ last_snapshot_date }}{% else %}Never{% endif %}
       </p>
     </div>
     <div class="flex flex-center gap-075">
-      {% if assumptions and assumptions.auto_update_prices %}
-      <p class="text-muted m-0 text-sm-2">Auto-update: On</p>
-      {% else %}
-      <p class="text-muted m-0 text-sm-2">Auto-update: Off</p>
-      {% endif %}
+      <p class="text-muted m-0 text-sm-2">Auto-update: {{ 'On' if assumptions and assumptions.auto_update_prices else 'Off' }}</p>
       <form method="post" action="/holdings/trigger-price-update" class="form-reset">
         <button type="submit" class="badge badge-meta" title="Fetch latest prices now">↻ Refresh</button>
       </form>
