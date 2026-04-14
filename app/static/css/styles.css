@@ -408,6 +408,10 @@ nav a.active {
   border-radius: 999px;
 }
 
+.progress-bar.progress-bar-danger {
+  background: linear-gradient(90deg, var(--danger), var(--accent-6));
+}
+
 /* ─────────────────────────────────────────────────────────────────────
    Badge variants — pick by semantic role, not by colour:
      .badge                 default pill (neutral secondary action)

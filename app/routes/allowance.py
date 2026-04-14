@@ -217,12 +217,13 @@ def add_cgt():
     cost_basis = request.form.get("cost_basis", type=float)
     disposal_date = request.form.get("disposal_date") or datetime.now().date().isoformat()
     note = request.form.get("note", "").strip() or None
+    account_id = request.form.get("account_id", type=int) or None
 
     if not asset_name or proceeds is None or cost_basis is None or proceeds < 0 or cost_basis < 0:
         flash("Please fill in all required fields.", "error")
         return redirect(url_for("allowance.allowance_overview") + "#cgt")
 
-    add_cgt_disposal(uid, disposal_date, asset_name, proceeds, cost_basis, note)
+    add_cgt_disposal(uid, disposal_date, asset_name, proceeds, cost_basis, note, account_id)
     gain = proceeds - cost_basis
     flash(f"Recorded disposal of {asset_name} — {'gain' if gain >= 0 else 'loss'} of £{abs(gain):,.2f}.", "success")
     return redirect(url_for("allowance.allowance_overview") + "#cgt")

@@ -14,61 +14,52 @@
     <div>
       <p class="eyebrow">Tax Year {{ tax_year }}</p>
       <h2 class="hero-value">Allowances</h2>
-      <p class="hero-subtitle">Track ISA, LISA, pension and dividends across all accounts</p>
+      <p class="hero-subtitle">Track ISA, LISA, pension, dividends and capital gains across all accounts</p>
     </div>
     <div class="hero-turtle-wrap">
-      <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
+      <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
 </section>
 
-{# ── Allowance Summary ──────────────────────────────────────────────────── #}
-<section class="card-grid allowance-grid mb-1">
-  <div class="card allowance-card">
-    <h2>ISA Allowance</h2>
-    <p>£{{ '{:,.0f}'.format(usage.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(isa_allowance) }}</span></p>
-    <div class="progress" role="progressbar" aria-valuenow="{{ (isa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="ISA allowance used"><div class="progress-bar" data-pct="{{ (isa_progress * 100)|round(1) }}"></div></div>
-    <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
-    {% if usage.projected_isa != usage.isa_used %}
-    <small class="block mt-025 text-muted">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
-    {% endif %}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# ISA & LISA                                                                #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Tax-Free Wrappers</p>
+      <h3>ISA &amp; LISA</h3>
+    </div>
   </div>
-  <div class="card allowance-card">
-    <h2>LISA Allowance</h2>
-    <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
-    <div class="progress" role="progressbar" aria-valuenow="{{ (lisa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="LISA allowance used"><div class="progress-bar" data-pct="{{ (lisa_progress * 100)|round(1) }}"></div></div>
-    <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
-    {% if usage.lisa_used > 0 %}
-    <small class="block mt-025" style="color:var(--accent-3)">⚠ Withdrawing before age 60 (except for a first home purchase) incurs a 25% government penalty — you'd lose more than just the bonus.</small>
-    {% endif %}
-  </div>
-  <div class="card allowance-card">
-    <h2>Pension Annual Allowance</h2>
-    <p>£{{ '{:,.0f}'.format(pension_usage.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</span></p>
-    <div class="progress" role="progressbar" aria-valuenow="{{ (pension_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Pension allowance used"><div class="progress-bar" data-pct="{{ (pension_progress * 100)|round(1) }}"></div></div>
-    <small>
-      {{ '{:.1f}'.format(pension_progress * 100) }}% used
-      · Personal tax-relief limit: £{{ '{:,.0f}'.format(pension_limits.personal_relief_limit) }}
-    </small>
-    {% if pension_usage.projected_total != pension_usage.pension_used %}
-    <small class="block mt-025 text-muted">
-      On track: £{{ '{:,.0f}'.format(pension_usage.projected_total) }} / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }} by end of tax year
-    </small>
-    {% endif %}
-  </div>
-  <div class="card allowance-card">
-    <h2>Dividend Allowance</h2>
-    <p>£{{ '{:,.0f}'.format(dividend_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(dividend_allowance) }}</span></p>
-    <div class="progress" role="progressbar" aria-valuenow="{{ (dividend_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Dividend allowance used"><div class="progress-bar" data-pct="{{ (dividend_progress * 100)|round(1) }}"></div></div>
-    <small>{{ '{:.1f}'.format(dividend_progress * 100) }}% used · taxable accounts only</small>
+  <p class="helper-text mb-1">Growth, income and gains inside these wrappers are completely tax-free. No CGT, no dividend tax, no income tax.</p>
+  <div class="allowance-grid mb-1">
+    <div class="card allowance-card">
+      <h2>ISA Allowance</h2>
+      <p>£{{ '{:,.0f}'.format(usage.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(isa_allowance) }}</span></p>
+      <div class="progress" role="progressbar" aria-valuenow="{{ (isa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="ISA allowance used"><div class="progress-bar" data-pct="{{ (isa_progress * 100)|round(1) }}"></div></div>
+      <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
+      {% if usage.projected_isa != usage.isa_used %}
+      <small class="block mt-025 text-muted">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
+      {% endif %}
+    </div>
+    <div class="card allowance-card">
+      <h2>LISA Allowance</h2>
+      <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
+      <div class="progress" role="progressbar" aria-valuenow="{{ (lisa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="LISA allowance used"><div class="progress-bar" data-pct="{{ (lisa_progress * 100)|round(1) }}"></div></div>
+      <small>{{ '{:.1f}'.format(lisa_progress * 100) }}% used</small>
+      {% if usage.lisa_used > 0 %}
+      <small class="block mt-025" style="color:var(--accent-3)">⚠ Withdrawing before age 60 (except for a first home purchase) incurs a 25% government penalty — you'd lose more than just the bonus.</small>
+      {% endif %}
+    </div>
   </div>
 </section>
 
-{# ── How it's calculated ────────────────────────────────────────────────── #}
+{# ── ISA contributions breakdown ─────────────────────────────────────────── #}
 <section class="card mb-1">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Contributions</p>
+      <p class="eyebrow">ISA Contributions</p>
       <h2>Breakdown</h2>
     </div>
   </div>
@@ -119,16 +110,16 @@
   {% endif %}
 </section>
 
-{# ── Record a top-up ────────────────────────────────────────────────────── #}
+{# ── Record a one-off ISA top-up ─────────────────────────────────────────── #}
 <section class="card mb-1" id="topup">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Ad-hoc Transfer</p>
+      <p class="eyebrow">One-off Investment</p>
       <h2>Record a Top-up</h2>
     </div>
   </div>
   <p class="helper-text mb-1">
-    Made a one-off transfer into an ISA outside your regular monthly contribution? Log it here so Shelly can keep your allowance accurate.
+    Made a lump-sum payment into an ISA outside your regular monthly contribution? Log it here so Shelly keeps your allowance accurate.
   </p>
   {% if isa_accounts %}
   <form method="post" action="/allowance/add" class="settings-form">
@@ -153,7 +144,7 @@
       </label>
       <label class="form-full-col">
         <span>Note (optional)</span>
-        <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
+        <input type="text" name="note" placeholder="e.g. Bonus payment into S&amp;S ISA">
       </label>
     </div>
     <div class="row-end mt-1">
@@ -161,11 +152,11 @@
     </div>
   </form>
   {% else %}
-  <p class="helper-text">You don't have any ISA accounts yet. Create one under <a href="/accounts/">Accounts</a> first.</p>
+  <p class="helper-text">You don't have any ISA accounts yet. <a href="/accounts/?mode=create" class="link-accent">Create one</a> first.</p>
   {% endif %}
 </section>
 
-{# ── Top-up history ─────────────────────────────────────────────────────── #}
+{# ── ISA top-up history ──────────────────────────────────────────────────── #}
 {% if contributions %}
 <section class="card mb-1">
   <div class="section-header">
@@ -204,7 +195,36 @@
 </section>
 {% endif %}
 
-{# ── Pension breakdown ──────────────────────────────────────────────────── #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# PENSION                                                                   #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Tax-Advantaged</p>
+      <h3>Pension</h3>
+    </div>
+  </div>
+  <p class="helper-text mb-1">Contributions grow free of CGT and income tax. You get tax relief on the way in; income tax applies on the way out in retirement.</p>
+  <div class="allowance-grid mb-1" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+    <div class="card allowance-card">
+      <h2>Annual Allowance</h2>
+      <p>£{{ '{:,.0f}'.format(pension_usage.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</span></p>
+      <div class="progress" role="progressbar" aria-valuenow="{{ (pension_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Pension allowance used"><div class="progress-bar" data-pct="{{ (pension_progress * 100)|round(1) }}"></div></div>
+      <small>
+        {{ '{:.1f}'.format(pension_progress * 100) }}% used
+        · Personal tax-relief limit: £{{ '{:,.0f}'.format(pension_limits.personal_relief_limit) }}
+      </small>
+      {% if pension_usage.projected_total != pension_usage.pension_used %}
+      <small class="block mt-025 text-muted">
+        On track: £{{ '{:,.0f}'.format(pension_usage.projected_total) }} / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }} by end of tax year
+      </small>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+{# ── Pension breakdown ───────────────────────────────────────────────────── #}
 <section class="card mb-1">
   <div class="section-header">
     <div>
@@ -213,7 +233,7 @@
     </div>
   </div>
   <p class="helper-text mb-1">
-    Shelly totals your pension contributions from regular payments so far (based on each account’s posting day, or your salary day)
+    Shelly totals your pension contributions from regular payments so far (based on each account's posting day, or your salary day)
     plus any one-off contributions you record below.
   </p>
   {% if pension_usage.breakdown %}
@@ -269,7 +289,7 @@
 <section class="card mb-1" id="pension">
   <div class="section-header">
     <div>
-      <p class="eyebrow">Ad-hoc Contribution</p>
+      <p class="eyebrow">One-off Contribution</p>
       <h2>Record a Pension Payment</h2>
     </div>
   </div>
@@ -311,7 +331,7 @@
     </div>
   </form>
   {% else %}
-  <p class="helper-text">You don't have any pension accounts yet. Create one under <a href="/accounts/">Accounts</a> first.</p>
+  <p class="helper-text">You don't have any pension accounts yet. <a href="/accounts/?mode=create" class="link-accent">Create one</a> first.</p>
   {% endif %}
 </section>
 
@@ -356,7 +376,42 @@
 </section>
 {% endif %}
 
-<section class="card mb-1">
+{# ══════════════════════════════════════════════════════════════════════════ #}
+{# TAXABLE ALLOWANCES (GIA)                                                  #}
+{# ══════════════════════════════════════════════════════════════════════════ #}
+<section class="panel mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Taxable Accounts</p>
+      <h3>Annual Allowances</h3>
+    </div>
+  </div>
+  <p class="helper-text mb-1">These apply to investments held in a General Investment Account (GIA). Once either limit is exceeded, you may owe tax — declare it on your Self Assessment.</p>
+  <div class="allowance-grid mb-1">
+    <div class="card allowance-card">
+      <h2>Dividend Allowance</h2>
+      <p>£{{ '{:,.0f}'.format(dividend_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(dividend_allowance) }}</span></p>
+      <div class="progress" role="progressbar" aria-valuenow="{{ (dividend_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Dividend allowance used"><div class="progress-bar" data-pct="{{ (dividend_progress * 100)|round(1) }}"></div></div>
+      <small>{{ '{:.1f}'.format(dividend_progress * 100) }}% used · GIA accounts only</small>
+    </div>
+    <div class="card allowance-card">
+      <h2>CGT Exemption</h2>
+      <p>£{{ '{:,.0f}'.format(cgt_net) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(cgt_annual_exemption) }}</span></p>
+      {% set _cgt_pct = [[(cgt_net / cgt_annual_exemption * 100)|round(1), 0]|max, 100]|min %}
+      <div class="progress" role="progressbar" aria-valuenow="{{ _cgt_pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="CGT exemption used"><div class="progress-bar {% if cgt_over_exemption > 0 %}progress-bar-danger{% endif %}" data-pct="{{ _cgt_pct }}"></div></div>
+      <small>
+        {% if cgt_over_exemption > 0 %}
+        ⚠ Over by £{{ '{:,.0f}'.format(cgt_over_exemption) }} — declare on Self Assessment
+        {% else %}
+        £{{ '{:,.0f}'.format(cgt_remaining) }} remaining · net gains only
+        {% endif %}
+      </small>
+    </div>
+  </div>
+</section>
+
+{# ── Record dividend income ───────────────────────────────────────────────── #}
+<section class="card mb-1" id="dividends">
   <div class="section-header">
     <div>
       <p class="eyebrow">Dividends</p>
@@ -394,7 +449,7 @@
     </div>
   </form>
   {% else %}
-  <p class="helper-text">No taxable (non-ISA, non-pension) accounts found. Create one under <a href="/accounts/">Accounts</a>.</p>
+  <p class="helper-text">No taxable (GIA) accounts found. <a href="/accounts/?mode=create" class="link-accent">Create one</a> first.</p>
   {% endif %}
 </section>
 
@@ -436,51 +491,33 @@
 </section>
 {% endif %}
 
-{# ── Capital Gains Tax ───────────────────────────────────────────────────── #}
+{# ── Capital Gains Tracker ────────────────────────────────────────────────── #}
 <section class="card mb-1" id="cgt">
   <div class="section-header">
     <div>
       <p class="eyebrow">Capital Gains</p>
-      <h2>CGT Tracker</h2>
+      <h2>Record a Disposal</h2>
     </div>
   </div>
   <p class="helper-text mb-1">
-    Record disposals from taxable accounts (GIA) to track your annual CGT exemption (£{{ '{:,.0f}'.format(cgt_annual_exemption) }} for {{ tax_year }}).
+    Log asset sales from your GIA to track gains and losses against the £{{ '{:,.0f}'.format(cgt_annual_exemption) }} annual exemption.
     Gains inside an ISA or pension are not subject to CGT.
   </p>
 
   {% if cgt_disposals %}
-  <div class="hero-strip mb-1" style="margin-bottom:0.75rem;">
-    <div class="hero-stat">
-      <span class="hero-stat-label">Total gains</span>
-      <span class="hero-stat-value {% if cgt_gains > 0 %}stat-positive-text{% endif %}">£{{ '{:,.0f}'.format(cgt_gains) }}</span>
-    </div>
-    <div class="hero-stat">
-      <span class="hero-stat-label">Total losses</span>
-      <span class="hero-stat-value {% if cgt_losses > 0 %}stat-negative-text{% endif %}">£{{ '{:,.0f}'.format(cgt_losses) }}</span>
-    </div>
-    <div class="hero-stat">
-      <span class="hero-stat-label">Net gain</span>
-      <span class="hero-stat-value {% if cgt_net > 0 %}stat-positive-text{% elif cgt_net < 0 %}stat-negative-text{% endif %}">£{{ '{:,.0f}'.format(cgt_net) }}</span>
-    </div>
-    <div class="hero-stat">
-      <span class="hero-stat-label">Exemption remaining</span>
-      <span class="hero-stat-value">£{{ '{:,.0f}'.format(cgt_remaining) }}</span>
-    </div>
-  </div>
   {% if cgt_over_exemption > 0 %}
   <p class="helper-text mb-1" style="color:var(--danger);">
     ⚠ Your net gains exceed the annual exemption by <strong>£{{ '{:,.2f}'.format(cgt_over_exemption) }}</strong>.
     You may need to declare this on your Self Assessment tax return.
   </p>
   {% endif %}
-
   <div class="table-scroll mb-1">
   <table class="mini-table">
     <thead>
       <tr>
         <th>Date</th>
         <th>Asset</th>
+        <th>Account</th>
         <th class="text-right">Proceeds</th>
         <th class="text-right">Cost basis</th>
         <th class="text-right">Gain / Loss</th>
@@ -494,6 +531,7 @@
       <tr>
         <td>{{ d.disposal_date }}</td>
         <td>{{ d.asset_name }}</td>
+        <td>{{ d.account_name or '–' }}</td>
         <td class="text-right">£{{ '{:,.2f}'.format(d.proceeds) }}</td>
         <td class="text-right">£{{ '{:,.2f}'.format(d.cost_basis) }}</td>
         <td class="text-right {% if gl >= 0 %}stat-positive-text{% else %}stat-negative-text{% endif %}">
@@ -519,6 +557,15 @@
       <label>
         <span>Asset name</span>
         <input type="text" name="asset_name" placeholder="e.g. Vanguard FTSE All-World ETF" required>
+      </label>
+      <label>
+        <span>Account (optional)</span>
+        <select name="account_id">
+          <option value="">— select account —</option>
+          {% for a in taxable_accounts %}
+          <option value="{{ a.id }}">{{ a.name }}{% if a.wrapper_type %} ({{ a.wrapper_type }}){% endif %}</option>
+          {% endfor %}
+        </select>
       </label>
       <label>
         <span>Disposal date</span>

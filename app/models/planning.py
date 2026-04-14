@@ -236,14 +236,14 @@ def delete_dividend_record(record_id, user_id):
 
 # ── CGT disposals ─────────────────────────────────────────────────────────────
 
-def add_cgt_disposal(user_id, disposal_date, asset_name, proceeds, cost_basis, note=None):
+def add_cgt_disposal(user_id, disposal_date, asset_name, proceeds, cost_basis, note=None, account_id=None):
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO cgt_disposals (user_id, disposal_date, asset_name, proceeds, cost_basis, note)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO cgt_disposals (user_id, disposal_date, asset_name, proceeds, cost_basis, note, account_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, disposal_date, asset_name, proceeds, cost_basis, note),
+            (user_id, disposal_date, asset_name, proceeds, cost_basis, note, account_id),
         )
         conn.commit()
 
@@ -252,11 +252,13 @@ def fetch_cgt_disposals(user_id, tax_year_start, tax_year_end):
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT * FROM cgt_disposals
-            WHERE user_id = ?
-              AND disposal_date >= ?
-              AND disposal_date <= ?
-            ORDER BY disposal_date DESC
+            SELECT c.*, a.name AS account_name
+            FROM cgt_disposals c
+            LEFT JOIN accounts a ON a.id = c.account_id
+            WHERE c.user_id = ?
+              AND c.disposal_date >= ?
+              AND c.disposal_date <= ?
+            ORDER BY c.disposal_date DESC
             """,
             (user_id, tax_year_start, tax_year_end),
         ).fetchall()

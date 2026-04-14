@@ -641,11 +641,18 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_api_tokens_token ON api_tokens(token)",
             "CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_cgt_disposals_user ON cgt_disposals(user_id, disposal_date)",
+            "CREATE INDEX IF NOT EXISTS idx_cgt_disposals_account ON cgt_disposals(account_id)",
         ]:
             try:
                 conn.execute(stmt)
             except Exception as e:
                 current_app.logger.warning(f"Index create failed ({stmt.split()[-1]}): {e}")
+
+        # ── cgt_disposals: add optional account_id ───────────────────────────
+        try:
+            conn.execute("ALTER TABLE cgt_disposals ADD COLUMN account_id INTEGER REFERENCES accounts(id)")
+        except Exception:
+            pass
 
         conn.commit()
 
