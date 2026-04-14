@@ -236,7 +236,7 @@ def update_account_balance(account_id):
     update_payload = {k: account[k] for k in account.keys()}
     update_payload["current_value"] = balance
     update_payload["last_updated"] = datetime.now().isoformat()
-    update_account(update_payload)
+    update_account(update_payload, g.api_user.id)
 
     month_key = payload.get("month") or datetime.now().strftime("%Y-%m")
     upsert_monthly_snapshot(account_id, month_key, balance)
@@ -329,7 +329,7 @@ def complete_monthly_review(month_key):
         upsert_monthly_snapshot(acc["id"], month_key, balance)
         snapshots_taken += 1
 
-    update_monthly_review(review["id"], "complete", notes)
+    update_monthly_review(review["id"], "complete", notes, g.api_user.id)
 
     return jsonify({
         "ok": True,

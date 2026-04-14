@@ -129,7 +129,7 @@ def budget():
     if request.method == "POST":
         item_id = request.form.get("item_id", type=int)
         if item_id:
-            upsert_budget_entry(month_key, item_id, _optional_float(request.form.get("amount"), 0.0))
+            upsert_budget_entry(month_key, item_id, _optional_float(request.form.get("amount"), 0.0), uid)
         return redirect(url_for("budget.budget", month=month_key))
 
     sections, summary = _build_monthly_data(month_key, uid)
@@ -184,11 +184,12 @@ def budget():
 @login_required
 def budget_save_entry():
     """AJAX endpoint — save a single budget entry, return JSON."""
+    uid = current_user.id
     month_key = request.form.get("month") or _default_month_key()
     item_id = request.form.get("item_id", type=int)
     amount = _optional_float(request.form.get("amount"), 0.0)
     if item_id:
-        upsert_budget_entry(month_key, item_id, amount)
+        upsert_budget_entry(month_key, item_id, amount, uid)
     return jsonify({"ok": True})
 
 
@@ -331,7 +332,7 @@ def budget_import():
             item_id = matched_item["id"]
 
         # Upsert the entry for this month
-        upsert_budget_entry(month_key, item_id, amount)
+        upsert_budget_entry(month_key, item_id, amount, uid)
         items_imported += 1
 
     msg = f"Imported {items_imported} budget items"

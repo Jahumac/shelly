@@ -299,26 +299,26 @@ def ensure_monthly_review_items(review_id, user_id):
         conn.commit()
 
 
-def update_monthly_review(review_id, status, notes):
-    completed_at = "datetime('now')" if status == "complete" else "NULL"
+def update_monthly_review(review_id, status, notes, user_id=None):
+    user_clause = " AND user_id = ?" if user_id is not None else ""
     with get_connection() as conn:
         if status == "complete":
             conn.execute(
-                """
+                f"""
                 UPDATE monthly_reviews
                 SET status = ?, notes = ?, completed_at = datetime('now'), updated_at = datetime('now')
-                WHERE id = ?
+                WHERE id = ?{user_clause}
                 """,
-                (status, notes, review_id),
+                (status, notes, review_id) if user_id is None else (status, notes, review_id, user_id),
             )
         else:
             conn.execute(
-                """
+                f"""
                 UPDATE monthly_reviews
                 SET status = ?, notes = ?, completed_at = NULL, updated_at = datetime('now')
-                WHERE id = ?
+                WHERE id = ?{user_clause}
                 """,
-                (status, notes, review_id),
+                (status, notes, review_id) if user_id is None else (status, notes, review_id, user_id),
             )
         conn.commit()
 
@@ -713,9 +713,16 @@ def create_contribution_override(payload):
         return cursor.lastrowid
 
 
-def delete_contribution_override(override_id):
+def delete_contribution_override(override_id, user_id=None):
     with get_connection() as conn:
-        conn.execute("DELETE FROM contribution_overrides WHERE id = ?", (override_id,))
+        if user_id is not None:
+            conn.execute(
+                """DELETE FROM contribution_overrides
+                   WHERE id = ? AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)""",
+                (override_id, user_id),
+            )
+        else:
+            conn.execute("DELETE FROM contribution_overrides WHERE id = ?", (override_id,))
         conn.commit()
 
 

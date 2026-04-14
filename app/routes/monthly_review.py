@@ -102,7 +102,8 @@ def monthly_review():
                         "owner": account["owner"],
                         "notes": account["notes"],
                         "last_updated": datetime.now().isoformat(),
-                    }
+                    },
+                    uid,
                 )
                 upsert_monthly_snapshot(account["id"], month_key, new_balance)
         elif form_name == "mark_complete":
@@ -112,7 +113,7 @@ def monthly_review():
             for acc in all_accounts:
                 balance = effective_account_value(acc, holdings_totals)
                 upsert_monthly_snapshot(acc["id"], month_key, balance)
-            update_monthly_review(review["id"], "complete", request.form.get("notes", ""))
+            update_monthly_review(review["id"], "complete", request.form.get("notes", ""), uid)
         return redirect(url_for("monthly_review.monthly_review", month=month_key))
 
     review = fetch_or_create_monthly_review(month_key, uid)

@@ -60,10 +60,12 @@ def fetch_account(account_id, user_id=None):
         ).fetchone()
 
 
-def update_account(payload):
+def update_account(payload, user_id=None):
+    where = "WHERE id = ? AND user_id = ?" if user_id is not None else "WHERE id = ?"
+    params_tail = (payload["id"], user_id) if user_id is not None else (payload["id"],)
     with get_connection() as conn:
         conn.execute(
-            """
+            f"""
             UPDATE accounts
             SET name = ?,
                 provider = ?,
@@ -89,7 +91,7 @@ def update_account(payload):
                 fund_fee_pct = ?,
                 uninvested_cash = ?,
                 cash_interest_rate = ?
-            WHERE id = ?
+            {where}
             """,
             (
                 payload["name"],
@@ -116,18 +118,24 @@ def update_account(payload):
                 payload.get("fund_fee_pct", 0),
                 payload.get("uninvested_cash", 0),
                 payload.get("cash_interest_rate", 0),
-                payload["id"],
+                *params_tail,
             ),
         )
         conn.commit()
 
 
-def delete_account(account_id):
+def delete_account(account_id, user_id=None):
     with get_connection() as conn:
-        conn.execute(
-            "UPDATE accounts SET is_active = 0 WHERE id = ?",
-            (account_id,),
-        )
+        if user_id is not None:
+            conn.execute(
+                "UPDATE accounts SET is_active = 0 WHERE id = ? AND user_id = ?",
+                (account_id, user_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE accounts SET is_active = 0 WHERE id = ?",
+                (account_id,),
+            )
         conn.execute(
             "DELETE FROM holdings WHERE account_id = ?",
             (account_id,),

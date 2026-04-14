@@ -209,8 +209,15 @@ def fetch_months_with_budget_entries(user_id):
         return {r["month_key"] for r in rows}
 
 
-def upsert_budget_entry(month_key, item_id, amount):
+def upsert_budget_entry(month_key, item_id, amount, user_id=None):
     with get_connection() as conn:
+        if user_id is not None:
+            owned = conn.execute(
+                "SELECT 1 FROM budget_items WHERE id = ? AND user_id = ?",
+                (item_id, user_id),
+            ).fetchone()
+            if not owned:
+                return
         conn.execute(
             """
             INSERT INTO budget_entries (month_key, budget_item_id, amount)

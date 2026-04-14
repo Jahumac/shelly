@@ -387,7 +387,7 @@ def account_detail(account_id):
     if request.method == "POST":
         form_name = request.form.get("form_name", "account")
         if form_name == "delete_account":
-            delete_account(account_id)
+            delete_account(account_id, uid)
             return redirect(url_for("accounts.accounts"))
 
         if form_name == "add_override":
@@ -405,12 +405,12 @@ def account_detail(account_id):
             return redirect(url_for("accounts.account_detail", account_id=account_id))
 
         if form_name == "delete_override":
-            delete_contribution_override(int(request.form.get("override_id")))
+            delete_contribution_override(int(request.form.get("override_id")), uid)
             return redirect(url_for("accounts.account_detail", account_id=account_id))
 
         payload = _account_payload_from_form(request.form)
         payload["id"] = account_id
-        update_account(payload)
+        update_account(payload, uid)
         return redirect(url_for("accounts.account_detail", account_id=account_id))
 
     detail_mode = request.args.get("mode", "view")
@@ -490,7 +490,7 @@ def account_add_holding(account_id):
 
     if account["valuation_mode"] != "holdings":
         update_account({**dict(account), "valuation_mode": "holdings",
-                        "last_updated": datetime.now().isoformat()})
+                        "last_updated": datetime.now().isoformat()}, uid)
 
     return redirect(url_for("accounts.account_detail", account_id=account_id))
 
@@ -544,7 +544,7 @@ def account_add_holding_manual(account_id):
 
     if account["valuation_mode"] != "holdings":
         update_account({**dict(account), "valuation_mode": "holdings",
-                        "last_updated": datetime.now().isoformat()})
+                        "last_updated": datetime.now().isoformat()}, uid)
 
     return redirect(url_for("accounts.account_detail", account_id=account_id))
 
@@ -578,7 +578,7 @@ def update_cash(account_id):
     payload.setdefault("uninvested_cash", 0)
     payload.setdefault("cash_interest_rate", 0)
 
-    update_account(payload)
+    update_account(payload, uid)
     holdings_totals = fetch_holding_totals_by_account(uid)
     accounts = fetch_all_accounts(uid)
     total_value = sum(effective_account_value(a, holdings_totals) for a in accounts)

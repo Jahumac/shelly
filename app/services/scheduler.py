@@ -237,7 +237,7 @@ def _accrue_manual_accounts(user_id, accounts):
         if cash_val > 0 and cash_rate > 0:
             update_payload["uninvested_cash"] = cash_val * ((1 + cash_rate) ** days_elapsed)
 
-        update_account(update_payload)
+        update_account(update_payload, user_id)
 
 
 def _run_price_update_for_user(app, user_id, slot_name=None):
