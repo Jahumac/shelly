@@ -823,10 +823,10 @@
                     {% if position.price_updated_at %}<small class="text-muted" style="display:block;margin-top:0.2rem;">{{ position.price_updated_at[:16] }}</small>{% endif %}
                   </td>
                   <td class="num">£{{ '{:,.2f}'.format(position.value or 0) }}</td>
-                  <td class="text-right text-nowrap">
+                  <td class="text-right text-nowrap holdings-actions-cell">
                     <div class="badge-row badge-row-end">
                       <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/edit" id="edit-holding-{{ position.id }}" class="form-reset">
-                        <button type="submit" class="badge badge-meta">Save</button>
+                        <button type="submit" class="badge badge-sm">Save</button>
                       </form>
                       <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
                         <button type="submit"
@@ -834,7 +834,7 @@
                                 data-confirm-title="Remove holding?"
                                 data-confirm-ok="Yes, remove it"
                                 data-confirm-cancel="Keep it"
-                                class="badge badge-danger">Remove</button>
+                                class="badge badge-sm badge-danger">Remove</button>
                       </form>
                     </div>
                   </td>
@@ -869,14 +869,14 @@
                 {% if position.bucket %}<div><span>Bucket</span><strong>{{ position.bucket }}</strong></div>{% endif %}
               </div>
               <div class="holding-card-actions">
-                <button type="submit" form="edit-holding-mob-{{ position.id }}" class="badge badge-meta">Save</button>
+                <button type="submit" form="edit-holding-mob-{{ position.id }}" class="badge badge-sm">Save</button>
                 <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ position.id }}/delete" class="form-reset">
                   <button type="submit"
                           data-confirm="Remove {{ position.holding_name }} from this account?"
                           data-confirm-title="Remove holding?"
                           data-confirm-ok="Yes, remove it"
                           data-confirm-cancel="Keep it"
-                          class="badge badge-danger">Remove</button>
+                          class="badge badge-sm badge-danger">Remove</button>
                 </form>
               </div>
             </div>
