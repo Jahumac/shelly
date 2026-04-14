@@ -3497,7 +3497,13 @@ button.badge-like-button {
   border-radius: 999px;
   padding: 0.25rem;
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+
+.subnav::-webkit-scrollbar { display: none; }
 
 .subnav a {
   padding: 0.4rem 1.1rem;
@@ -3508,6 +3514,14 @@ button.badge-like-button {
   text-decoration: none;
   transition: background 0.15s ease, color 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .subnav a {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
 }
 
 .subnav a:hover {

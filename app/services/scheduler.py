@@ -214,10 +214,18 @@ def _accrue_manual_accounts(user_id, accounts):
             row = fetch_assumptions(user_id)
             rate = to_float(row["annual_growth_rate"]) if row else 0.05
 
-        daily_rate = rate / 365.0
         monthly_contrib = to_float(acc.get("monthly_contribution", 0))
         daily_contrib = (monthly_contrib * 12) / 365.0
-        new_val = current_val * ((1 + daily_rate) ** days_elapsed) + (daily_contrib * days_elapsed)
+
+        # For cash accounts (Cash ISA, savings) use cash_interest_rate to grow
+        # the account value rather than the market growth rate.
+        cash_interest = to_float(acc.get("cash_interest_rate", 0))
+        if cash_interest > 0 and (is_cash_isa or acc.get("category", "").lower() in ("cash", "savings")):
+            effective_rate = cash_interest / 365.0
+        else:
+            effective_rate = rate / 365.0
+
+        new_val = current_val * ((1 + effective_rate) ** days_elapsed) + (daily_contrib * days_elapsed)
 
         update_payload = dict(acc)
         update_payload["current_value"] = new_val
