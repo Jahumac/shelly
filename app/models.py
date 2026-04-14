@@ -1434,9 +1434,10 @@ def fetch_all_holdings(user_id):
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT h.*, a.name AS account_name
+            SELECT h.*, a.name AS account_name, hc.price_updated_at
             FROM holdings h
             JOIN accounts a ON a.id = h.account_id
+            LEFT JOIN holding_catalogue hc ON hc.id = h.holding_catalogue_id
             WHERE a.user_id = ?
             ORDER BY a.name, h.id
             """,

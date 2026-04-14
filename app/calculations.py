@@ -1,4 +1,26 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+PRICE_STALE_AFTER_HOURS = 36  # >36h since last successful fetch ⇒ stale
+
+
+def is_price_stale(price_updated_at, now=None):
+    """Return True if the stored price is older than PRICE_STALE_AFTER_HOURS.
+
+    Clients should render a warning badge; the price itself is still the
+    last known good value (not blanked out).
+    """
+    if not price_updated_at:
+        return True
+    now = now or datetime.now(timezone.utc)
+    for fmt in ("%Y-%m-%d %H:%M UTC", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"):
+        try:
+            ts = datetime.strptime(price_updated_at, fmt)
+            ts = ts.replace(tzinfo=timezone.utc)
+            return (now - ts) > timedelta(hours=PRICE_STALE_AFTER_HOURS)
+        except (ValueError, TypeError):
+            continue
+    return True  # unparseable ⇒ assume stale so users notice
 
 
 def age_from_dob(dob_str, today=None):

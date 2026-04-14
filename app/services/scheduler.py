@@ -68,6 +68,16 @@ def init_scheduler(app):
         args=[app],
     )
 
+    # Daily DB backup at 03:00 UK time. Runs on a live DB via sqlite3.backup().
+    scheduler.add_job(
+        func=_scheduled_backup,
+        trigger=CronTrigger(hour=3, minute=0, timezone='Europe/London'),
+        id='daily_backup',
+        name='Daily SQLite backup',
+        replace_existing=True,
+        args=[app],
+    )
+
     try:
         scheduler.start()
         logger.info("Background scheduler started — checking every 15 min (6am–10pm UK)")
@@ -76,6 +86,22 @@ def init_scheduler(app):
         scheduler = None
 
     return scheduler
+
+
+def _scheduled_backup(app):
+    """Daily DB backup job. Logs and swallows errors — a failed backup must
+    never crash the scheduler loop or affect user traffic."""
+    from pathlib import Path
+
+    from app.services.backups import run_backup
+
+    try:
+        with app.app_context():
+            db_path = Path(app.config["DB_PATH"])
+            data_dir = Path(app.config.get("DATA_DIR", db_path.parent))
+            run_backup(db_path, data_dir)
+    except Exception as e:
+        logger.exception(f"Scheduled backup failed: {e}")
 
 
 def _scheduled_check(app):

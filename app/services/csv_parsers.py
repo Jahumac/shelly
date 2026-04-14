@@ -13,6 +13,60 @@ def _safe_float(value, default=0.0):
         return default
 
 
+def diagnose_parsed_holdings(holdings, raw_row_count):
+    """Produce human-readable warnings about a parsed holdings list.
+
+    Catches silent failure modes that the parsers themselves don't raise on:
+        - holdings with 0 units or 0 value (numeric column missing/misformatted)
+        - huge discrepancy between rows read and holdings returned
+          (wrong broker selected, or column names changed upstream)
+
+    Returns a list of warning strings. Empty list ⇒ everything looks clean.
+    """
+    warnings = []
+
+    zero_unit_rows = [h for h in holdings
+                      if not h.get("units") and not h.get("value")]
+    if zero_unit_rows:
+        names = ", ".join(sorted({h.get("name") or h.get("ticker") or "?"
+                                  for h in zero_unit_rows})[:5])
+        warnings.append(
+            f"{len(zero_unit_rows)} holding(s) parsed with zero units and zero value "
+            f"({names}). The broker's column names may have changed — double-check "
+            f"these rows before applying."
+        )
+
+    if raw_row_count >= 20 and len(holdings) > 0 and len(holdings) < max(1, raw_row_count // 10):
+        warnings.append(
+            f"The file had {raw_row_count} rows but only {len(holdings)} holding(s) "
+            f"were parsed. If that looks wrong, you may have picked the wrong broker format."
+        )
+
+    if raw_row_count > 0 and len(holdings) == 0:
+        # Covered by the "no holdings found" flash already, but be explicit:
+        warnings.append(
+            f"The file had {raw_row_count} rows but none were recognised as holdings. "
+            f"Likely causes: wrong broker selected, missing header row, or "
+            f"an unsupported export variant."
+        )
+
+    return warnings
+
+
+def count_csv_rows(file_bytes):
+    """Count data rows (excluding header) in a CSV. Tolerant of encoding."""
+    try:
+        text = file_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = file_bytes.decode("latin-1", errors="replace")
+    try:
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+        return max(0, len(rows) - 1)  # subtract header
+    except Exception:
+        return 0
+
+
 def parse_trading212(file_bytes):
     """
     Parse a Trading 212 transaction history CSV.

@@ -14,6 +14,7 @@ from functools import wraps
 
 from flask import Blueprint, current_app, g, jsonify, request
 
+from app.calculations import is_price_stale
 from app.models import (
     fetch_account,
     fetch_all_accounts,
@@ -71,6 +72,8 @@ def _account_to_dict(row):
 
 
 def _holding_to_dict(row):
+    keys = set(row.keys())
+    price_updated_at = row["price_updated_at"] if "price_updated_at" in keys else None
     return {
         "id": row["id"],
         "account_id": row["account_id"],
@@ -81,6 +84,8 @@ def _holding_to_dict(row):
         "value": float(row["value"] or 0),
         "units": float(row["units"]) if row["units"] is not None else None,
         "price": float(row["price"]) if row["price"] is not None else None,
+        "price_updated_at": price_updated_at,
+        "is_price_stale": is_price_stale(price_updated_at),
     }
 
 

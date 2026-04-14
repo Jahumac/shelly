@@ -21,6 +21,8 @@ from app.models import (
     upsert_monthly_snapshot,
 )
 from app.services.csv_parsers import (
+    count_csv_rows,
+    diagnose_parsed_holdings,
     match_parsed_to_holdings,
     parse_ajbell,
     parse_freetrade,
@@ -207,6 +209,11 @@ def import_csv():
     if not parsed:
         flash("No holdings found in the CSV. Check you selected the right platform and file.", "error")
         return redirect(url_for("monthly_review.monthly_review"))
+
+    # Surface per-row sanity warnings (parsers themselves raise only on
+    # totally-wrong formats; this catches subtler issues like 0-unit rows).
+    for warning in diagnose_parsed_holdings(parsed, count_csv_rows(file_bytes)):
+        flash(warning, "warning")
 
     existing = fetch_all_holdings(current_user.id)
     matched, csv_only, db_only = match_parsed_to_holdings(parsed, existing)
