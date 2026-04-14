@@ -3833,6 +3833,7 @@ button.badge-like-button {
 /* ── Utility classes (replacing inline styles) ────────────────────────── */
 
 /* Margins — scale: 025/05/075/1/125/15 = 0.25/0.5/0.75/1/1.25/1.5rem */
+.m-0     { margin: 0; }
 .mt-0    { margin-top: 0; }
 .mt-025  { margin-top: 0.25rem; }
 .mt-05   { margin-top: 0.5rem; }
@@ -3844,6 +3845,24 @@ button.badge-like-button {
 .mb-05   { margin-bottom: 0.5rem; }
 .mb-075  { margin-bottom: 0.75rem; }
 .mb-1    { margin-bottom: 1rem; }
+.ml-025  { margin-left: 0.25rem; }
+.ml-05   { margin-left: 0.5rem; }
+.mr-025  { margin-right: 0.25rem; }
+.mr-05   { margin-right: 0.5rem; }
+
+/* Padding — same scale */
+.p-0     { padding: 0; }
+.p-025   { padding: 0.25rem; }
+.p-05    { padding: 0.5rem; }
+.p-075   { padding: 0.75rem; }
+.p-1     { padding: 1rem; }
+.px-05   { padding-left: 0.5rem; padding-right: 0.5rem; }
+.py-025  { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-05   { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+/* Widths */
+.w-full  { width: 100%; }
+.w-auto  { width: auto; }
 
 /* Forms */
 .form-reset    { margin: 0; }
@@ -3853,13 +3872,38 @@ button.badge-like-button {
 /* Text */
 .text-muted   { color: var(--muted); }
 .text-accent  { color: var(--accent); }
+.text-danger  { color: var(--danger); }
+.text-success { color: #86efac; } /* No --success var yet; matches existing JS colour */
 .text-sm      { font-size: 0.8rem; }
 .text-sm-2    { font-size: 0.875rem; }
 .text-xs      { font-size: 0.75rem; }
 .text-right   { text-align: right; }
 .text-center  { text-align: center; }
+.text-left    { text-align: left; }
 .text-bold    { font-weight: 600; }
 .text-nowrap  { white-space: nowrap; }
+
+/* Cursor */
+.cursor-pointer { cursor: pointer; }
+
+/* Period selector buttons (overview chart, potentially others) */
+.period-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.period-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.period-btn:hover:not(.active) {
+  border-color: rgba(56, 189, 248, 0.35);
+}
 
 /* Eyebrow (tiny uppercase label) */
 .eyebrow-label {
@@ -3871,19 +3915,27 @@ button.badge-like-button {
 
 /* Layout */
 .flex          { display: flex; }
+.inline-flex   { display: inline-flex; }
+.grid          { display: grid; }
 .flex-col      { flex-direction: column; }
 .flex-wrap     { flex-wrap: wrap; }
 .flex-center   { align-items: center; }
 .flex-end      { justify-content: flex-end; }
 .flex-between  { justify-content: space-between; }
 .flex-start    { align-items: flex-start; }
+.gap-025       { gap: 0.25rem; }
+.gap-04        { gap: 0.4rem; }
 .gap-05        { gap: 0.5rem; }
 .gap-06        { gap: 0.6rem; }
 .gap-075       { gap: 0.75rem; }
+.gap-1         { gap: 1rem; }
 
 /* Display */
-.hidden   { display: none; }
-.contents { display: contents; }
+.hidden       { display: none; }
+.contents     { display: contents; }
+.inline       { display: inline; }
+.inline-block { display: inline-block; }
+.block        { display: block; }
 
 /* Panel variants */
 .panel-compact   { padding: 1rem; }

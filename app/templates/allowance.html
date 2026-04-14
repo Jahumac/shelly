@@ -31,7 +31,7 @@
     <div class="progress"><div class="progress-bar" data-pct="{{ (isa_progress * 100)|round(1) }}"></div></div>
     <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
     {% if usage.projected_isa != usage.isa_used %}
-    <small style="display:block; margin-top:0.25rem; color:var(--muted);">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
+    <small class="block mt-025 text-muted">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
     {% endif %}
   </div>
   <div class="card allowance-card">
@@ -49,7 +49,7 @@
       · Personal tax-relief limit: £{{ '{:,.0f}'.format(pension_limits.personal_relief_limit) }}
     </small>
     {% if pension_usage.projected_total != pension_usage.pension_used %}
-    <small style="display:block; margin-top:0.25rem; color:var(--muted);">
+    <small class="block mt-025 text-muted">
       On track: £{{ '{:,.0f}'.format(pension_usage.projected_total) }} / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }} by end of tax year
     </small>
     {% endif %}
@@ -70,7 +70,7 @@
       <h2>Breakdown</h2>
     </div>
   </div>
-  <p class="helper-text" style="margin-bottom: 1rem;">
+  <p class="helper-text mb-1">
     Shelly calculates your ISA usage from {{ usage.months }} month{{ 's' if usage.months != 1 }} of regular contributions so far
     ({{ usage.total_months }} months in the full tax year)
     plus any one-off top-ups you record below.
@@ -84,30 +84,30 @@
     <thead>
       <tr>
         <th>Account</th>
-        <th style="text-align:center">Type</th>
-        <th style="text-align:right">Monthly</th>
-        <th style="text-align:right">× {{ usage.months }} mo</th>
-        <th style="text-align:right">Top-ups</th>
-        <th style="text-align:right">Total</th>
+        <th class="text-center">Type</th>
+        <th class="text-right">Monthly</th>
+        <th class="text-right">× {{ usage.months }} mo</th>
+        <th class="text-right">Top-ups</th>
+        <th class="text-right">Total</th>
       </tr>
     </thead>
     <tbody>
       {% for b in usage.breakdown %}
       <tr>
         <td>{{ b.account_name }}</td>
-        <td style="text-align:center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
-        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_contribution) }}</td>
-        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
-        <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(b.monthly_total + b.adhoc_total) }}</strong></td>
+        <td class="text-center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
+        <td class="text-right">£{{ '{:,.0f}'.format(b.monthly_contribution) }}</td>
+        <td class="text-right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
+        <td class="text-right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(b.monthly_total + b.adhoc_total) }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr>
         <td colspan="4"></td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(usage.adhoc_isa) }}</strong></td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(usage.isa_used) }}</strong></td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(usage.adhoc_isa) }}</strong></td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(usage.isa_used) }}</strong></td>
       </tr>
     </tfoot>
   </table>
@@ -125,7 +125,7 @@
       <h2>Record a Top-up</h2>
     </div>
   </div>
-  <p class="helper-text" style="margin-bottom: 1rem;">
+  <p class="helper-text mb-1">
     Made a one-off transfer into an ISA outside your regular monthly contribution? Log it here so Shelly can keep your allowance accurate.
   </p>
   {% if isa_accounts %}
@@ -154,7 +154,7 @@
         <input type="text" name="note" placeholder="e.g. Sold old laptop, put the cash into ISA">
       </label>
     </div>
-    <div class="row-end" style="margin-top: 1rem;">
+    <div class="row-end mt-1">
       <button type="submit">Record top-up</button>
     </div>
   </form>
@@ -177,7 +177,7 @@
       <tr>
         <th>Date</th>
         <th>Account</th>
-        <th style="text-align:right">Amount</th>
+        <th class="text-right">Amount</th>
         <th>Note</th>
         <th></th>
       </tr>
@@ -187,12 +187,12 @@
       <tr>
         <td>{{ c.contribution_date }}</td>
         <td>{{ c.account_name }}</td>
-        <td style="text-align:right">£{{ '{:,.2f}'.format(c.amount) }}</td>
+        <td class="text-right">£{{ '{:,.2f}'.format(c.amount) }}</td>
         <td>{{ c.note or '–' }}</td>
-        <td style="text-align:right">
-          <form method="post" action="/allowance/delete/{{ c.id }}" style="display:inline">
+        <td class="text-right">
+          <form method="post" action="/allowance/delete/{{ c.id }}" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+            <button type="submit" class="badge badge-sm badge-danger cursor-pointer" title="Remove">✕</button>
           </form>
         </td>
       </tr>
@@ -210,7 +210,7 @@
       <h2>Breakdown</h2>
     </div>
   </div>
-  <p class="helper-text" style="margin-bottom: 1rem;">
+  <p class="helper-text mb-1">
     Shelly totals your pension contributions from regular payments so far (based on each account’s posting day, or your salary day)
     plus any one-off contributions you record below.
   </p>
@@ -220,30 +220,30 @@
     <thead>
       <tr>
         <th>Account</th>
-        <th style="text-align:center">Type</th>
-        <th style="text-align:right">Monthly (gross)</th>
-        <th style="text-align:right">Regular to date</th>
-        <th style="text-align:right">One-offs</th>
-        <th style="text-align:right">Total</th>
+        <th class="text-center">Type</th>
+        <th class="text-right">Monthly (gross)</th>
+        <th class="text-right">Regular to date</th>
+        <th class="text-right">One-offs</th>
+        <th class="text-right">Total</th>
       </tr>
     </thead>
     <tbody>
       {% for b in pension_usage.breakdown %}
       <tr>
         <td>{{ b.account_name }}</td>
-        <td style="text-align:center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
-        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
-        <td style="text-align:right">£{{ '{:,.0f}'.format(b.monthly_sum) }} <span class="text-muted">({{ b.months }} mo)</span></td>
-        <td style="text-align:right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(b.monthly_sum + b.adhoc_total) }}</strong></td>
+        <td class="text-center"><span class="badge badge-sm">{{ b.wrapper_type }}</span></td>
+        <td class="text-right">£{{ '{:,.0f}'.format(b.monthly_total) }}</td>
+        <td class="text-right">£{{ '{:,.0f}'.format(b.monthly_sum) }} <span class="text-muted">({{ b.months }} mo)</span></td>
+        <td class="text-right">{% if b.adhoc_total %}£{{ '{:,.0f}'.format(b.adhoc_total) }}{% else %}–{% endif %}</td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(b.monthly_sum + b.adhoc_total) }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr>
         <td colspan="4"></td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(pension_usage.adhoc_total) }}</strong></td>
-        <td style="text-align:right"><strong>£{{ '{:,.0f}'.format(pension_usage.pension_used) }}</strong></td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(pension_usage.adhoc_total) }}</strong></td>
+        <td class="text-right"><strong>£{{ '{:,.0f}'.format(pension_usage.pension_used) }}</strong></td>
       </tr>
     </tfoot>
   </table>
@@ -294,7 +294,7 @@
         <input type="text" name="note" placeholder="e.g. Bonus into SIPP">
       </label>
     </div>
-    <div class="row-end" style="margin-top: 1rem;">
+    <div class="row-end mt-1">
       <button type="submit">Record contribution</button>
     </div>
   </form>
@@ -318,7 +318,7 @@
         <th>Date</th>
         <th>Account</th>
         <th>Type</th>
-        <th style="text-align:right">Amount</th>
+        <th class="text-right">Amount</th>
         <th>Note</th>
         <th></th>
       </tr>
@@ -329,12 +329,12 @@
         <td>{{ c.contribution_date }}</td>
         <td>{{ c.account_name }}</td>
         <td><span class="badge badge-sm">{{ (c.kind or 'personal')|capitalize }}</span></td>
-        <td style="text-align:right">£{{ '{:,.2f}'.format(c.amount) }}</td>
+        <td class="text-right">£{{ '{:,.2f}'.format(c.amount) }}</td>
         <td>{{ c.note or '–' }}</td>
-        <td style="text-align:right">
-          <form method="post" action="/allowance/pension/delete/{{ c.id }}" style="display:inline">
+        <td class="text-right">
+          <form method="post" action="/allowance/pension/delete/{{ c.id }}" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+            <button type="submit" class="badge badge-sm badge-danger cursor-pointer" title="Remove">✕</button>
           </form>
         </td>
       </tr>
@@ -397,7 +397,7 @@
       <tr>
         <th>Date</th>
         <th>Account</th>
-        <th style="text-align:right">Amount</th>
+        <th class="text-right">Amount</th>
         <th>Note</th>
         <th></th>
       </tr>
@@ -407,12 +407,12 @@
       <tr>
         <td>{{ d.dividend_date }}</td>
         <td>{{ d.account_name }}</td>
-        <td style="text-align:right">£{{ '{:,.2f}'.format(d.amount) }}</td>
+        <td class="text-right">£{{ '{:,.2f}'.format(d.amount) }}</td>
         <td>{{ d.note or '–' }}</td>
-        <td style="text-align:right">
-          <form method="post" action="/allowance/dividend/delete/{{ d.id }}" style="display:inline">
+        <td class="text-right">
+          <form method="post" action="/allowance/dividend/delete/{{ d.id }}" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="badge badge-sm badge-danger" style="cursor:pointer;" title="Remove">✕</button>
+            <button type="submit" class="badge badge-sm badge-danger cursor-pointer" title="Remove">✕</button>
           </form>
         </td>
       </tr>

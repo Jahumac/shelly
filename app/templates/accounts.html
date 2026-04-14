@@ -258,8 +258,8 @@
                 <input type="text" data-new-tag-input aria-label="New custom tag name"
                        placeholder="Add custom tag…"
                        style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
-                <button type="button" class="badge badge-outline" data-add-tag-btn
-                        aria-label="Add custom tag" style="white-space:nowrap;">+ Add</button>
+                <button type="button" class="badge badge-outline text-nowrap" data-add-tag-btn
+                        aria-label="Add custom tag">+ Add</button>
               </div>
             </label>
             <label>
@@ -324,8 +324,8 @@
             <label class="form-full-col"><span>Notes</span><input type="text" name="notes" value="{{ selected.notes or '' }}"></label>
           </div>
           {# ── Advanced: Fees (below the main form grid) ─────────── #}
-          <details class="fee-details" style="margin-top:1rem;" {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}open{% endif %}>
-            <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
+          <details class="fee-details mt-1" {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}open{% endif %}>
+            <summary class="badge badge-outline cursor-pointer">Advanced: Fees</summary>
             <div class="fee-fields">
               <label>
                 <span>Platform fee (%)</span>
@@ -349,7 +349,7 @@
               </label>
             </div>
             <input type="hidden" name="annual_fee_pct" value="0">
-            <small class="form-hint" style="color:var(--muted); display:block; margin-top:0.5rem;">All optional — Shelly combines these into one effective fee and subtracts it from your growth rate.</small>
+            <small class="form-hint text-muted block mt-05">All optional — Shelly combines these into one effective fee and subtracts it from your growth rate.</small>
           </details>
           <div class="badge-row mt-1">
             <button type="submit">Save account</button>
@@ -424,7 +424,7 @@
         {% if selected.platform_fee_pct or selected.platform_fee_flat or selected.fund_fee_pct %}
         <div class="acct-detail-stat">
           <span>Platform fee</span>
-          <strong style="color:var(--danger, #f87171);">
+          <strong class="text-danger">
             {%- if selected.platform_fee_pct %}{{ '{:.3f}'.format(selected.platform_fee_pct) }}%{% if selected.platform_fee_cap %} (capped £{{ '{:,.0f}'.format(selected.platform_fee_cap) }}/yr){% endif %}{% endif %}
             {%- if selected.platform_fee_flat %}{% if selected.platform_fee_pct %} + {% endif %}£{{ '{:,.0f}'.format(selected.platform_fee_flat) }}/yr{% endif %}
             {%- if not selected.platform_fee_pct and not selected.platform_fee_flat %}0%{% endif %}
@@ -432,12 +432,12 @@
         </div>
         <div class="acct-detail-stat">
           <span>Fund fee (OCF)</span>
-          <strong style="color:var(--danger, #f87171);">{{ '{:.3f}'.format(selected.fund_fee_pct or 0) }}%</strong>
+          <strong class="text-danger">{{ '{:.3f}'.format(selected.fund_fee_pct or 0) }}%</strong>
         </div>
         {% elif selected.annual_fee_pct %}
         <div class="acct-detail-stat">
           <span>Annual fee</span>
-          <strong style="color:var(--danger, #f87171);">{{ '{:.3f}'.format(selected.annual_fee_pct) }}%</strong>
+          <strong class="text-danger">{{ '{:.3f}'.format(selected.annual_fee_pct) }}%</strong>
         </div>
         {% endif %}
         <div class="acct-detail-stat">
@@ -656,7 +656,7 @@
         <div class="chart-wrap chart-wrap-sm">
           <canvas id="acctMonthlyChart" role="img" aria-label="Monthly account value chart" data-labels='{{ account_monthly_labels | tojson | safe }}' data-values='{{ account_monthly_values | tojson | safe }}'></canvas>
         </div>
-        <p id="acct-chart-error" class="helper-text mt-05" style="display:none;"></p>
+        <p id="acct-chart-error" class="helper-text mt-05 hidden"></p>
 
         <script>
         (function () {
@@ -796,11 +796,11 @@
           <form method="post" action="/accounts/{{ selected.id }}/cash" class="form-reset" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
             <div style="flex:1; min-width: 10rem;">
               <label class="text-sm text-muted uppercase">Uninvested Cash (£)</label>
-              <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025" style="width:100%;" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
+              <input type="number" step="any" name="uninvested_cash" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format(selected.uninvested_cash or 0) }}">
             </div>
             <div style="flex:1; min-width: 10rem;">
               <label class="text-sm text-muted uppercase">Cash Interest Rate (%)</label>
-              <input type="number" step="any" name="cash_interest_rate" class="input-standard mt-025" style="width:100%;" value="{{ '{:.2f}'.format((selected.cash_interest_rate or 0) * 100) }}">
+              <input type="number" step="any" name="cash_interest_rate" class="input-standard mt-025 w-full" value="{{ '{:.2f}'.format((selected.cash_interest_rate or 0) * 100) }}">
             </div>
             <div>
               <button type="submit" class="badge badge-meta">Save Cash Balance</button>
@@ -936,7 +936,7 @@
           {# Mode B: manual / custom holding #}
           <div id="ah-mode-manual" class="hidden">
             <form method="post" action="/accounts/{{ selected.id }}/holdings/add-manual" id="add-manual-form">
-              <div class="add-holding-fields" style="flex-wrap:wrap;gap:0.6rem;">
+              <div class="add-holding-fields flex-wrap gap-06">
                 <div class="add-holding-field" style="flex:1;min-width:12rem;">
                   <label for="am-name">Fund / holding name</label>
                   <input type="text" id="am-name" name="name" class="input-full"
@@ -974,11 +974,11 @@
                 <button type="submit" class="badge badge-primary-action add-holding-submit">Add</button>
               </div>
             </form>
-            <button type="button" id="ah-switch-ticker" class="btn-link text-sm text-muted" style="margin-top:0.5rem;">
+            <button type="button" id="ah-switch-ticker" class="btn-link text-sm text-muted mt-05">
               ← Search by ticker instead
             </button>
           </div>
-          <div style="margin-top:0.5rem;">
+          <div class="mt-05">
             <button type="button" id="ah-cancel" class="badge badge-meta">✕ Cancel</button>
           </div>
         </div>
@@ -1248,8 +1248,8 @@
           </label>
         </div>
         {# ── Advanced: Fees (collapsible, below the main grid) ────── #}
-        <details class="fee-details" style="margin-top:1rem;">
-          <summary class="badge badge-outline" style="cursor:pointer;">Advanced: Fees</summary>
+        <details class="fee-details mt-1">
+          <summary class="badge badge-outline cursor-pointer">Advanced: Fees</summary>
           <div class="fee-fields">
             <label>
               <span>Platform fee (%)</span>
@@ -1273,7 +1273,7 @@
             </label>
           </div>
           <input type="hidden" name="annual_fee_pct" value="0">
-          <small class="form-hint" style="color:var(--muted); display:block; margin-top:0.5rem;">All optional — Shelly combines these into one effective fee. You can always add these later.</small>
+          <small class="form-hint text-muted block mt-05">All optional — Shelly combines these into one effective fee. You can always add these later.</small>
         </details>
         <div class="cw-actions">
           <button type="button" class="badge" data-cw-prev>Back</button>
@@ -1313,7 +1313,7 @@
         </div>
 
         <div class="cw-holding-form hidden" id="cw-manual-form">
-          <div class="add-holding-fields" style="flex-wrap:wrap;gap:0.6rem;">
+          <div class="add-holding-fields flex-wrap gap-06">
             <div class="add-holding-field" style="flex:1;min-width:12rem;">
               <label>Fund / holding name</label>
               <input type="text" id="cw-m-name" class="input-full" placeholder="e.g. Nest Higher Risk Fund">
@@ -1436,8 +1436,8 @@
               <input type="text" data-new-tag-input aria-label="New custom tag name"
                      placeholder="Add custom tag…"
                      style="flex:1; padding:0.3rem 0.5rem; font-size:0.85rem;">
-              <button type="button" class="badge badge-outline" data-add-tag-btn
-                      aria-label="Add custom tag" style="white-space:nowrap;">+ Add</button>
+              <button type="button" class="badge badge-outline text-nowrap" data-add-tag-btn
+                      aria-label="Add custom tag">+ Add</button>
             </div>
           </label>
           <label><span>Account goal</span><input type="number" step="0.01" name="goal_value" placeholder="Optional target balance"></label>

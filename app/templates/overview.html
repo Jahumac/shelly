@@ -57,7 +57,7 @@
 {# ── Monthly review nudge ────────────────────────────────────────────────── #}
 {% if review_nudge %}
 <section class="card review-nudge mb-1">
-  <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+  <div class="flex flex-center flex-wrap gap-075">
     <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-sm">
     <div style="flex:1; min-width:200px;">
       <strong>Your investments should be settled by now</strong>
@@ -114,28 +114,28 @@
 
   {# Portfolio chart #}
   <div class="mt-125">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+    <div class="flex flex-between flex-center mb-075">
       <p class="chart-label">Portfolio Value</p>
-      <div class="period-selector" style="display: flex; gap: 0.5rem;">
-        <button class="period-btn" data-period="1D" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1D</button>
-        <button class="period-btn" data-period="1M" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1M</button>
-        <button class="period-btn" data-period="6M" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">6M</button>
-        <button class="period-btn" data-period="1Y" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: transparent; cursor: pointer; font-size: 0.85rem;">1Y</button>
-        <button class="period-btn active" data-period="ALL" style="padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--primary); color: white; cursor: pointer; font-size: 0.85rem;">ALL</button>
+      <div class="period-selector flex gap-05">
+        <button class="period-btn" data-period="1D">1D</button>
+        <button class="period-btn" data-period="1M">1M</button>
+        <button class="period-btn" data-period="6M">6M</button>
+        <button class="period-btn" data-period="1Y">1Y</button>
+        <button class="period-btn active" data-period="ALL">ALL</button>
       </div>
     </div>
     <div class="chart-wrap chart-wrap-sm">
       <canvas id="dailyPortfolioChart" role="img" aria-label="Daily portfolio value chart"></canvas>
     </div>
-    <p id="portfolio-chart-error" class="helper-text mt-05" style="display:none;"></p>
-    <div id="chartStats" style="display: flex; justify-content: space-between; margin-top: 0.75rem; font-size: 0.9rem;">
+    <p id="portfolio-chart-error" class="helper-text mt-05 hidden"></p>
+    <div id="chartStats" class="flex flex-between mt-075" style="font-size:0.9rem;">
       <div>
-        <p class="text-muted" style="margin: 0;">Latest Value</p>
-        <p id="latestValue" style="margin: 0; font-weight: 600;"></p>
+        <p class="text-muted m-0">Latest Value</p>
+        <p id="latestValue" class="m-0 text-bold"></p>
       </div>
-      <div style="text-align: right;">
-        <p class="text-muted" style="margin: 0;">Change</p>
-        <p id="changeValue" style="margin: 0; font-weight: 600;"></p>
+      <div class="text-right">
+        <p class="text-muted m-0">Change</p>
+        <p id="changeValue" class="m-0 text-bold"></p>
       </div>
     </div>
     {% if daily_labels | length == 0 %}
@@ -165,16 +165,16 @@
   {# Last updated indicator #}
   <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
     <div>
-      <p class="text-muted" style="margin: 0; font-size: 0.9rem;">Prices last updated</p>
-      <p style="margin: 0; font-weight: 600;">
+      <p class="text-muted m-0" style="font-size:0.9rem;">Prices last updated</p>
+      <p class="m-0 text-bold">
         {% if last_price_update_display %}{{ last_price_update_display }}{% elif last_price_update %}{{ last_price_update[:16] }}{% elif last_snapshot_date %}{{ last_snapshot_date }}{% else %}Never{% endif %}
       </p>
     </div>
-    <div style="display:flex; align-items:center; gap:0.75rem;">
+    <div class="flex flex-center gap-075">
       {% if assumptions and assumptions.auto_update_prices %}
-      <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Auto-update: On</p>
+      <p class="text-muted m-0 text-sm-2">Auto-update: On</p>
       {% else %}
-      <p class="text-muted" style="margin: 0; font-size: 0.85rem;">Auto-update: Off</p>
+      <p class="text-muted m-0 text-sm-2">Auto-update: Off</p>
       {% endif %}
       <form method="post" action="/holdings/trigger-price-update" class="form-reset">
         <button type="submit" class="badge badge-meta" title="Fetch latest prices now">↻ Refresh</button>
@@ -206,11 +206,11 @@
     <div class="progress"><div class="progress-bar" style="width: {{ (metrics.isa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(metrics.isa_progress * 100) }}% used · includes LISA · {{ metrics.tax_year_days_left }} days left in tax year</small>
     {% if metrics.projected_isa != metrics.isa_used %}
-    <small style="display:block; margin-top:0.25rem; color:var(--muted);">On track: £{{ '{:,.0f}'.format(metrics.projected_isa) }} / £{{ '{:,.0f}'.format(metrics.isa_allowance) }} by end of tax year</small>
+    <small class="block mt-025 text-muted">On track: £{{ '{:,.0f}'.format(metrics.projected_isa) }} / £{{ '{:,.0f}'.format(metrics.isa_allowance) }} by end of tax year</small>
     {% endif %}
-    <div style="margin-top: 0.5rem;">
+    <div class="mt-05">
       <a href="/allowance/" class="badge badge-sm">View breakdown</a>
-      <a href="/allowance/#topup" class="badge badge-sm" style="margin-left: 0.25rem;">Record top-up</a>
+      <a href="/allowance/#topup" class="badge badge-sm ml-025">Record top-up</a>
     </div>
   </div>
   <div class="card allowance-card">
@@ -218,9 +218,9 @@
     <p>£{{ '{:,.0f}'.format(metrics.lisa_used) }} <span style="color:var(--muted); font-weight:400; font-size:0.95rem;">/ £{{ '{:,.0f}'.format(metrics.lisa_allowance) }}</span></p>
     <div class="progress"><div class="progress-bar" style="width: {{ (metrics.lisa_progress * 100)|round(1) }}%;"></div></div>
     <small>{{ '{:.1f}'.format(metrics.lisa_progress * 100) }}% used</small>
-    <div style="margin-top: 0.5rem;">
+    <div class="mt-05">
       <a href="/allowance/" class="badge badge-sm">View breakdown</a>
-      <a href="/allowance/#topup" class="badge badge-sm" style="margin-left: 0.25rem;">Record top-up</a>
+      <a href="/allowance/#topup" class="badge badge-sm ml-025">Record top-up</a>
     </div>
   </div>
   <div class="card allowance-card">
@@ -231,13 +231,13 @@
       {{ '{:.1f}'.format(metrics.pension_progress * 100) }}% used · Personal limit: £{{ '{:,.0f}'.format(metrics.pension_personal_limit) }}
     </small>
     {% if metrics.projected_pension != metrics.pension_used %}
-    <small style="display:block; margin-top:0.25rem; color:var(--muted);">
+    <small class="block mt-025 text-muted">
       On track: £{{ '{:,.0f}'.format(metrics.projected_pension) }} / £{{ '{:,.0f}'.format(metrics.pension_allowance) }} by end of tax year
     </small>
     {% endif %}
-    <div style="margin-top: 0.5rem;">
+    <div class="mt-05">
       <a href="/allowance/" class="badge badge-sm">View breakdown</a>
-      <a href="/allowance/#pension" class="badge badge-sm" style="margin-left: 0.25rem;">Record contribution</a>
+      <a href="/allowance/#pension" class="badge badge-sm ml-025">Record contribution</a>
     </div>
   </div>
 </section>
