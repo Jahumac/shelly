@@ -39,10 +39,10 @@ monthly_review_bp = Blueprint("monthly_review", __name__)
 
 
 def _optional_float(value, default=None):
-    value = (value or "").strip()
-    if value == "":
+    try:
+        return float((value or "").strip())
+    except (ValueError, TypeError):
         return default
-    return float(value)
 
 
 def default_month_key():

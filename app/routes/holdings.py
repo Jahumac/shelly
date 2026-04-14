@@ -173,8 +173,8 @@ def api_save_price():
                 for account in accounts
             )
             save_daily_snapshot(current_user.id, total_value)
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.warning("Failed to update catalogue price or snapshot: %s", e)
 
     return jsonify({"ok": True, "value": round(units * price, 2)})
 

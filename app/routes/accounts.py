@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.calculations import contribution_breakdown, effective_account_value
@@ -56,7 +56,10 @@ def _optional_float(value, default=None, divide_by_100=False):
     value = (value or "").strip()
     if value == "":
         return default
-    result = float(value)
+    try:
+        result = float(value)
+    except (ValueError, TypeError):
+        return default
     return result / 100.0 if divide_by_100 else result
 
 
@@ -176,6 +179,9 @@ def accounts():
     uid = current_user.id
     if request.method == "POST":
         payload = _account_payload_from_form(request.form)
+        if not payload["name"].strip():
+            flash("Account name is required.", "error")
+            return redirect(url_for("accounts.accounts"))
         new_id = create_account(payload, uid)
         return redirect(url_for("accounts.accounts"))
 
@@ -237,6 +243,8 @@ def api_create_account():
     """JSON API: create account and return its ID (used by the wizard JS)."""
     uid = current_user.id
     payload = _account_payload_from_form(request.form)
+    if not payload["name"].strip():
+        return jsonify({"ok": False, "error": "Account name is required"}), 400
     new_id = create_account(payload, uid)
     return jsonify({"ok": True, "account_id": new_id})
 
@@ -256,11 +264,11 @@ def api_ticker_lookup():
     instrument = None
     try:
         instrument = lookup_instrument(ticker)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning("lookup_instrument(%s) failed: %s", ticker, e)
 
     if not instrument:
-        return jsonify({"ok": False, "error": "Shelly couldn't find "" + ticker + "" on Yahoo Finance. Double-check the symbol or add manually instead."}), 404
+        return jsonify({"ok": False, "error": f"Shelly couldn't find '{ticker}' on Yahoo Finance. Double-check the symbol or add manually instead."}), 404
 
     price_gbp = instrument["price_gbp"]
     return jsonify({
@@ -300,8 +308,8 @@ def api_add_holding(account_id):
     instrument = None
     try:
         instrument = lookup_instrument(ticker)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning("lookup_instrument(%s) failed: %s", ticker, e)
 
     name = (instrument["name"] if instrument else None) or ticker
     asset_type = (instrument["asset_type"] if instrument else None) or "ETF"
@@ -413,6 +421,9 @@ def account_detail(account_id):
 
         payload = _account_payload_from_form(request.form)
         payload["id"] = account_id
+        if not payload["name"].strip():
+            flash("Account name is required.", "error")
+            return redirect(url_for("accounts.account_detail", account_id=account_id))
         update_account(payload, uid)
         return redirect(url_for("accounts.account_detail", account_id=account_id))
 
@@ -456,8 +467,8 @@ def account_add_holding(account_id):
     instrument = None
     try:
         instrument = lookup_instrument(ticker)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning("lookup_instrument(%s) failed: %s", ticker, e)
 
     name = (instrument["name"] if instrument else None) or ticker
     asset_type = (instrument["asset_type"] if instrument else None) or "ETF"
