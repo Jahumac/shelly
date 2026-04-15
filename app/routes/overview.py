@@ -149,7 +149,8 @@ def overview():
             last_price_update_display = str(last_price_update)[:16]
 
     # Compute next expected auto-update time
-    if assumptions and bool(assumptions.get("auto_update_prices", 1)):
+    assumptions_dict = dict(assumptions) if assumptions else {}
+    if assumptions_dict and bool(assumptions_dict.get("auto_update_prices", 1)):
         try:
             def _hhmm(val, default_h):
                 try:
@@ -157,8 +158,8 @@ def overview():
                     return int(p[0]), int(p[1])
                 except Exception:
                     return default_h, 0
-            mh, mm = _hhmm(assumptions.get("update_time_morning", "08:30"), 8)
-            eh, em = _hhmm(assumptions.get("update_time_evening", "22:00"), 22)
+            mh, mm = _hhmm(assumptions_dict.get("update_time_morning", "08:30"), 8)
+            eh, em = _hhmm(assumptions_dict.get("update_time_evening", "22:00"), 22)
             win_start = now_uk.replace(hour=mh, minute=mm, second=0, microsecond=0)
             win_end   = now_uk.replace(hour=eh, minute=em, second=0, microsecond=0)
 

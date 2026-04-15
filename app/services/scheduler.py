@@ -208,6 +208,7 @@ def _accrue_manual_accounts(user_id, accounts):
 
     now = datetime.now(timezone.utc)
     for acc in accounts:
+        acc = dict(acc)  # sqlite3.Row doesn't support .get() with defaults
         is_cash_isa = acc.get("wrapper_type", "").lower() == "cash isa"
         if acc["valuation_mode"] != "manual" and not is_cash_isa:
             continue
