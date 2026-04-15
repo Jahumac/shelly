@@ -25,11 +25,11 @@
   </div>
   {% if accounts %}
   {% set total_contributed = month_totals.values() | sum %}
-  {% set confirmed_count = accounts | sum(attribute='months') %}
+  {% set month_count = months | length %}
   <div class="hero-strip">
     {% call hero_stat('Total contributed') %}<strong>£{{ '{:,.0f}'.format(total_contributed) }}</strong>{% endcall %}
-    {% call hero_stat('Months tracked') %}<strong>{{ months | length }}</strong>{% endcall %}
-    {% call hero_stat('Avg per month') %}<strong>£{{ '{:,.0f}'.format(total_contributed / (months | length)) }}</strong>{% endcall %}
+    {% call hero_stat('Months tracked') %}<strong>{{ month_count }}</strong>{% endcall %}
+    {% call hero_stat('Avg per month') %}<strong>£{{ '{:,.0f}'.format(total_contributed / month_count if month_count > 0 else 0) }}</strong>{% endcall %}
     {% call hero_stat('Accounts') %}<strong>{{ accounts | length }}</strong>{% endcall %}
   </div>
   {% endif %}
