@@ -87,12 +87,14 @@
   </div>
 </div>
 
-<p class="helper-text mt-1">
-  <span class="contrib-confirmed" style="padding:2px 6px;border-radius:4px">✓ confirmed</span>
-  &nbsp;= contribution marked confirmed in monthly review &nbsp;·&nbsp;
-  no tick = expected but not yet confirmed &nbsp;·&nbsp;
-  <span class="text-muted">—</span> = no review entry for that month
-</p>
+<div class="contrib-legend mt-1">
+  <span class="contrib-legend-item contrib-confirmed">✓ Confirmed</span>
+  <span class="contrib-legend-sep">contribution ticked off in monthly review</span>
+  <span class="contrib-legend-item contrib-pending">~ Pending</span>
+  <span class="contrib-legend-sep">expected but not yet confirmed</span>
+  <span class="contrib-legend-item contrib-none">— None</span>
+  <span class="contrib-legend-sep">no review entry for that month</span>
+</div>
 
 {% endif %}
 {% endblock %}

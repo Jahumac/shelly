@@ -4667,10 +4667,39 @@ a.link-accent:hover {
 /* ── Contribution summary table ────────────────────────────────────────────── */
 .contrib-table th, .contrib-table td { white-space: nowrap; }
 .contrib-account-name { font-weight: 500; }
-.contrib-confirmed { background: rgba(34,197,94,0.18); color: #86efac; font-weight: 600; }
-.contrib-pending   { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.contrib-confirmed { background: rgba(34,197,94,0.15); color: #4ade80; font-weight: 600; }
+.contrib-pending   { background: rgba(251,191,36,0.10); color: #fbbf24; }
 .contrib-none      { color: var(--muted); }
-.contrib-tick      { color: #22c55e; margin-left: 4px; font-size: 0.85rem; }
+.contrib-tick      { color: #4ade80; margin-left: 4px; font-size: 0.85rem; }
+
+.contrib-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+.contrib-legend-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+.contrib-legend-sep {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.contrib-legend-sep::after {
+  content: '·';
+  margin-left: 0.75rem;
+  color: var(--border);
+}
+.contrib-legend-sep:last-child::after {
+  content: '';
+}
 .contrib-totals td { border-top: 1px solid var(--border); padding-top: 0.75rem; }
 .mt-1 { margin-top: 1rem; }
 
