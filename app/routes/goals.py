@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.calculations import effective_account_value, progress_to_goal, remaining_to_goal
@@ -23,7 +23,7 @@ def _split_tags(tags_value):
 def _goal_payload_from_form(form):
     return {
         "name": form.get("name", "").strip(),
-        "target_value": float(form.get("target_value", 0) or 0),
+        "target_value": max(0.0, float(form.get("target_value", 0) or 0)),
         "goal_type": form.get("goal_type", "Tagged Goal").strip(),
         "selected_tags": form.get("selected_tags", ""),
         "notes": form.get("notes", "").strip(),
@@ -70,10 +70,14 @@ def goals():
             return redirect(url_for("goals.goals"))
 
         payload = _goal_payload_from_form(request.form)
+        if not payload["name"]:
+            flash("Goal name is required.", "error")
+            return redirect(url_for("goals.goals"))
         goal_id = request.form.get("goal_id")
         if goal_id:
             payload["id"] = int(goal_id)
-            update_goal(payload, uid)
+            if not update_goal(payload, uid):
+                flash("Goal not found.", "error")
         else:
             create_goal(payload, uid)
         return redirect(url_for("goals.goals"))

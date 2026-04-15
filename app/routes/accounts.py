@@ -56,7 +56,7 @@ BUCKET_OPTIONS = [
 accounts_bp = Blueprint("accounts", __name__)
 
 
-def _optional_float(value, default=None, divide_by_100=False):
+def _optional_float(value, default=None, divide_by_100=False, min_val=None):
     value = (value or "").strip()
     if value == "":
         return default
@@ -64,7 +64,11 @@ def _optional_float(value, default=None, divide_by_100=False):
         result = float(value)
     except (ValueError, TypeError):
         return default
-    return result / 100.0 if divide_by_100 else result
+    if divide_by_100:
+        result = result / 100.0
+    if min_val is not None:
+        result = max(min_val, result)
+    return result
 
 
 def _account_payload_from_form(form):
@@ -74,23 +78,23 @@ def _account_payload_from_form(form):
         "wrapper_type": form.get("wrapper_type", ""),
         "category": form.get("category", ""),
         "tags": form.get("tags", ""),
-        "current_value": _optional_float(form.get("current_value"), 0.0),
-        "monthly_contribution": _optional_float(form.get("monthly_contribution"), 0.0),
+        "current_value": _optional_float(form.get("current_value"), 0.0, min_val=0.0),
+        "monthly_contribution": _optional_float(form.get("monthly_contribution"), 0.0, min_val=0.0),
         "pension_contribution_day": max(0, min(28, int(form.get("pension_contribution_day", 0) or 0))),
-        "goal_value": _optional_float(form.get("goal_value"), None),
+        "goal_value": _optional_float(form.get("goal_value"), None, min_val=0.0),
         "valuation_mode": form.get("valuation_mode", "manual"),
         "growth_mode": form.get("growth_mode", "default"),
         "growth_rate_override": _optional_float(form.get("growth_rate_override"), None, divide_by_100=True),
         "owner": form.get("owner", ""),
         "notes": form.get("notes", ""),
         "last_updated": datetime.now(timezone.utc).isoformat(),
-        "employer_contribution": _optional_float(form.get("employer_contribution"), 0.0),
+        "employer_contribution": _optional_float(form.get("employer_contribution"), 0.0, min_val=0.0),
         "contribution_method": form.get("contribution_method", "standard"),
-        "annual_fee_pct": _optional_float(form.get("annual_fee_pct"), 0.0),
-        "platform_fee_pct": _optional_float(form.get("platform_fee_pct"), 0.0),
-        "platform_fee_flat": _optional_float(form.get("platform_fee_flat"), 0.0),
-        "platform_fee_cap": _optional_float(form.get("platform_fee_cap"), 0.0),
-        "fund_fee_pct": _optional_float(form.get("fund_fee_pct"), 0.0),
+        "annual_fee_pct": _optional_float(form.get("annual_fee_pct"), 0.0, min_val=0.0),
+        "platform_fee_pct": _optional_float(form.get("platform_fee_pct"), 0.0, min_val=0.0),
+        "platform_fee_flat": _optional_float(form.get("platform_fee_flat"), 0.0, min_val=0.0),
+        "platform_fee_cap": _optional_float(form.get("platform_fee_cap"), 0.0, min_val=0.0),
+        "fund_fee_pct": _optional_float(form.get("fund_fee_pct"), 0.0, min_val=0.0),
     }
 
 

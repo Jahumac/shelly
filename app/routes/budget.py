@@ -475,12 +475,14 @@ def budget_item_action(item_id):
         return redirect(url_for("budget.budget_items_view"))
 
     linked_raw = request.form.get("linked_account_id", "")
-    update_budget_item({
+    ok = update_budget_item({
         "id": item_id,
         "name": request.form.get("name", "").strip(),
         "section": request.form.get("section", ""),
-        "default_amount": _optional_float(request.form.get("default_amount"), 0.0),
+        "default_amount": max(0.0, _optional_float(request.form.get("default_amount"), 0.0)),
         "linked_account_id": int(linked_raw) if linked_raw else None,
         "notes": request.form.get("notes", "").strip(),
     }, uid)
+    if not ok:
+        flash("Budget item not found.", "error")
     return redirect(url_for("budget.budget_items_view"))
