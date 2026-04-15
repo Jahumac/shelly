@@ -30,7 +30,8 @@
 </section>
 {% else %}
 
-<div class="panel" style="overflow-x:auto;">
+<div class="panel" style="max-width:100%;overflow:hidden;">
+  <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
   <table class="data-table contrib-table">
     <thead>
       <tr>
@@ -70,6 +71,7 @@
       </tr>
     </tfoot>
   </table>
+  </div>
 </div>
 
 <p class="helper-text mt-1">
