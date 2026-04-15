@@ -76,7 +76,7 @@ def _account_payload_from_form(form):
         "tags": form.get("tags", ""),
         "current_value": _optional_float(form.get("current_value"), 0.0),
         "monthly_contribution": _optional_float(form.get("monthly_contribution"), 0.0),
-        "pension_contribution_day": int(form.get("pension_contribution_day", 0) or 0),
+        "pension_contribution_day": max(0, min(28, int(form.get("pension_contribution_day", 0) or 0))),
         "goal_value": _optional_float(form.get("goal_value"), None),
         "valuation_mode": form.get("valuation_mode", "manual"),
         "growth_mode": form.get("growth_mode", "default"),
@@ -328,7 +328,7 @@ def api_add_holding(account_id):
         price_data.get("change_pct"),
         datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
-    reconnect_holdings_to_catalogue(ticker, catalogue_id)
+    reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
 
     add_holding({
         "account_id": account_id, "holding_catalogue_id": catalogue_id,
@@ -372,7 +372,7 @@ def api_add_holding_manual(account_id):
         datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     if ticker:
-        reconnect_holdings_to_catalogue(ticker, catalogue_id)
+        reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
 
     add_holding({
         "account_id": account_id, "holding_catalogue_id": catalogue_id,
@@ -493,7 +493,7 @@ def account_add_holding(account_id):
         datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
 
-    reconnect_holdings_to_catalogue(ticker, catalogue_id)
+    reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
 
     add_holding({
         "account_id": account_id,
@@ -548,7 +548,7 @@ def account_add_holding_manual(account_id):
     )
 
     if ticker:
-        reconnect_holdings_to_catalogue(ticker, catalogue_id)
+        reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
 
     add_holding({
         "account_id": account_id,

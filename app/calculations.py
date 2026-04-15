@@ -539,7 +539,7 @@ def compute_performance_series(monthly_data, assumed_rate, assumed_monthly):
 
 
 def progress_to_goal(current, target):
-    if not target:
+    if not target or target <= 0:
         return 0.0
     return current / target
 
@@ -549,7 +549,7 @@ def remaining_to_goal(current, target):
 
 
 def allowance_progress(used, allowance):
-    if not allowance:
+    if not allowance or allowance <= 0:
         return 0.0
     return used / allowance
 

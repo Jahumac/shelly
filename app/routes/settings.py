@@ -38,8 +38,8 @@ def settings():
             except (ValueError, TypeError):
                 return int(default)
 
-        salary_day = _i("salary_day", 0)
-        update_day = _i("update_day", 0)
+        salary_day = max(0, min(28, _i("salary_day", 0)))
+        update_day = max(0, min(28, _i("update_day", 0)))
 
         # Auto-calculate update day: salary day + 5 calendar days (settlement buffer)
         if salary_day and not update_day:

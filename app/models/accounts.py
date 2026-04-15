@@ -551,9 +551,10 @@ def delete_holding(holding_id, user_id):
         return cursor.rowcount > 0
 
 
-def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int) -> None:
+def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int, user_id: int) -> None:
     """Point any existing holdings whose ticker matches to the given catalogue entry.
 
+    Scoped to user_id so cross-user holdings are never touched.
     Run this after creating or re-creating a catalogue item so that previously
     disconnected holdings (e.g. after a catalogue wipe) get re-linked for price sync.
     """
@@ -564,8 +565,9 @@ def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int) -> None:
             """UPDATE holdings
                SET holding_catalogue_id = ?
                WHERE UPPER(ticker) = UPPER(?)
-                 AND (holding_catalogue_id IS NULL OR holding_catalogue_id != ?)""",
-            (catalogue_id, ticker, catalogue_id),
+                 AND (holding_catalogue_id IS NULL OR holding_catalogue_id != ?)
+                 AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)""",
+            (catalogue_id, ticker, catalogue_id, user_id),
         )
         conn.commit()
 
