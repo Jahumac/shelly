@@ -4667,10 +4667,10 @@ a.link-accent:hover {
 /* ── Contribution summary table ────────────────────────────────────────────── */
 .contrib-table th, .contrib-table td { white-space: nowrap; }
 .contrib-account-name { font-weight: 500; }
-.contrib-confirmed { background: rgba(34,197,94,0.12); color: var(--text); }
-.contrib-pending   { color: var(--text); }
+.contrib-confirmed { background: rgba(34,197,94,0.18); color: #86efac; font-weight: 600; }
+.contrib-pending   { background: rgba(251,191,36,0.12); color: #fbbf24; }
 .contrib-none      { color: var(--muted); }
-.contrib-tick      { color: #22c55e; margin-left: 4px; font-size: 0.75rem; }
+.contrib-tick      { color: #22c55e; margin-left: 4px; font-size: 0.85rem; }
 .contrib-totals td { border-top: 1px solid var(--border); padding-top: 0.75rem; }
 .mt-1 { margin-top: 1rem; }
 
