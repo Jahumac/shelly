@@ -46,6 +46,9 @@
         <div class="confirm-dialog-content">
           <h3>Lock in {{ month_label }}?</h3>
           <p>Shelly will snapshot your net worth for this month. You can still tweak values afterwards — Shelly's thorough, not inflexible.</p>
+          {% if unconfirmed_count > 0 %}
+          <p class="helper-text" style="color: var(--color-warning, #b45309);">⚠ {{ unconfirmed_count }} contribution{{ 's' if unconfirmed_count != 1 else '' }} haven't been confirmed yet — you can still confirm them after completing.</p>
+          {% endif %}
           <div class="confirm-dialog-actions">
             <button type="button" class="badge badge-primary-action" id="confirm-complete-yes">Yes, mark complete</button>
             <button type="button" class="badge" id="confirm-complete-no">Cancel</button>
@@ -61,8 +64,12 @@
   </div>
   <div class="hero-strip">
     {% call hero_stat('Status') %}<strong>{{ 'Complete' if review.status == 'complete' else 'In progress' }}</strong>{% endcall %}
-    {% call hero_stat('Accounts') %}<strong>{{ (holdings_items | length) + (manual_items | length) }}</strong>{% endcall %}
+    {% call hero_stat('Updated') %}<strong>{{ accounts_updated }}/{{ total_accounts }}</strong>{% endcall %}
     {% call hero_stat('Expected contributions') %}<strong>£{{ '{:,.0f}'.format(contribution_items | sum(attribute='expected_contribution')) }}</strong>{% endcall %}
+    {% if contribution_items %}
+    {% set confirmed_count = contribution_items | selectattr('contribution_confirmed') | list | length %}
+    {% call hero_stat('Confirmed') %}<strong>{{ confirmed_count }}/{{ contribution_items | length }}</strong>{% endcall %}
+    {% endif %}
   </div>
 </section>
 
@@ -124,14 +131,20 @@
     </div>
   </div>
   {% if contribution_items %}
-    <div class="simple-list">
+    <p class="helper-text mb-075">Tick each one off once you've seen it land in your account.</p>
+    <div class="simple-list" id="contribution-checklist">
       {% for item in contribution_items %}
-        <div class="simple-list-item">
-          <div>
-            <strong>{{ item.account_name }}</strong>
-            <p>{{ item.provider }} · {{ item.wrapper_type }}</p>
-          </div>
-          <div><strong>£{{ '{:,.2f}'.format(item.expected_contribution) }}</strong></div>
+        <div class="simple-list-item contribution-check-row {% if item.contribution_confirmed %}contribution-confirmed{% endif %}"
+             data-item-id="{{ item.id }}">
+          <label class="contribution-check-label">
+            <input type="checkbox" class="contribution-cb"
+                   {% if item.contribution_confirmed %}checked{% endif %}>
+            <div>
+              <strong>{{ item.account_name }}</strong>
+              <p>{{ item.provider }} · {{ item.wrapper_type }}</p>
+            </div>
+          </label>
+          <strong class="contribution-amount">£{{ '{:,.2f}'.format(item.expected_contribution) }}</strong>
         </div>
       {% endfor %}
     </div>
@@ -139,6 +152,30 @@
     <p class="helper-text">No contributions to track this month. Set them up in <a href="/accounts/" class="link-accent">Accounts</a> and Shelly will list them here.</p>
   {% endif %}
 </section>
+
+<script>
+/* ── Contribution confirmation checkboxes ──────────────────────────── */
+(function() {
+  var MONTH_KEY = '{{ month_key }}';
+  var CSRF = '{{ csrf_token() }}';
+  document.querySelectorAll('.contribution-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var row = cb.closest('.contribution-check-row');
+      var itemId = parseInt(row.dataset.itemId);
+      var confirmed = cb.checked;
+      row.classList.toggle('contribution-confirmed', confirmed);
+      fetch('/monthly-review/api/confirm-contribution', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify({item_id: itemId, confirmed: confirmed, month_key: MONTH_KEY}),
+      }).catch(function() {
+        cb.checked = !confirmed;
+        row.classList.toggle('contribution-confirmed', !confirmed);
+      });
+    });
+  });
+}());
+</script>
 
 <section class="card mb-1">
   <div class="section-header">
@@ -446,6 +483,58 @@ if (updateAllBtn) {
     <p class="helper-text">No manual accounts to review this month. If you add any manual-value accounts, Shelly will prompt you to update them here.</p>
   {% endif %}
 </section>
+
+{% if goal_data %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Progress</p>
+      <h2>{{ goal_data.name }}</h2>
+    </div>
+    <a href="/goals/" class="badge">View goals</a>
+  </div>
+  <div class="progress mb-05" role="progressbar"
+       aria-valuenow="{{ goal_data.pct | round(1) }}"
+       aria-valuemin="0" aria-valuemax="100"
+       aria-label="Goal progress">
+    <div class="progress-bar" style="width: {{ [goal_data.pct, 100] | min }}%;"></div>
+  </div>
+  <div class="stat-row">
+    <span class="helper-text">£{{ '{:,.0f}'.format(goal_data.current) }} saved of £{{ '{:,.0f}'.format(goal_data.target) }} target</span>
+    <strong>{{ '{:.1f}'.format(goal_data.pct) }}%</strong>
+  </div>
+</section>
+{% endif %}
+
+{% if budget_comparison %}
+<section class="card mb-1">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Reconcile</p>
+      <h2>Budget vs Contributions</h2>
+    </div>
+    <a href="/budget/" class="badge">View budget</a>
+  </div>
+  <p class="helper-text mb-075">Comparing your budget plan against what Shelly is expecting this month.</p>
+  <div class="simple-list">
+    {% for row in budget_comparison %}
+    <div class="simple-list-item">
+      <div>
+        <strong>{{ row.account_name }}</strong>
+        <p>Budget: £{{ '{:,.2f}'.format(row.budgeted) }} · Expected: £{{ '{:,.2f}'.format(row.expected) }}</p>
+      </div>
+      {% if row.diff == 0 %}
+        <span class="badge badge-complete">✓ Matches</span>
+      {% elif row.diff > 0 %}
+        <span class="badge" style="color: var(--color-warning, #b45309);">+£{{ '{:,.2f}'.format(row.diff) }} over budget</span>
+      {% else %}
+        <span class="badge" style="color: var(--color-danger, #dc2626);">-£{{ '{:,.2f}'.format(row.diff | abs) }} under budget</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <section class="card">
   <div class="section-header">

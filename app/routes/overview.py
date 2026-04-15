@@ -27,6 +27,8 @@ from app.models import (
     fetch_assumptions,
     fetch_holding_totals_by_account,
     fetch_isa_contributions,
+    fetch_monthly_review,
+    fetch_monthly_review_items,
     fetch_pension_contributions,
     fetch_latest_price_update,
     fetch_net_worth_history,
@@ -248,6 +250,26 @@ def overview():
             "cta_href": "/settings/?mode=edit",
             "cta_form_action": None,
         })
+
+    # Unconfirmed contributions: review is complete but some contributions weren't ticked off
+    current_review = fetch_monthly_review(current_month_key, uid)
+    if current_review and current_review["status"] == "complete":
+        review_items = fetch_monthly_review_items(current_review["id"])
+        unconfirmed = [
+            item for item in review_items
+            if (item.get("expected_contribution") or 0) > 0 and not item.get("contribution_confirmed")
+        ]
+        if unconfirmed:
+            names = ", ".join(item["account_name"] for item in unconfirmed[:3])
+            if len(unconfirmed) > 3:
+                names += f" and {len(unconfirmed) - 3} more"
+            alerts.append({
+                "kind": "info",
+                "message": f"Your {now_date.strftime('%B')} update is done but {len(unconfirmed)} contribution{'s' if len(unconfirmed) != 1 else ''} weren't confirmed — did they all arrive? ({names})",
+                "cta_text": "Check contributions",
+                "cta_href": f"/monthly-review/?month={current_month_key}",
+                "cta_form_action": None,
+            })
 
     return render_template(
         "overview.html",

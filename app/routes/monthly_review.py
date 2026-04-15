@@ -1,9 +1,14 @@
 from datetime import date, datetime, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from app.calculations import effective_account_value, review_ready_date as calc_review_ready_date
+from app.calculations import (
+    effective_account_value,
+    progress_to_goal,
+    review_ready_date as calc_review_ready_date,
+    total_invested,
+)
 from app.models import (
     ensure_monthly_review_items,
     fetch_account,
@@ -11,10 +16,14 @@ from app.models import (
     fetch_all_holdings,
     fetch_all_holdings_grouped,
     fetch_assumptions,
+    fetch_budget_items,
     fetch_holding,
     fetch_holding_totals_by_account,
     fetch_monthly_review_items,
     fetch_or_create_monthly_review,
+    fetch_primary_goal,
+    mark_review_item_updated,
+    set_contribution_confirmed,
     update_account,
     update_holding,
     update_monthly_review,
@@ -63,12 +72,13 @@ def monthly_review():
     if request.method == "POST":
         form_name = request.form.get("form_name")
         if form_name == "update_holding":
+            account_id = int(request.form.get("account_id"))
             units = _optional_float(request.form.get("units"), 0.0)
             price = _optional_float(request.form.get("price"), 0.0)
             update_holding(
                 {
                     "id": int(request.form.get("holding_id")),
-                    "account_id": int(request.form.get("account_id")),
+                    "account_id": account_id,
                     "holding_catalogue_id": _optional_float(request.form.get("holding_catalogue_id"), None),
                     "holding_name": request.form.get("holding_name", ""),
                     "ticker": request.form.get("ticker", ""),
@@ -81,6 +91,8 @@ def monthly_review():
                 },
                 uid,
             )
+            review = fetch_or_create_monthly_review(month_key, uid)
+            mark_review_item_updated(review["id"], account_id, "holdings_updated")
         elif form_name == "update_account_balance":
             account = fetch_account(int(request.form.get("account_id")), uid)
             if account:
@@ -106,6 +118,8 @@ def monthly_review():
                     uid,
                 )
                 upsert_monthly_snapshot(account["id"], month_key, new_balance)
+                review = fetch_or_create_monthly_review(month_key, uid)
+                mark_review_item_updated(review["id"], account["id"], "balance_updated")
         elif form_name == "mark_complete":
             review = fetch_or_create_monthly_review(month_key, uid)
             all_accounts = fetch_all_accounts(uid)
@@ -138,6 +152,45 @@ def monthly_review():
     mk_year, mk_month = [int(x) for x in month_key.split("-")]
     ready_date = calc_review_ready_date(mk_year, mk_month, salary_day) if salary_day else None
 
+    # Progress tracking stats
+    accounts_updated = sum(1 for item in items if item.get("holdings_updated") or item.get("balance_updated"))
+    unconfirmed_count = sum(
+        1 for item in contribution_items
+        if not item.get("contribution_confirmed") and (item.get("expected_contribution") or 0) > 0
+    )
+
+    # Goal progress
+    goal = fetch_primary_goal(uid)
+    goal_data = None
+    if goal:
+        all_accounts = fetch_all_accounts(uid)
+        holdings_totals = fetch_holding_totals_by_account(uid)
+        invested = total_invested(all_accounts, holdings_totals)
+        target = float(goal["target_value"] or 0)
+        goal_data = {
+            "name": goal["name"],
+            "target": target,
+            "current": invested,
+            "pct": progress_to_goal(invested, target) * 100,
+        }
+
+    # Budget vs contributions comparison
+    budget_comparison = []
+    if contribution_items:
+        budget_items_all = fetch_budget_items(uid)
+        linked = {b["linked_account_id"]: b for b in budget_items_all if b.get("linked_account_id")}
+        for item in contribution_items:
+            budget_item = linked.get(item["account_id"])
+            expected = float(item["expected_contribution"] or 0)
+            budgeted = float(budget_item["default_amount"] or 0) if budget_item else None
+            if budgeted is not None:
+                budget_comparison.append({
+                    "account_name": item["account_name"],
+                    "budgeted": budgeted,
+                    "expected": expected,
+                    "diff": expected - budgeted,
+                })
+
     return render_template(
         "monthly_review.html",
         review=review,
@@ -149,8 +202,35 @@ def monthly_review():
         holdings_by_account=holdings_by_account,
         assumptions=assumptions,
         review_ready_date=ready_date,
+        accounts_updated=accounts_updated,
+        total_accounts=len(items),
+        unconfirmed_count=unconfirmed_count,
+        goal_data=goal_data,
+        budget_comparison=budget_comparison,
         active_page="monthly_review",
     )
+
+
+# ---------------------------------------------------------------------------
+# Contribution confirmation (AJAX)
+# ---------------------------------------------------------------------------
+
+@monthly_review_bp.route("/api/confirm-contribution", methods=["POST"])
+@login_required
+def api_confirm_contribution():
+    uid = current_user.id
+    data = request.get_json(silent=True) or {}
+    item_id = data.get("item_id")
+    confirmed = bool(data.get("confirmed", False))
+    month_key = data.get("month_key") or default_month_key()
+
+    if not item_id:
+        return jsonify({"ok": False, "error": "item_id required"}), 400
+
+    # Verify ownership via the review
+    review = fetch_or_create_monthly_review(month_key, uid)
+    set_contribution_confirmed(item_id, review["id"], confirmed)
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------

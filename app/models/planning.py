@@ -418,6 +418,41 @@ def update_monthly_review_item(payload):
         conn.commit()
 
 
+def fetch_monthly_review(month_key, user_id):
+    """Read-only fetch — returns None if no review exists (never creates one)."""
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM monthly_reviews WHERE month_key = ? AND user_id = ?",
+            (month_key, user_id),
+        ).fetchone()
+
+
+def set_contribution_confirmed(item_id, review_id, confirmed):
+    """Toggle contribution_confirmed for a single review item.
+    Scoped by review_id so cross-review updates are impossible."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE monthly_review_items SET contribution_confirmed = ? WHERE id = ? AND review_id = ?",
+            (1 if confirmed else 0, item_id, review_id),
+        )
+        conn.commit()
+
+
+def mark_review_item_updated(review_id, account_id, field):
+    """Mark holdings_updated or balance_updated = 1 for a review item."""
+    if field == "holdings_updated":
+        col = "holdings_updated"
+    elif field == "balance_updated":
+        col = "balance_updated"
+    else:
+        return
+    with get_connection() as conn:
+        conn.execute(
+            f"UPDATE monthly_review_items SET {col} = 1 WHERE review_id = ? AND account_id = ?",
+            (review_id, account_id),
+        )
+        conn.commit()
+
 
 # ── Whole-account / data resets ───────────────────────────────────────────────
 

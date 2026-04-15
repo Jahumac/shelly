@@ -117,6 +117,7 @@ from .planning import (
     delete_isa_contribution,
     delete_pension_contribution,
     ensure_monthly_review_items,
+    fetch_monthly_review,
     fetch_account_snapshot_history,
     fetch_all_active_overrides,
     fetch_allowance_tracking,
@@ -144,5 +145,7 @@ from .planning import (
     update_assumptions,
     update_monthly_review,
     update_monthly_review_item,
+    set_contribution_confirmed,
+    mark_review_item_updated,
     upsert_monthly_snapshot,
 )
