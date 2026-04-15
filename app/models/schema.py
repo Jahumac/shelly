@@ -275,383 +275,383 @@ def _run_migrations(conn):
     function short and easy to read.
     """
     # ── Legacy column additions (accounts) ───────────────────────────────
-        existing_cols = {row['name'] for row in conn.execute("PRAGMA table_info(accounts)").fetchall()}
-        for col_name, col_def in [
-            ("goal_value", "REAL"),
-            ("valuation_mode", "TEXT DEFAULT 'manual'"),
-            ("growth_mode", "TEXT DEFAULT 'default'"),
-            ("growth_rate_override", "REAL"),
-            ("tags", "TEXT DEFAULT ''"),
-            ("pension_contribution_day", "INTEGER DEFAULT 0"),
-        ]:
-            if col_name not in existing_cols:
-                try:
-                    conn.execute(f"ALTER TABLE accounts ADD COLUMN {col_name} {col_def}")
-                except Exception as e:
-                    current_app.logger.error(f"Migration error (accounts.{col_name}): {e}")
-
-        # ── Legacy column additions (other tables) ───────────────────────────
-        for col_sql in [
-            "ALTER TABLE assumptions ADD COLUMN dashboard_name TEXT DEFAULT 'Shelly'",
-            "ALTER TABLE assumptions ADD COLUMN retirement_goal_value REAL DEFAULT 1000000",
-            "ALTER TABLE assumptions ADD COLUMN dividend_allowance REAL DEFAULT 500",
-            "ALTER TABLE holdings ADD COLUMN holding_catalogue_id INTEGER",
-            "ALTER TABLE holdings ADD COLUMN book_cost REAL",
-            "ALTER TABLE goals ADD COLUMN selected_tags TEXT DEFAULT ''",
-            "ALTER TABLE monthly_snapshots ADD COLUMN month_key TEXT",
-        ]:
+    existing_cols = {row['name'] for row in conn.execute("PRAGMA table_info(accounts)").fetchall()}
+    for col_name, col_def in [
+        ("goal_value", "REAL"),
+        ("valuation_mode", "TEXT DEFAULT 'manual'"),
+        ("growth_mode", "TEXT DEFAULT 'default'"),
+        ("growth_rate_override", "REAL"),
+        ("tags", "TEXT DEFAULT ''"),
+        ("pension_contribution_day", "INTEGER DEFAULT 0"),
+    ]:
+        if col_name not in existing_cols:
             try:
-                conn.execute(col_sql)
-            except Exception:
-                pass
+                conn.execute(f"ALTER TABLE accounts ADD COLUMN {col_name} {col_def}")
+            except Exception as e:
+                current_app.logger.error(f"Migration error (accounts.{col_name}): {e}")
 
-        # ── Legacy table creation ─────────────────────────────────────────────
+    # ── Legacy column additions (other tables) ───────────────────────────
+    for col_sql in [
+        "ALTER TABLE assumptions ADD COLUMN dashboard_name TEXT DEFAULT 'Shelly'",
+        "ALTER TABLE assumptions ADD COLUMN retirement_goal_value REAL DEFAULT 1000000",
+        "ALTER TABLE assumptions ADD COLUMN dividend_allowance REAL DEFAULT 500",
+        "ALTER TABLE holdings ADD COLUMN holding_catalogue_id INTEGER",
+        "ALTER TABLE holdings ADD COLUMN book_cost REAL",
+        "ALTER TABLE goals ADD COLUMN selected_tags TEXT DEFAULT ''",
+        "ALTER TABLE monthly_snapshots ADD COLUMN month_key TEXT",
+    ]:
         try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS contribution_overrides (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    account_id INTEGER NOT NULL,
-                    from_month TEXT NOT NULL,
-                    to_month TEXT NOT NULL,
-                    override_amount REAL NOT NULL,
-                    reason TEXT,
-                    created_at TEXT,
-                    FOREIGN KEY(account_id) REFERENCES accounts(id)
-                )
-            """)
+            conn.execute(col_sql)
         except Exception:
             pass
 
-        for col in ["last_price REAL", "price_currency TEXT", "price_change_pct REAL", "price_updated_at TEXT"]:
-            try:
-                conn.execute(f"ALTER TABLE holding_catalogue ADD COLUMN {col}")
-            except Exception:
-                pass
-
-        # ── Multi-user migrations ─────────────────────────────────────────────
-        # Add user_id to accounts (default 1 = first user, safe for existing DBs)
-        for tbl, col_sql in [
-            ("accounts",         "ALTER TABLE accounts ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-            ("goals",            "ALTER TABLE goals ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-            ("holding_catalogue","ALTER TABLE holding_catalogue ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-            ("budget_items",     "ALTER TABLE budget_items ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-            ("budget_sections",  "ALTER TABLE budget_sections ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-            ("monthly_reviews",  "ALTER TABLE monthly_reviews ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
-        ]:
-            try:
-                conn.execute(col_sql)
-            except Exception:
-                pass
-
-        # ── Assumptions table: recreate without CHECK (id=1), add user_id ─────
-        if not conn.execute(
-            "SELECT 1 FROM schema_migrations WHERE name = 'v4_assumptions_multi_user'"
-        ).fetchone():
-            # Check if old single-row assumptions exist
-            old_row = conn.execute("SELECT * FROM assumptions LIMIT 1").fetchone()
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS assumptions_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
-                    annual_growth_rate REAL DEFAULT 0.07,
-                    retirement_age INTEGER DEFAULT 60,
-                    current_age INTEGER DEFAULT 43,
-                    retirement_goal_value REAL DEFAULT 1000000,
-                    isa_allowance REAL DEFAULT 20000,
-                    lisa_allowance REAL DEFAULT 4000,
-                    target_dev_pct REAL DEFAULT 0.90,
-                    target_em_pct REAL DEFAULT 0.10,
-                    emergency_fund_target REAL DEFAULT 3000,
-                    dashboard_name TEXT DEFAULT 'Shelly',
-                    updated_at TEXT
-                )
-            """)
-            if old_row:
-                # Try to copy old data — old table might have id=1 row
-                cols = old_row.keys()
-                # Map old id=1 row to user_id=1
-                conn.execute("""
-                    INSERT OR IGNORE INTO assumptions_new
-                        (user_id, annual_growth_rate, retirement_age, current_age,
-                         retirement_goal_value, isa_allowance, lisa_allowance,
-                         target_dev_pct, target_em_pct, emergency_fund_target,
-                         dashboard_name, updated_at)
-                    SELECT
-                        1,
-                        COALESCE(annual_growth_rate, 0.07),
-                        COALESCE(retirement_age, 60),
-                        COALESCE(current_age, 43),
-                        COALESCE(retirement_goal_value, 1000000),
-                        COALESCE(isa_allowance, 20000),
-                        COALESCE(lisa_allowance, 4000),
-                        COALESCE(target_dev_pct, 0.90),
-                        COALESCE(target_em_pct, 0.10),
-                        COALESCE(emergency_fund_target, 3000),
-                        COALESCE(dashboard_name, 'Shelly'),
-                        updated_at
-                    FROM assumptions
-                    LIMIT 1
-                """)
-            conn.execute("DROP TABLE IF EXISTS assumptions")
-            conn.execute("ALTER TABLE assumptions_new RENAME TO assumptions")
-            conn.execute(
-                "INSERT INTO schema_migrations (name) VALUES ('v4_assumptions_multi_user')"
-            )
-
-        # ── monthly_reviews: fix UNIQUE(month_key) → UNIQUE(user_id, month_key) ─
-        if not conn.execute(
-            "SELECT 1 FROM schema_migrations WHERE name = 'v5_monthly_reviews_per_user'"
-        ).fetchone():
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS monthly_reviews_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users(id),
-                    month_key TEXT NOT NULL,
-                    status TEXT DEFAULT 'not_started',
-                    notes TEXT,
-                    completed_at TEXT,
-                    created_at TEXT,
-                    updated_at TEXT,
-                    UNIQUE(user_id, month_key)
-                )
-            """)
-            conn.execute("""
-                INSERT OR IGNORE INTO monthly_reviews_new
-                    (id, user_id, month_key, status, notes, completed_at, created_at, updated_at)
-                SELECT id, user_id, month_key, status, notes, completed_at, created_at, updated_at
-                FROM monthly_reviews
-            """)
-            conn.execute("DROP TABLE IF EXISTS monthly_reviews")
-            conn.execute("ALTER TABLE monthly_reviews_new RENAME TO monthly_reviews")
-            conn.execute(
-                "INSERT INTO schema_migrations (name) VALUES ('v5_monthly_reviews_per_user')"
-            )
-
-        # ── budget_sections: fix UNIQUE(key) → UNIQUE(user_id, key) ──────────
-        if not conn.execute(
-            "SELECT 1 FROM schema_migrations WHERE name = 'v5_budget_sections_per_user'"
-        ).fetchone():
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS budget_sections_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users(id),
-                    key TEXT NOT NULL,
-                    label TEXT NOT NULL,
-                    sort_order INTEGER DEFAULT 0,
-                    UNIQUE(user_id, key)
-                )
-            """)
-            conn.execute("""
-                INSERT OR IGNORE INTO budget_sections_new (id, user_id, key, label, sort_order)
-                SELECT id, user_id, key, label, sort_order FROM budget_sections
-            """)
-            conn.execute("DROP TABLE IF EXISTS budget_sections")
-            conn.execute("ALTER TABLE budget_sections_new RENAME TO budget_sections")
-            conn.execute(
-                "INSERT INTO schema_migrations (name) VALUES ('v5_budget_sections_per_user')"
-            )
-
-        # ── Add salary_day and update_day to assumptions ────────────────────
-        for col in [
-            "salary_day INTEGER DEFAULT 0",
-            "update_day INTEGER DEFAULT 0",
-        ]:
-            try:
-                conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
-            except Exception:
-                pass
-
-        # ── Migrate current_age → date_of_birth ─────────────────────────────
-        # Add date_of_birth column (TEXT, ISO format YYYY-MM-DD)
-        try:
-            conn.execute("ALTER TABLE assumptions ADD COLUMN date_of_birth TEXT")
-        except Exception:
-            pass
-
-        # One-time: convert existing current_age to approximate DOB
-        if not conn.execute(
-            "SELECT 1 FROM schema_migrations WHERE name = 'v6_dob_from_age'"
-        ).fetchone():
-            # For each user who has current_age but no DOB, estimate DOB as
-            # today minus current_age years (assumes birthday is Jan 1 — user
-            # can correct this in Settings).
-            from datetime import date as _date
-            rows = conn.execute(
-                "SELECT user_id, current_age FROM assumptions WHERE date_of_birth IS NULL AND current_age IS NOT NULL"
-            ).fetchall()
-            for row in rows:
-                approx_year = _date.today().year - int(row["current_age"])
-                approx_dob = f"{approx_year}-01-01"
-                conn.execute(
-                    "UPDATE assumptions SET date_of_birth = ? WHERE user_id = ?",
-                    (approx_dob, row["user_id"]),
-                )
-            conn.execute(
-                "INSERT INTO schema_migrations (name) VALUES ('v6_dob_from_age')"
-            )
-
-        # ── Retirement date mode ───────────────────────────────────────────
-        # Options: 'birthday', 'end_of_year', 'end_of_tax_year'
-        try:
-            conn.execute("ALTER TABLE assumptions ADD COLUMN retirement_date_mode TEXT DEFAULT 'birthday'")
-        except Exception:
-            pass
-
-        # ── Tax band on assumptions ────────────────────────────────────────
-        # Options: 'basic', 'higher', 'additional'
-        try:
-            conn.execute("ALTER TABLE assumptions ADD COLUMN tax_band TEXT DEFAULT 'basic'")
-        except Exception:
-            pass
-
-        # ── Pension / contribution / fee fields on accounts ────────────────
-        for col in [
-            "employer_contribution REAL DEFAULT 0",
-            "contribution_method TEXT DEFAULT 'standard'",
-            "annual_fee_pct REAL DEFAULT 0",
-            "platform_fee_pct REAL DEFAULT 0",
-            "platform_fee_flat REAL DEFAULT 0",
-            "platform_fee_cap REAL DEFAULT 0",
-            "fund_fee_pct REAL DEFAULT 0",
-            "uninvested_cash REAL DEFAULT 0",
-            "cash_interest_rate REAL DEFAULT 0",
-        ]:
-            try:
-                conn.execute(f"ALTER TABLE accounts ADD COLUMN {col}")
-            except Exception:
-                pass
-
-        # ── Migrate legacy annual_fee_pct → fund_fee_pct (one-time) ──────
-        try:
-            if not conn.execute(
-                "SELECT 1 FROM schema_migrations WHERE name = 'v4_split_fees'"
-            ).fetchone():
-                conn.execute("""
-                    UPDATE accounts SET fund_fee_pct = annual_fee_pct
-                    WHERE annual_fee_pct > 0 AND fund_fee_pct = 0
-                """)
-                conn.execute(
-                    "INSERT INTO schema_migrations (name) VALUES ('v4_split_fees')"
-                )
-                conn.commit()
-        except Exception:
-            pass
-
-        # ── One-time catalogue wipe ───────────────────────────────────────────
-        if not conn.execute(
-            "SELECT 1 FROM schema_migrations WHERE name = 'v3_clean_catalogue'"
-        ).fetchone():
-            conn.execute("DELETE FROM holding_catalogue")
-            conn.execute(
-                "INSERT INTO schema_migrations (name) VALUES ('v3_clean_catalogue')"
-            )
-
-        # ── Unique ticker index per user ──────────────────────────────────────
-        # Drop old global unique index if it exists, then create per-user one
-        try:
-            conn.execute("DROP INDEX IF EXISTS idx_catalogue_ticker")
-        except Exception:
-            pass
-        try:
-            conn.execute(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_catalogue_ticker_user "
-                "ON holding_catalogue(user_id, ticker) WHERE ticker IS NOT NULL AND ticker != ''"
-            )
-        except Exception:
-            pass
-
-        # ── Auto-update prices toggle on assumptions ─────────────────────────
-        try:
-            conn.execute("ALTER TABLE assumptions ADD COLUMN auto_update_prices INTEGER DEFAULT 1")
-        except Exception:
-            pass
-
-        # ── Scheduler run tracking ────────────────────────────────────────────
+    # ── Legacy table creation ─────────────────────────────────────────────
+    try:
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS scheduler_runs (
+            CREATE TABLE IF NOT EXISTS contribution_overrides (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL REFERENCES users(id),
-                run_date TEXT NOT NULL,
-                slot TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                UNIQUE(user_id, run_date, slot)
+                account_id INTEGER NOT NULL,
+                from_month TEXT NOT NULL,
+                to_month TEXT NOT NULL,
+                override_amount REAL NOT NULL,
+                reason TEXT,
+                created_at TEXT,
+                FOREIGN KEY(account_id) REFERENCES accounts(id)
             )
         """)
+    except Exception:
+        pass
 
-        # ── Configurable price update times ──────────────────────────────────
-        for col in [
-            "update_time_morning TEXT DEFAULT '08:30'",
-            "update_time_evening TEXT DEFAULT '18:00'",
-        ]:
-            try:
-                conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
-            except Exception:
-                pass
+    for col in ["last_price REAL", "price_currency TEXT", "price_change_pct REAL", "price_updated_at TEXT"]:
+        try:
+            conn.execute(f"ALTER TABLE holding_catalogue ADD COLUMN {col}")
+        except Exception:
+            pass
 
-        for col in [
-            "annual_income REAL DEFAULT 0",
-            "pension_annual_allowance REAL DEFAULT 60000",
-            "mpaa_enabled INTEGER DEFAULT 0",
-            "mpaa_allowance REAL DEFAULT 10000",
-        ]:
-            try:
-                conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
-            except Exception:
-                pass
-        # ── Custom tags per user ─────────────────────────────────────────────
+    # ── Multi-user migrations ─────────────────────────────────────────────
+    # Add user_id to accounts (default 1 = first user, safe for existing DBs)
+    for tbl, col_sql in [
+        ("accounts",         "ALTER TABLE accounts ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+        ("goals",            "ALTER TABLE goals ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+        ("holding_catalogue","ALTER TABLE holding_catalogue ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+        ("budget_items",     "ALTER TABLE budget_items ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+        ("budget_sections",  "ALTER TABLE budget_sections ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+        ("monthly_reviews",  "ALTER TABLE monthly_reviews ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1 REFERENCES users(id)"),
+    ]:
+        try:
+            conn.execute(col_sql)
+        except Exception:
+            pass
+
+    # ── Assumptions table: recreate without CHECK (id=1), add user_id ─────
+    if not conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = 'v4_assumptions_multi_user'"
+    ).fetchone():
+        # Check if old single-row assumptions exist
+        old_row = conn.execute("SELECT * FROM assumptions LIMIT 1").fetchone()
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS custom_tags (
+            CREATE TABLE IF NOT EXISTS assumptions_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL REFERENCES users(id),
-                tag TEXT NOT NULL,
-                UNIQUE(user_id, tag)
+                user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+                annual_growth_rate REAL DEFAULT 0.07,
+                retirement_age INTEGER DEFAULT 60,
+                current_age INTEGER DEFAULT 43,
+                retirement_goal_value REAL DEFAULT 1000000,
+                isa_allowance REAL DEFAULT 20000,
+                lisa_allowance REAL DEFAULT 4000,
+                target_dev_pct REAL DEFAULT 0.90,
+                target_em_pct REAL DEFAULT 0.10,
+                emergency_fund_target REAL DEFAULT 3000,
+                dashboard_name TEXT DEFAULT 'Shelly',
+                updated_at TEXT
             )
         """)
+        if old_row:
+            # Try to copy old data — old table might have id=1 row
+            cols = old_row.keys()
+            # Map old id=1 row to user_id=1
+            conn.execute("""
+                INSERT OR IGNORE INTO assumptions_new
+                    (user_id, annual_growth_rate, retirement_age, current_age,
+                     retirement_goal_value, isa_allowance, lisa_allowance,
+                     target_dev_pct, target_em_pct, emergency_fund_target,
+                     dashboard_name, updated_at)
+                SELECT
+                    1,
+                    COALESCE(annual_growth_rate, 0.07),
+                    COALESCE(retirement_age, 60),
+                    COALESCE(current_age, 43),
+                    COALESCE(retirement_goal_value, 1000000),
+                    COALESCE(isa_allowance, 20000),
+                    COALESCE(lisa_allowance, 4000),
+                    COALESCE(target_dev_pct, 0.90),
+                    COALESCE(target_em_pct, 0.10),
+                    COALESCE(emergency_fund_target, 3000),
+                    COALESCE(dashboard_name, 'Shelly'),
+                    updated_at
+                FROM assumptions
+                LIMIT 1
+            """)
+        conn.execute("DROP TABLE IF EXISTS assumptions")
+        conn.execute("ALTER TABLE assumptions_new RENAME TO assumptions")
+        conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ('v4_assumptions_multi_user')"
+        )
 
+    # ── monthly_reviews: fix UNIQUE(month_key) → UNIQUE(user_id, month_key) ─
+    if not conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = 'v5_monthly_reviews_per_user'"
+    ).fetchone():
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS pension_contributions (
+            CREATE TABLE IF NOT EXISTS monthly_reviews_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                month_key TEXT NOT NULL,
+                status TEXT DEFAULT 'not_started',
+                notes TEXT,
+                completed_at TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                UNIQUE(user_id, month_key)
+            )
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO monthly_reviews_new
+                (id, user_id, month_key, status, notes, completed_at, created_at, updated_at)
+            SELECT id, user_id, month_key, status, notes, completed_at, created_at, updated_at
+            FROM monthly_reviews
+        """)
+        conn.execute("DROP TABLE IF EXISTS monthly_reviews")
+        conn.execute("ALTER TABLE monthly_reviews_new RENAME TO monthly_reviews")
+        conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ('v5_monthly_reviews_per_user')"
+        )
+
+    # ── budget_sections: fix UNIQUE(key) → UNIQUE(user_id, key) ──────────
+    if not conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = 'v5_budget_sections_per_user'"
+    ).fetchone():
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS budget_sections_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                UNIQUE(user_id, key)
+            )
+        """)
+        conn.execute("""
+            INSERT OR IGNORE INTO budget_sections_new (id, user_id, key, label, sort_order)
+            SELECT id, user_id, key, label, sort_order FROM budget_sections
+        """)
+        conn.execute("DROP TABLE IF EXISTS budget_sections")
+        conn.execute("ALTER TABLE budget_sections_new RENAME TO budget_sections")
+        conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ('v5_budget_sections_per_user')"
+        )
+
+    # ── Add salary_day and update_day to assumptions ────────────────────
+    for col in [
+        "salary_day INTEGER DEFAULT 0",
+        "update_day INTEGER DEFAULT 0",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    # ── Migrate current_age → date_of_birth ─────────────────────────────
+    # Add date_of_birth column (TEXT, ISO format YYYY-MM-DD)
+    try:
+        conn.execute("ALTER TABLE assumptions ADD COLUMN date_of_birth TEXT")
+    except Exception:
+        pass
+
+    # One-time: convert existing current_age to approximate DOB
+    if not conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = 'v6_dob_from_age'"
+    ).fetchone():
+        # For each user who has current_age but no DOB, estimate DOB as
+        # today minus current_age years (assumes birthday is Jan 1 — user
+        # can correct this in Settings).
+        from datetime import date as _date
+        rows = conn.execute(
+            "SELECT user_id, current_age FROM assumptions WHERE date_of_birth IS NULL AND current_age IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            approx_year = _date.today().year - int(row["current_age"])
+            approx_dob = f"{approx_year}-01-01"
+            conn.execute(
+                "UPDATE assumptions SET date_of_birth = ? WHERE user_id = ?",
+                (approx_dob, row["user_id"]),
+            )
+        conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ('v6_dob_from_age')"
+        )
+
+    # ── Retirement date mode ───────────────────────────────────────────
+    # Options: 'birthday', 'end_of_year', 'end_of_tax_year'
+    try:
+        conn.execute("ALTER TABLE assumptions ADD COLUMN retirement_date_mode TEXT DEFAULT 'birthday'")
+    except Exception:
+        pass
+
+    # ── Tax band on assumptions ────────────────────────────────────────
+    # Options: 'basic', 'higher', 'additional'
+    try:
+        conn.execute("ALTER TABLE assumptions ADD COLUMN tax_band TEXT DEFAULT 'basic'")
+    except Exception:
+        pass
+
+    # ── Pension / contribution / fee fields on accounts ────────────────
+    for col in [
+        "employer_contribution REAL DEFAULT 0",
+        "contribution_method TEXT DEFAULT 'standard'",
+        "annual_fee_pct REAL DEFAULT 0",
+        "platform_fee_pct REAL DEFAULT 0",
+        "platform_fee_flat REAL DEFAULT 0",
+        "platform_fee_cap REAL DEFAULT 0",
+        "fund_fee_pct REAL DEFAULT 0",
+        "uninvested_cash REAL DEFAULT 0",
+        "cash_interest_rate REAL DEFAULT 0",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE accounts ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    # ── Migrate legacy annual_fee_pct → fund_fee_pct (one-time) ──────
+    try:
+        if not conn.execute(
+            "SELECT 1 FROM schema_migrations WHERE name = 'v4_split_fees'"
+        ).fetchone():
+            conn.execute("""
+                UPDATE accounts SET fund_fee_pct = annual_fee_pct
+                WHERE annual_fee_pct > 0 AND fund_fee_pct = 0
+            """)
+            conn.execute(
+                "INSERT INTO schema_migrations (name) VALUES ('v4_split_fees')"
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+    # ── One-time catalogue wipe ───────────────────────────────────────────
+    if not conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE name = 'v3_clean_catalogue'"
+    ).fetchone():
+        conn.execute("DELETE FROM holding_catalogue")
+        conn.execute(
+            "INSERT INTO schema_migrations (name) VALUES ('v3_clean_catalogue')"
+        )
+
+    # ── Unique ticker index per user ──────────────────────────────────────
+    # Drop old global unique index if it exists, then create per-user one
+    try:
+        conn.execute("DROP INDEX IF EXISTS idx_catalogue_ticker")
+    except Exception:
+        pass
+    try:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_catalogue_ticker_user "
+            "ON holding_catalogue(user_id, ticker) WHERE ticker IS NOT NULL AND ticker != ''"
+        )
+    except Exception:
+        pass
+
+    # ── Auto-update prices toggle on assumptions ─────────────────────────
+    try:
+        conn.execute("ALTER TABLE assumptions ADD COLUMN auto_update_prices INTEGER DEFAULT 1")
+    except Exception:
+        pass
+
+    # ── Scheduler run tracking ────────────────────────────────────────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS scheduler_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            run_date TEXT NOT NULL,
+            slot TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(user_id, run_date, slot)
+        )
+    """)
+
+    # ── Configurable price update times ──────────────────────────────────
+    for col in [
+        "update_time_morning TEXT DEFAULT '08:30'",
+        "update_time_evening TEXT DEFAULT '18:00'",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
+        except Exception:
+            pass
+
+    for col in [
+        "annual_income REAL DEFAULT 0",
+        "pension_annual_allowance REAL DEFAULT 60000",
+        "mpaa_enabled INTEGER DEFAULT 0",
+        "mpaa_allowance REAL DEFAULT 10000",
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE assumptions ADD COLUMN {col}")
+        except Exception:
+            pass
+    # ── Custom tags per user ─────────────────────────────────────────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS custom_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            tag TEXT NOT NULL,
+            UNIQUE(user_id, tag)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pension_contributions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            account_id INTEGER NOT NULL REFERENCES accounts(id),
+            amount REAL NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'personal',
+            contribution_date TEXT NOT NULL,
+            note TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS api_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            token TEXT NOT NULL UNIQUE,
+            label TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_used_at TEXT
+        )
+    """)
+
+    # ── cgt_disposals: add optional account_id ───────────────────────────
+    try:
+        conn.execute("ALTER TABLE cgt_disposals ADD COLUMN account_id INTEGER REFERENCES accounts(id)")
+    except Exception:
+        pass
+
+    # ── account_daily_snapshots: per-account daily values ─────────────────
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS account_daily_snapshots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 account_id INTEGER NOT NULL REFERENCES accounts(id),
-                amount REAL NOT NULL,
-                kind TEXT NOT NULL DEFAULT 'personal',
-                contribution_date TEXT NOT NULL,
-                note TEXT,
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                snapshot_date TEXT NOT NULL,
+                value REAL NOT NULL,
+                UNIQUE(account_id, snapshot_date)
             )
         """)
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS api_tokens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL REFERENCES users(id),
-                token TEXT NOT NULL UNIQUE,
-                label TEXT,
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                last_used_at TEXT
-            )
-        """)
-
-        # ── cgt_disposals: add optional account_id ───────────────────────────
-        try:
-            conn.execute("ALTER TABLE cgt_disposals ADD COLUMN account_id INTEGER REFERENCES accounts(id)")
-        except Exception:
-            pass
-
-        # ── account_daily_snapshots: per-account daily values ─────────────────
-        try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS account_daily_snapshots (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL REFERENCES users(id),
-                    account_id INTEGER NOT NULL REFERENCES accounts(id),
-                    snapshot_date TEXT NOT NULL,
-                    value REAL NOT NULL,
-                    UNIQUE(account_id, snapshot_date)
-                )
-            """)
-        except Exception:
-            pass
+    except Exception:
+        pass
 
 
 def _ensure_indexes(conn):
