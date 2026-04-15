@@ -55,6 +55,9 @@
                   <strong>{{ position.holding_name }}</strong>
                 {% endif %}
                 {% if position.ticker %}<small class="text-muted">{{ position.ticker }}</small>{% endif %}
+                {% if position.ticker and not position.holding_catalogue_id %}
+                  <small class="holding-unlinked-badge" title="No price source linked — prices won't update automatically">no auto-price</small>
+                {% endif %}
               </div>
               <div class="holdings-cell-bucket" role="cell">{{ position.bucket or '' }}</div>
               <div class="holdings-cell-units" role="cell">

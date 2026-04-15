@@ -7,8 +7,13 @@
   <div class="budget-year-strip-inner">
     {% for m in month_strip %}
     <span class="budget-month-pill{% if m.is_today %} budget-month-active{% endif %}"
-          title="{{ m.label }}">
+          title="{{ m.label }}{% if m.review_status == 'complete' %} · ✓ Review done{% elif m.review_status == 'not_started' %} · Review not finished{% endif %}">
       <span class="budget-month-pill-label">{{ m.label }}</span>
+      {% if m.review_status == 'complete' %}
+        <span class="budget-month-dot review-dot-complete"></span>
+      {% elif m.review_status == 'not_started' %}
+        <span class="budget-month-dot review-dot-started"></span>
+      {% endif %}
     </span>
     {% endfor %}
   </div>

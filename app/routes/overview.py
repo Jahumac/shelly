@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timezone
 
 from flask import Blueprint, render_template
@@ -15,6 +16,7 @@ from app.calculations import (
     projected_total_retirement_value,
     review_ready_date,
     tag_totals,
+    to_float,
     total_invested,
     total_monthly_contributions,
     uk_tax_year_label,
@@ -24,6 +26,9 @@ from app.calculations import (
 )
 from app.models import (
     fetch_all_accounts,
+    fetch_all_active_overrides,
+    fetch_all_goals,
+    fetch_all_holdings,
     fetch_assumptions,
     fetch_holding_totals_by_account,
     fetch_isa_contributions,
@@ -46,7 +51,6 @@ def overview():
     uid = current_user.id
     raw_accounts = fetch_all_accounts(uid)
     assumptions = fetch_assumptions(uid)
-    goal = fetch_primary_goal(uid)
     holdings_totals = fetch_holding_totals_by_account(uid)
 
     accounts = []
@@ -59,11 +63,44 @@ def overview():
     monthly_total = total_monthly_contributions(accounts)
     tag_totals_map = tag_totals(accounts, holdings_totals)
     projected_total = projected_total_retirement_value(accounts, assumptions)
+
+    # Keep a single primary goal for the hero stat + backward compat
+    goal = fetch_primary_goal(uid)
     goal_target = float(goal["target_value"]) if goal else 0
     goal_progress = progress_to_goal(invested_total, goal_target)
 
     current_tax_year = uk_tax_year_label()
     now_date = datetime.now().date()
+
+    # Build per-goal progress rows (used in the goals section)
+    def _goal_year_estimate(target, current, monthly, assum):
+        if target <= current or monthly <= 0 or not assum:
+            return None
+        try:
+            rate = to_float(assum.get("annual_growth_rate", 0.07))
+            mr = rate / 12
+            rem = target - current
+            months = math.log(1 + rem * mr / monthly) / math.log(1 + mr) if mr > 0 else rem / monthly
+            return now_date.year + int(months // 12) if 0 < months < 600 else None
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    all_goals = fetch_all_goals(uid)
+    goals_data = []
+    for g in all_goals:
+        gt = float(g["target_value"] or 0)
+        gp = progress_to_goal(invested_total, gt)
+        goals_data.append({
+            "id": g["id"],
+            "name": g["name"],
+            "target": gt,
+            "progress": gp,
+            "remaining": max(gt - invested_total, 0),
+            "goal_year": _goal_year_estimate(gt, invested_total, monthly_total, assumptions),
+        })
+
+    # Primary goal year for hero stat
+    goal_year = goals_data[0]["goal_year"] if goals_data else None
     try:
         salary_day = int(assumptions["salary_day"]) if assumptions and assumptions["salary_day"] else 0
     except (KeyError, TypeError):
@@ -89,6 +126,7 @@ def overview():
         "projected_total": projected_total,
         "goal_target": goal_target,
         "goal_progress": goal_progress,
+        "goal_year": goal_year,
         "tax_year": current_tax_year,
         "tax_year_days_left": days_until_tax_year_end(now.date()),
         "current_date": now.strftime("%A, %d %B %Y"),
@@ -241,6 +279,19 @@ def overview():
             "cta_href": "/allowance/#topup",
         })
 
+    # Unlinked holdings: held via "holdings" valuation but no catalogue link → won't auto-price
+    if assumptions and assumptions.get("auto_update_prices"):
+        all_holdings = fetch_all_holdings(uid)
+        unlinked = [h for h in all_holdings if not h.get("holding_catalogue_id") and h.get("ticker")]
+        if unlinked:
+            count = len(unlinked)
+            alerts.append({
+                "kind": "info",
+                "message": f"{count} holding{'s' if count != 1 else ''} {'have' if count != 1 else 'has'} a ticker but no price source linked — {'their' if count != 1 else 'its'} price won't update automatically.",
+                "cta_text": "Review holdings",
+                "cta_href": "/holdings/",
+            })
+
     # Nudge to set investment day if accounts exist but salary_day is not configured
     if not salary_day and raw_accounts:
         alerts.append({
@@ -251,10 +302,26 @@ def overview():
             "cta_form_action": None,
         })
 
+    # Missed last-month review: past the ready date and review not complete
+    if salary_day:
+        lm_year, lm_month = (now_date.year - 1, 12) if now_date.month == 1 else (now_date.year, now_date.month - 1)
+        lm_key = f"{lm_year}-{lm_month:02d}"
+        lm_ready = review_ready_date(lm_year, lm_month, salary_day)
+        if now_date >= lm_ready:
+            lm_review = fetch_monthly_review(lm_key, uid)
+            if lm_review is None or lm_review["status"] != "complete":
+                lm_label = datetime(lm_year, lm_month, 1).strftime("%B")
+                alerts.append({
+                    "kind": "warning",
+                    "message": f"Your {lm_label} monthly update hasn't been completed yet.",
+                    "cta_text": "Do it now",
+                    "cta_href": f"/monthly-review/?month={lm_key}",
+                    "cta_form_action": None,
+                })
+
     # Unconfirmed contributions: review is complete but some contributions weren't ticked off
     current_review = fetch_monthly_review(current_month_key, uid)
     if current_review and current_review["status"] == "complete":
-        from app.models import fetch_all_active_overrides
         review_items = fetch_monthly_review_items(current_review["id"])
         active_overrides = fetch_all_active_overrides(current_month_key, uid)
         skipped_ids = {
@@ -279,10 +346,29 @@ def overview():
                 "cta_form_action": None,
             })
 
+    # LISA bonus reminder: April 6 – June 30, if LISA was used in the just-ended tax year
+    has_lisa = any("Lifetime" in (a.get("wrapper_type") or "") or "LISA" in (a.get("wrapper_type") or "") for a in raw_accounts)
+    if has_lisa:
+        from datetime import date as _date
+        last_ty_end = _date(now_date.year, 4, 5)
+        last_ty_start = _date(now_date.year - 1, 4, 6)
+        bonus_window_end = _date(now_date.year, 6, 30)
+        if last_ty_end < now_date <= bonus_window_end:
+            prev_ad_hoc = fetch_isa_contributions(uid, last_ty_start.isoformat(), last_ty_end.isoformat())
+            prev_usage = calculate_isa_usage(raw_accounts, prev_ad_hoc, last_ty_end, salary_day)
+            if prev_usage["lisa_used"] > 0:
+                alerts.append({
+                    "kind": "info",
+                    "message": f"The {last_ty_start.year}/{str(last_ty_end.year)[2:]} LISA government bonus should arrive soon — check your account to make sure it's been credited.",
+                    "cta_text": None,
+                    "cta_href": None,
+                })
+
     return render_template(
         "overview.html",
         metrics=metrics,
         accounts=accounts,
+        goals_data=goals_data,
         assumptions=assumptions,
         history_labels=history_labels,
         history_values=history_values,

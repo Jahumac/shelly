@@ -6,7 +6,7 @@
 {# ── Onboarding state ────────────────────────────────────────────────────── #}
 {% set has_profile = assumptions and assumptions.date_of_birth %}
 {% set has_accounts = accounts | length > 0 %}
-{% set has_goal = metrics.goal_target > 0 %}
+{% set has_goal = goals_data | length > 0 %}
 {% set has_history = history_labels | length > 0 %}
 {% set steps_done = [has_profile, has_accounts, has_goal, has_history] | select | list | length %}
 
@@ -110,8 +110,8 @@
     {% call hero_stat('Projected at retirement') %}<strong>£{{ '{:,.0f}'.format(metrics.projected_total) }}</strong>{% endcall %}
     {% call hero_stat('Accounts') %}<strong>{{ accounts | length }}</strong>{% endcall %}
     {% call hero_stat('Tax Year ' ~ metrics.tax_year) %}<strong>{{ metrics.tax_year_days_left }} days left</strong>{% endcall %}
-    {% if metrics.goal_target > 0 %}
-      {% call hero_stat('Goal progress') %}<strong>{{ '{:.1f}'.format(metrics.goal_progress * 100) }}%</strong>{% endcall %}
+    {% if goals_data %}
+      {% call hero_stat('Goal progress') %}<strong>{{ '{:.1f}'.format(goals_data[0].progress * 100) }}%</strong>{% if goals_data[0].goal_year %}<small>~{{ goals_data[0].goal_year }}</small>{% endif %}{% endcall %}
     {% endif %}
   </div>
 </section>
@@ -189,17 +189,22 @@
 </section>
 
 {# ── Goal progress ────────────────────────────────────────────────────────── #}
-{% if metrics.goal_target > 0 %}
+{% if goals_data %}
 <section class="card mb-1">
-  <div class="section-header">
-    <div>
-      <p class="eyebrow">Primary Goal</p>
-      <h2>£{{ '{:,.0f}'.format(metrics.invested_total) }} / £{{ '{:,.0f}'.format(metrics.goal_target) }}</h2>
-    </div>
-    <strong class="goal-progress-pct">{{ '{:.1f}'.format(metrics.goal_progress * 100) }}%</strong>
+  <div class="section-header mb-05">
+    <p class="eyebrow">Goals</p>
+    <a href="/goals/" class="link-accent text-sm">Manage</a>
   </div>
-  <div class="progress" role="progressbar" aria-valuenow="{{ (metrics.goal_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="Goal progress"><div class="progress-bar" style="width: {{ [metrics.goal_progress * 100, 100]|min }}%;"></div></div>
-  <small>£{{ '{:,.0f}'.format([metrics.goal_target - metrics.invested_total, 0]|max) }} remaining to goal</small>
+  {% for g in goals_data %}
+  <div class="goal-row{% if not loop.last %} goal-row-divider{% endif %}">
+    <div class="goal-row-header">
+      <strong>{{ g.name }}</strong>
+      <span class="goal-progress-pct">{{ '{:.1f}'.format(g.progress * 100) }}%</span>
+    </div>
+    <div class="progress" role="progressbar" aria-valuenow="{{ (g.progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ g.name }} progress"><div class="progress-bar" style="width: {{ [g.progress * 100, 100]|min }}%;"></div></div>
+    <small class="text-muted">£{{ '{:,.0f}'.format(metrics.invested_total) }} / £{{ '{:,.0f}'.format(g.target) }}{% if g.remaining > 0 %} · £{{ '{:,.0f}'.format(g.remaining) }} to go{% endif %}{% if g.goal_year %} · ~{{ g.goal_year }}{% endif %}</small>
+  </div>
+  {% endfor %}
 </section>
 {% endif %}
 

@@ -1,3 +1,4 @@
+import calendar as _cal
 from datetime import date, datetime, timezone
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
@@ -21,6 +22,7 @@ from app.models import (
     fetch_budget_items,
     fetch_holding,
     fetch_holding_totals_by_account,
+    fetch_monthly_review,
     fetch_monthly_review_items,
     fetch_or_create_monthly_review,
     fetch_primary_goal,
@@ -57,9 +59,23 @@ def _optional_float(value, default=None):
         return default
 
 
-def default_month_key():
+def default_month_key(uid=None, salary_day=None):
     today = date.today()
-    return f"{today.year}-{today.month:02d}"
+    current_key = f"{today.year}-{today.month:02d}"
+    if not uid or not salary_day:
+        return current_key
+    # Point to last month if its review is incomplete and we're past the ready date
+    if today.month == 1:
+        last_year, last_month = today.year - 1, 12
+    else:
+        last_year, last_month = today.year, today.month - 1
+    last_key = f"{last_year}-{last_month:02d}"
+    ready = calc_review_ready_date(last_year, last_month, salary_day)
+    if today >= ready:
+        review = fetch_monthly_review(last_key, uid)
+        if review is None or review["status"] != "complete":
+            return last_key
+    return current_key
 
 
 def month_label(month_key):
@@ -70,7 +86,12 @@ def month_label(month_key):
 @login_required
 def monthly_review():
     uid = current_user.id
-    month_key = request.values.get("month") or default_month_key()
+    assumptions = fetch_assumptions(uid)
+    try:
+        salary_day = int(assumptions["salary_day"]) if assumptions and assumptions.get("salary_day") else 0
+    except (ValueError, TypeError):
+        salary_day = 0
+    month_key = request.values.get("month") or default_month_key(uid, salary_day)
 
     if request.method == "POST":
         form_name = request.form.get("form_name")
@@ -145,14 +166,7 @@ def monthly_review():
     for row in fetch_all_holdings_grouped(uid):
         holdings_by_account.setdefault(row["account_id"], []).append(row)
 
-    assumptions = fetch_assumptions(uid)
-
     # Calculate the smart review-ready date for this month
-    import calendar as _cal
-    try:
-        salary_day = int(assumptions["salary_day"]) if assumptions and assumptions["salary_day"] else 0
-    except (KeyError, TypeError):
-        salary_day = 0
     mk_year, mk_month = [int(x) for x in month_key.split("-")]
     ready_date = calc_review_ready_date(mk_year, mk_month, salary_day) if salary_day else None
 

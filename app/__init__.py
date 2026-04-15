@@ -133,6 +133,24 @@ def create_app():
         strip = build_month_strip(date.today())
         today_pill = next((m for m in strip if m["is_today"]), None)
         current_month_num = today_pill["month_num"] if today_pill else date.today().month
+
+        if current_user.is_authenticated:
+            try:
+                from app.models import get_connection
+                month_keys = [m["key"] for m in strip]
+                placeholders = ",".join("?" * len(month_keys))
+                with get_connection() as conn:
+                    rows = conn.execute(
+                        f"SELECT month_key, status FROM monthly_reviews "
+                        f"WHERE user_id = ? AND month_key IN ({placeholders})",
+                        [current_user.id] + month_keys,
+                    ).fetchall()
+                status_map = {r["month_key"]: r["status"] for r in rows}
+                for m in strip:
+                    m["review_status"] = status_map.get(m["key"])
+            except Exception:
+                pass
+
         return {"month_strip": strip, "current_month_num": current_month_num}
 
     @app.context_processor

@@ -296,6 +296,28 @@ nav a.active {
   font-size: 0.86rem;
 }
 
+.goal-row {
+  padding: 0.6rem 0;
+}
+
+.goal-row-divider {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.6rem;
+}
+
+.goal-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+}
+
+.goal-progress-pct {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
 .card p,
 .panel p {
   margin-bottom: 0.25rem;
@@ -2111,6 +2133,26 @@ button.badge-like-button {
   border-radius: 50%;
   background: var(--month-color, var(--accent));
   display: block;
+}
+
+.review-dot-complete {
+  background: #22c55e;
+}
+
+.review-dot-started {
+  background: #f59e0b;
+}
+
+.holding-unlinked-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #f59e0b;
+  border: 1px solid #f59e0b44;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0.85;
 }
 
 .budget-month-has-data .budget-month-pill-label {

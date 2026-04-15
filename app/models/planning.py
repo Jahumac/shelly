@@ -753,9 +753,6 @@ def fetch_monthly_performance_data_by_account(user_id):
             FROM monthly_snapshots ms
             JOIN accounts a ON a.id = ms.account_id
             LEFT JOIN monthly_reviews mr ON mr.month_key = ms.month_key AND mr.user_id = ?
-
-# ── Contribution overrides ────────────────────────────────────────────────────
-
             LEFT JOIN monthly_review_items mri
                    ON mri.review_id = mr.id AND mri.account_id = ms.account_id
             WHERE ms.month_key IS NOT NULL
