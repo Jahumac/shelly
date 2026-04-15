@@ -290,7 +290,7 @@
     <div class="allocation-legend">
       {% set total_alloc = allocation_values | sum %}
       {% for label in allocation_labels %}
-      <div class="allocation-legend-row">
+      <div class="allocation-legend-row" data-index="{{ loop.index0 }}">
         <span class="allocation-dot alloc-dot-{{ loop.index0 }}"></span>
         <span class="allocation-label">{{ label }}</span>
         <span class="allocation-value">£{{ '{:,.0f}'.format(allocation_values[loop.index0]) }}</span>
@@ -314,24 +314,46 @@
     '#06b6d4', '#f97316', '#84cc16', '#ec4899',
     '#6366f1', '#14b8a6',
   ];
+
   // Assign palette colors to legend dots
   labels.forEach(function(_, i) {
     document.querySelectorAll('.alloc-dot-' + i).forEach(function(el) {
       el.style.background = palette[i % palette.length];
     });
   });
-  var ctx = document.getElementById('allocationChart');
-  if (!ctx) return;
-  new Chart(ctx, {
+
+  // Highlight legend row when hovering donut (and vice versa)
+  function highlightRow(idx) {
+    document.querySelectorAll('.allocation-legend-row[data-index]').forEach(function(row) {
+      var i = parseInt(row.dataset.index);
+      if (idx >= 0 && i === idx) {
+        var col = palette[i % palette.length];
+        row.style.outline = '1px solid ' + col;
+        row.style.boxShadow = '0 0 0 1px ' + col + '55, 0 4px 16px ' + col + '25';
+        row.style.transform = 'translateX(4px)';
+      } else {
+        row.style.outline = '';
+        row.style.boxShadow = '';
+        row.style.transform = '';
+      }
+    });
+  }
+
+  var canvas = document.getElementById('allocationChart');
+  if (!canvas) return;
+  var chart = new Chart(canvas, {
     type: 'doughnut',
     data: {
       labels: labels,
       datasets: [{
         data: values,
         backgroundColor: palette.slice(0, labels.length),
+        hoverBackgroundColor: palette.slice(0, labels.length),
         borderWidth: 2,
         borderColor: c.panel2 || '#1e293b',
-        hoverOffset: 6,
+        hoverBorderColor: '#ffffff',
+        hoverBorderWidth: 2,
+        hoverOffset: 8,
       }]
     },
     options: {
@@ -352,8 +374,27 @@
             }
           }
         }
+      },
+      onHover: function(event, activeElements) {
+        canvas.style.cursor = activeElements.length ? 'pointer' : 'default';
+        highlightRow(activeElements.length ? activeElements[0].index : -1);
       }
     }
+  });
+
+  // Bidirectional: hovering a legend row highlights the donut segment
+  document.querySelectorAll('.allocation-legend-row[data-index]').forEach(function(row) {
+    row.addEventListener('mouseenter', function() {
+      var idx = parseInt(row.dataset.index);
+      highlightRow(idx);
+      chart.setActiveElements([{ datasetIndex: 0, index: idx }]);
+      chart.update('none');
+    });
+    row.addEventListener('mouseleave', function() {
+      highlightRow(-1);
+      chart.setActiveElements([]);
+      chart.update('none');
+    });
   });
 })();
 </script>
