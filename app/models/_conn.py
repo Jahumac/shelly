@@ -14,7 +14,7 @@ def get_connection():
         db_path = Path(current_app.config["DB_PATH"])
         db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(db_path, timeout=5.0)
-        conn.row_factory = sqlite3.Row
+        conn.row_factory = lambda cursor, row: dict(sqlite3.Row(cursor, row))
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA foreign_keys=ON")
