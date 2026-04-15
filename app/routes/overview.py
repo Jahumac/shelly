@@ -130,6 +130,11 @@ def overview():
     last_snapshot_date = daily_labels[-1] if daily_labels else None
     last_price_update = fetch_latest_price_update(uid)
     last_price_update_display = None
+    next_update_display = None
+    import pytz
+    uk = pytz.timezone("Europe/London")
+    now_uk = datetime.now(timezone.utc).astimezone(uk)
+    lpu_dt_uk = None
     if last_price_update:
         try:
             if isinstance(last_price_update, str) and last_price_update.endswith(" UTC"):
@@ -138,11 +143,43 @@ def overview():
                 dt = datetime.fromisoformat(str(last_price_update))
                 if dt.tzinfo is None:
                     dt = dt.replace(tzinfo=timezone.utc)
-            import pytz
-            uk = pytz.timezone("Europe/London")
-            last_price_update_display = dt.astimezone(uk).strftime("%Y-%m-%d %H:%M")
+            lpu_dt_uk = dt.astimezone(uk)
+            last_price_update_display = lpu_dt_uk.strftime("%d %b %H:%M")
         except Exception:
             last_price_update_display = str(last_price_update)[:16]
+
+    # Compute next expected auto-update time
+    if assumptions and bool(assumptions.get("auto_update_prices", 1)):
+        try:
+            def _hhmm(val, default_h):
+                try:
+                    p = str(val).strip().split(":")
+                    return int(p[0]), int(p[1])
+                except Exception:
+                    return default_h, 0
+            mh, mm = _hhmm(assumptions.get("update_time_morning", "08:30"), 8)
+            eh, em = _hhmm(assumptions.get("update_time_evening", "22:00"), 22)
+            win_start = now_uk.replace(hour=mh, minute=mm, second=0, microsecond=0)
+            win_end   = now_uk.replace(hour=eh, minute=em, second=0, microsecond=0)
+
+            if lpu_dt_uk:
+                from datetime import timedelta
+                candidate = lpu_dt_uk + timedelta(hours=1)
+            else:
+                candidate = win_start
+
+            if candidate < win_start:
+                candidate = win_start
+            if candidate > win_end:
+                # Next window is tomorrow morning
+                tomorrow_start = (now_uk + timedelta(days=1)).replace(hour=mh, minute=mm, second=0, microsecond=0)
+                next_update_display = "Tomorrow " + tomorrow_start.strftime("%H:%M")
+            elif candidate <= now_uk:
+                next_update_display = "Soon"
+            else:
+                next_update_display = candidate.strftime("%H:%M")
+        except Exception:
+            next_update_display = None
 
     # ── Alerts ────────────────────────────────────────────────────────────────
     alerts = []
@@ -224,6 +261,7 @@ def overview():
         last_snapshot_date=last_snapshot_date,
         last_price_update=last_price_update,
         last_price_update_display=last_price_update_display,
+        next_update_display=next_update_display,
         review_nudge=review_nudge,
         review_ready=review_ready,
         alerts=alerts,
