@@ -150,7 +150,7 @@ def settings():
                 """,
                 (uid,),
             ).fetchall()
-            diagnostics["catalogue_in_use_sample"] = [dict(r) for r in sample_rows]
+            diagnostics["catalogue_in_use_sample"] = sample_rows
 
         stale_count = 0
         now_utc = datetime.now(timezone.utc)

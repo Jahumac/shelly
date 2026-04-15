@@ -142,7 +142,7 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
     if edit_holding_id and positions:
         for p in positions:
             if p["id"] == edit_holding_id:
-                edit_holding = dict(p)
+                edit_holding = p
                 break
 
     allocation_rows = []
