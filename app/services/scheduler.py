@@ -184,11 +184,14 @@ def _scheduled_check(app):
                         if hours_since < 1:
                             continue
 
-                    # Claim this run
+                    # Claim this run and prune old records (keep 90 days)
                     slot_time = now.strftime('%H:%M')
                     conn.execute(
                         "INSERT OR IGNORE INTO scheduler_runs (user_id, run_date, slot) VALUES (?, ?, ?)",
                         (user_id, today_str, slot_time),
+                    )
+                    conn.execute(
+                        "DELETE FROM scheduler_runs WHERE run_date < date('now', '-90 days')",
                     )
                     conn.commit()
 

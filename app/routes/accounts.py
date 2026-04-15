@@ -118,7 +118,7 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
             if lpu.tzinfo is None:
                 lpu = lpu.replace(tzinfo=timezone.utc)
             prices_stale = (datetime.now(timezone.utc) - lpu).days >= 7
-        except Exception:
+        except (ValueError, TypeError):
             prices_stale = True
     else:
         prices_stale = any(r["valuation_mode"] == "holdings" for r in rows)

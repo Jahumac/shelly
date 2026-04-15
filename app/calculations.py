@@ -839,7 +839,7 @@ def calculate_pension_usage(accounts, ad_hoc_contributions, assumptions=None, to
 
         try:
             acc_day = int(acc.get("pension_contribution_day") or 0)
-        except Exception:
+        except (ValueError, TypeError):
             acc_day = 0
         if not acc_day:
             acc_day = salary_day

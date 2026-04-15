@@ -168,7 +168,7 @@ def settings():
                         dt = dt.replace(tzinfo=timezone.utc)
                 if now_utc - dt > timedelta(days=2):
                     stale_count += 1
-            except Exception:
+            except (ValueError, TypeError):
                 stale_count += 1
         diagnostics["catalogue_stale_2d_count_in_sample"] = stale_count
 

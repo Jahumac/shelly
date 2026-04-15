@@ -145,7 +145,7 @@ def overview():
                     dt = dt.replace(tzinfo=timezone.utc)
             lpu_dt_uk = dt.astimezone(uk)
             last_price_update_display = lpu_dt_uk.strftime("%d %b %H:%M")
-        except Exception:
+        except (ValueError, TypeError):
             last_price_update_display = str(last_price_update)[:16]
 
     # Compute next expected auto-update time
@@ -155,7 +155,7 @@ def overview():
                 try:
                     p = str(val).strip().split(":")
                     return int(p[0]), int(p[1])
-                except Exception:
+                except (ValueError, IndexError):
                     return default_h, 0
             mh, mm = _hhmm(assumptions.get("update_time_morning", "08:30"), 8)
             eh, em = _hhmm(assumptions.get("update_time_evening", "22:00"), 22)
@@ -178,7 +178,7 @@ def overview():
                 next_update_display = "Soon"
             else:
                 next_update_display = candidate.strftime("%H:%M")
-        except Exception:
+        except (ValueError, TypeError):
             next_update_display = None
 
     # ── Alerts ────────────────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ def overview():
                     if lpu_dt.tzinfo is None:
                         lpu_dt = lpu_dt.replace(tzinfo=timezone.utc)
                 price_stale = (datetime.now(timezone.utc) - lpu_dt).total_seconds() > SCHEDULER_STALE_AFTER_HOURS * 3600
-            except Exception:
+            except (ValueError, TypeError):
                 price_stale = True
         if price_stale:
             alerts.append({

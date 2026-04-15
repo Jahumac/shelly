@@ -63,7 +63,7 @@ def detect_csv_headers(file_bytes):
         reader = csv.reader(io.StringIO(text))
         headers = next(reader, [])
         return [h.strip() for h in headers if h.strip()]
-    except Exception:
+    except csv.Error:
         return []
 
 
@@ -77,7 +77,7 @@ def count_csv_rows(file_bytes):
         reader = csv.reader(io.StringIO(text))
         rows = list(reader)
         return max(0, len(rows) - 1)  # subtract header
-    except Exception:
+    except csv.Error:
         return 0
 
 
