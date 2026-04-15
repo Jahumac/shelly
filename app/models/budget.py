@@ -229,7 +229,7 @@ def fetch_budget_trend(user_id, months):
         return conn.execute(
             f"""
             SELECT
-                bs.name AS section_name,
+                bs.label AS section_name,
                 bi.name AS item_name,
                 bi.id AS item_id,
                 bi.default_amount,
@@ -237,7 +237,7 @@ def fetch_budget_trend(user_id, months):
                 be.amount AS actual_amount
             FROM budget_entries be
             JOIN budget_items bi ON bi.id = be.budget_item_id
-            JOIN budget_sections bs ON bs.id = bi.section_id
+            JOIN budget_sections bs ON bs.key = bi.section AND bs.user_id = bi.user_id
             WHERE bi.user_id = ?
               AND be.month_key IN ({placeholders})
             ORDER BY bs.sort_order ASC, bi.sort_order ASC, be.month_key ASC

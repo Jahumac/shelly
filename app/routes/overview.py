@@ -365,16 +365,17 @@ def overview():
                     "cta_href": None,
                 })
 
-    # ── Asset allocation by bucket ────────────────────────────────────────────
+    # ── Asset allocation by individual holding ────────────────────────────────
     all_holdings_grouped = fetch_all_holdings_grouped(uid)
-    bucket_totals: dict = {}
+    holding_totals: dict = {}
     for h in all_holdings_grouped:
-        bucket = (h["bucket"] or "Other").strip() or "Other"
+        name = (h["holding_name"] or "Unknown").strip() or "Unknown"
         val = float(h["value"] or 0)
-        bucket_totals[bucket] = bucket_totals.get(bucket, 0) + val
-    # Sort by value descending, filter out zero buckets
+        if val > 0:
+            holding_totals[name] = holding_totals.get(name, 0) + val
+    # Sort by value descending
     allocation = sorted(
-        [(b, v) for b, v in bucket_totals.items() if v > 0],
+        holding_totals.items(),
         key=lambda x: -x[1],
     )
     allocation_labels = [a[0] for a in allocation]
