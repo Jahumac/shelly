@@ -56,12 +56,12 @@ def init_scheduler(app):
 
     scheduler = BackgroundScheduler(timezone='Europe/London')
 
-    # Run every 15 minutes between 6am-10pm UK time.
-    # Each run checks every user's configured update times and triggers
-    # price updates for users whose time falls within the current window.
+    # Run every 15 minutes between 8am-10pm UK time.
+    # Each user's actual update window is checked inside _scheduled_check
+    # against their update_time_morning / update_time_evening settings.
     scheduler.add_job(
         func=_scheduled_check,
-        trigger=CronTrigger(minute='*/15', hour='6-22', timezone='Europe/London'),
+        trigger=CronTrigger(minute='*/15', hour='8-22', timezone='Europe/London'),
         id='price_update_check',
         name='Check per-user update times',
         replace_existing=True,
@@ -80,7 +80,7 @@ def init_scheduler(app):
 
     try:
         scheduler.start()
-        logger.info("Background scheduler started — checking every 15 min (6am–10pm UK)")
+        logger.info("Background scheduler started — checking every 15 min (8am–10pm UK), hourly per user within their window")
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
         scheduler = None
@@ -104,14 +104,24 @@ def _scheduled_backup(app):
         logger.exception(f"Scheduled backup failed: {e}")
 
 
+def _parse_hhmm(time_str, default_hour):
+    """Parse 'HH:MM' string to (hour, minute). Returns (default_hour, 0) on failure."""
+    try:
+        parts = str(time_str).strip().split(":")
+        return int(parts[0]), int(parts[1])
+    except Exception:
+        return default_hour, 0
+
+
 def _scheduled_check(app):
     """Runs every 15 minutes (6am-10pm UK). For each user with auto_update
-    enabled, triggers a price update if at least 4 hours have passed since
-    the last successful run.
+    enabled, triggers a price update if:
+      - Current time is within the user's configured morning–evening window, AND
+      - At least 1 hour has passed since the last successful run.
 
-    This is more reliable than checking exact time windows because it
-    self-heals after restarts — if gunicorn restarts and misses a window,
-    the next 15-minute check will catch up automatically.
+    The window defaults to 08:30–22:00 but respects per-user settings.
+    Self-heals after restarts — if gunicorn misses a window the next
+    15-minute tick will catch up automatically.
     """
     import pytz
 
@@ -141,7 +151,16 @@ def _scheduled_check(app):
                 if not bool(assumptions.get("auto_update_prices", 1)):
                     continue
 
-                # Check last run time — skip if less than 4 hours ago
+                # Resolve per-user update window (defaults: 08:30 – 22:00)
+                morning_h, morning_m = _parse_hhmm(assumptions.get("update_time_morning", "08:30"), 8)
+                evening_h, evening_m = _parse_hhmm(assumptions.get("update_time_evening", "22:00"), 22)
+                window_start = now.replace(hour=morning_h, minute=morning_m, second=0, microsecond=0)
+                window_end   = now.replace(hour=evening_h, minute=evening_m, second=0, microsecond=0)
+
+                if not (window_start <= now <= window_end):
+                    continue  # outside this user's active window
+
+                # Check last run time — skip if less than 1 hour ago
                 with get_connection() as conn:
                     last_run = conn.execute(
                         "SELECT run_date, slot FROM scheduler_runs "
@@ -152,19 +171,17 @@ def _scheduled_check(app):
                     if last_run:
                         last_date = last_run["run_date"]
                         last_slot = last_run["slot"] or ""
-                        # Parse last run timestamp
                         try:
                             last_dt = uk_tz.localize(
                                 datetime.strptime(last_date + " " + last_slot, "%Y-%m-%d %H:%M")
                             )
                         except (ValueError, TypeError):
-                            # Fallback: assume it ran at start of that day
                             last_dt = uk_tz.localize(
                                 datetime.strptime(last_date, "%Y-%m-%d")
                             )
 
                         hours_since = (now - last_dt).total_seconds() / 3600
-                        if hours_since < 4:
+                        if hours_since < 1:
                             continue
 
                     # Claim this run
