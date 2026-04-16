@@ -74,6 +74,9 @@
       {% if unconfirmed_count > 0 %}
       <p class="helper-text" style="color: var(--color-warning, #b45309);">⚠ {{ unconfirmed_count }} contribution{{ 's' if unconfirmed_count != 1 else '' }} haven't been confirmed yet — you can still confirm them after completing.</p>
       {% endif %}
+      {% if unupdated_manual_names %}
+      <p class="helper-text" style="color: var(--color-warning, #b45309);">⚠ {{ unupdated_manual_names | length }} manual account{{ 's' if unupdated_manual_names | length != 1 else '' }} haven't had their balance updated this month ({{ unupdated_manual_names | join(', ') }}). Completing now will snapshot their last saved value, which may skew performance history.</p>
+      {% endif %}
       <div class="confirm-dialog-actions">
         <button type="button" class="badge badge-primary-action" id="confirm-complete-yes">Yes, mark complete</button>
         <button type="button" class="badge" id="confirm-complete-no">Cancel</button>

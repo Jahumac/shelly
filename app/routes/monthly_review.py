@@ -175,6 +175,12 @@ def monthly_review():
 
     # Progress tracking stats — skipped contributions don't count as unconfirmed
     accounts_updated = sum(1 for item in items if item.get("holdings_updated") or item.get("balance_updated"))
+    # Manual accounts whose balance hasn't been touched this review — snapshotting them
+    # without an update will record a stale value and corrupt performance history.
+    unupdated_manual_names = [
+        item["account_name"] for item in manual_items
+        if not item.get("balance_updated")
+    ]
     unconfirmed_count = sum(
         1 for item in contribution_items
         if not item.get("contribution_confirmed")
@@ -236,6 +242,7 @@ def monthly_review():
         accounts_updated=accounts_updated,
         total_accounts=len(items),
         unconfirmed_count=unconfirmed_count,
+        unupdated_manual_names=unupdated_manual_names,
         goal_data=goal_data,
         budget_comparison=budget_comparison,
         active_page="monthly_review",
