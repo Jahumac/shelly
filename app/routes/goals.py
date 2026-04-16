@@ -12,12 +12,9 @@ from app.models import (
     fetch_holding_totals_by_account,
     update_goal,
 )
+from app.utils import split_tags as _split_tags
 
 goals_bp = Blueprint("goals", __name__)
-
-
-def _split_tags(tags_value):
-    return [tag.strip() for tag in (tags_value or "").split(",") if tag.strip()]
 
 
 def _goal_payload_from_form(form):

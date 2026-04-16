@@ -427,12 +427,9 @@ def budget_trend():
     ]
 
     # Hero stats
-    income_key = next(
-        (s["key"] for s in fetch_budget_sections(uid) if "income" in s["key"].lower()), None
-    )
-    income_section_label = next(
-        (s["label"] for s in fetch_budget_sections(uid) if s["key"] == income_key), None
-    ) if income_key else None
+    income_section = next((s for s in db_sections if "income" in s["key"].lower()), None)
+    income_key = income_section["key"] if income_section else None
+    income_section_label = income_section["label"] if income_section else None
 
     trend_avg_income = 0.0
     trend_avg_spend = 0.0

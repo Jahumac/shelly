@@ -1,5 +1,6 @@
 import math
-from datetime import datetime, timezone
+import pytz
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, render_template
 from flask_login import current_user, login_required
@@ -184,7 +185,6 @@ def overview():
     last_price_update = fetch_latest_price_update(uid)
     last_price_update_display = None
     next_update_display = None
-    import pytz
     uk = pytz.timezone("Europe/London")
     now_uk = datetime.now(timezone.utc).astimezone(uk)
     lpu_dt_uk = None
@@ -216,7 +216,6 @@ def overview():
             win_end   = now_uk.replace(hour=eh, minute=em, second=0, microsecond=0)
 
             if lpu_dt_uk:
-                from datetime import timedelta
                 candidate = lpu_dt_uk + timedelta(hours=1)
             else:
                 candidate = win_start
@@ -362,10 +361,9 @@ def overview():
     # LISA bonus reminder: April 6 – June 30, if LISA was used in the just-ended tax year
     has_lisa = any("Lifetime" in (a.get("wrapper_type") or "") or "LISA" in (a.get("wrapper_type") or "") for a in raw_accounts)
     if has_lisa:
-        from datetime import date as _date
-        last_ty_end = _date(now_date.year, 4, 5)
-        last_ty_start = _date(now_date.year - 1, 4, 6)
-        bonus_window_end = _date(now_date.year, 6, 30)
+        last_ty_end = date(now_date.year, 4, 5)
+        last_ty_start = date(now_date.year - 1, 4, 6)
+        bonus_window_end = date(now_date.year, 6, 30)
         if last_ty_end < now_date <= bonus_window_end:
             prev_ad_hoc = fetch_isa_contributions(uid, last_ty_start.isoformat(), last_ty_end.isoformat())
             prev_usage = calculate_isa_usage(raw_accounts, prev_ad_hoc, last_ty_end, salary_day)

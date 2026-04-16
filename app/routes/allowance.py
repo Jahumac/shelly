@@ -35,6 +35,8 @@ from app.models import (
     upsert_pension_carry_forward,
 )
 
+CGT_ANNUAL_EXEMPTION = 3000.0  # 2025-26 tax year
+
 allowance_bp = Blueprint("allowance", __name__)
 
 
@@ -98,7 +100,6 @@ def allowance_overview():
     )
 
     # ── CGT disposals ────────────────────────────────────────────────────────
-    CGT_ANNUAL_EXEMPTION = 3000.0  # 2025-26
     cgt_disposals = fetch_cgt_disposals(uid, ty_start, ty_end)
     cgt_gains = sum(max(float(d["proceeds"]) - float(d["cost_basis"]), 0) for d in cgt_disposals)
     cgt_losses = sum(max(float(d["cost_basis"]) - float(d["proceeds"]), 0) for d in cgt_disposals)

@@ -4,6 +4,11 @@ import re
 _MONTH_KEY_RE = re.compile(r"^\d{4}-\d{2}$")
 
 
+def split_tags(tags_value):
+    """Split a comma-separated tag string into a list of stripped, non-empty tags."""
+    return [tag.strip() for tag in (tags_value or "").split(",") if tag.strip()]
+
+
 def optional_float(value, default=None, divide_by_100=False, min_val=None):
     """Parse a string or numeric value to float, returning `default` on failure."""
     value = (str(value) if value is not None else "").strip()

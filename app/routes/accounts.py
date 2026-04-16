@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.calculations import contribution_breakdown, effective_account_value
+from app.calculations import contribution_breakdown, effective_account_value, to_float
 from app.models import (
     CATEGORY_OPTIONS,
     DEFAULT_TAG_OPTIONS,
@@ -39,7 +39,7 @@ from app.models import (
     update_holding,
 )
 from app.services.prices import fetch_price, lookup_instrument
-from app.utils import optional_float, optional_int, valid_month_key
+from app.utils import optional_float, optional_int, split_tags, valid_month_key
 
 ASSET_TYPE_OPTIONS = ["ETF", "Fund", "Share", "Pension Fund", "Cash", "Bond", "Other"]
 BUCKET_OPTIONS = [
@@ -58,6 +58,7 @@ accounts_bp = Blueprint("accounts", __name__)
 
 
 _optional_float = optional_float
+_split_tags = split_tags
 
 
 def _account_payload_from_form(form):
@@ -85,10 +86,6 @@ def _account_payload_from_form(form):
         "platform_fee_cap": _optional_float(form.get("platform_fee_cap"), 0.0, min_val=0.0),
         "fund_fee_pct": _optional_float(form.get("fund_fee_pct"), 0.0, min_val=0.0),
     }
-
-
-def _split_tags(tags_value):
-    return [tag.strip() for tag in (tags_value or '').split(',') if tag.strip()]
 
 
 def _render_accounts_page(user_id, selected=None, detail_mode="view", position_error=None, position_added=False, edit_holding_id=None):
@@ -279,24 +276,14 @@ def api_ticker_lookup():
     })
 
 
-@accounts_bp.route("/api/<int:account_id>/holdings/add", methods=["POST"])
-@login_required
-def api_add_holding(account_id):
-    """JSON API: add a holding by ticker and return the result (used by wizard JS)."""
-    uid = current_user.id
-    account = fetch_account(account_id, uid)
-    if not account:
-        return jsonify({"ok": False, "error": "Account not found"}), 404
+def _add_holding_by_ticker(uid, account_id, ticker, units):
+    """Shared logic: look up ticker price, create catalogue entry, and add holding.
 
-    ticker = (request.form.get("ticker") or "").strip().upper()
-    units = _optional_float(request.form.get("units"), None)
-
-    if not ticker or not units or units <= 0:
-        return jsonify({"ok": False, "error": "Ticker and units are required"}), 400
-
+    Returns a result dict on success. Raises ValueError with a user-facing message on failure.
+    """
     price_data = fetch_price(ticker)
     if not price_data:
-        return jsonify({"ok": False, "error": "Could not find price for " + ticker}), 404
+        raise ValueError(f"Couldn't fetch a price for '{ticker}'. Check the ticker and try again.")
 
     price_raw = price_data["price"]
     currency = price_data["currency"]
@@ -315,25 +302,70 @@ def api_add_holding(account_id):
         "holding_name": name, "ticker": ticker,
         "asset_type": asset_type, "bucket": "Global Equity", "notes": "",
     }, uid)
-
     update_catalogue_price(
         catalogue_id, price_raw, currency,
         price_data.get("change_pct"),
         datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
-
     add_holding({
         "account_id": account_id, "holding_catalogue_id": catalogue_id,
         "holding_name": name, "ticker": ticker, "asset_type": asset_type,
         "bucket": "Global Equity", "value": round(units * price_gbp, 2),
         "units": units, "price": price_gbp, "notes": "",
     })
+    return {"name": name, "ticker": ticker, "units": units, "price_gbp": price_gbp,
+            "value": round(units * price_gbp, 2)}
+
+
+def _add_holding_manual(uid, account_id, name, ticker, asset_type, units, price):
+    """Shared logic: create catalogue entry and add a manual holding (no live price lookup).
+
+    Returns a result dict. Raises ValueError with a user-facing message on failure.
+    """
+    catalogue_id = add_holding_catalogue_item({
+        "holding_name": name, "ticker": ticker,
+        "asset_type": asset_type, "bucket": "Other", "notes": "",
+    }, uid)
+    update_catalogue_price(
+        catalogue_id, price, "GBP", None,
+        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+    )
+    if ticker:
+        reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
+    add_holding({
+        "account_id": account_id, "holding_catalogue_id": catalogue_id,
+        "holding_name": name, "ticker": ticker, "asset_type": asset_type,
+        "bucket": "Other", "value": round(units * price, 2),
+        "units": units, "price": price, "notes": "",
+    })
+    return {"name": name, "ticker": ticker, "units": units, "price_gbp": price,
+            "value": round(units * price, 2)}
+
+
+@accounts_bp.route("/api/<int:account_id>/holdings/add", methods=["POST"])
+@login_required
+def api_add_holding(account_id):
+    """JSON API: add a holding by ticker and return the result (used by wizard JS)."""
+    uid = current_user.id
+    if not fetch_account(account_id, uid):
+        return jsonify({"ok": False, "error": "Account not found"}), 404
+
+    ticker = (request.form.get("ticker") or "").strip().upper()
+    units = _optional_float(request.form.get("units"), None)
+
+    if not ticker or not units or units <= 0:
+        return jsonify({"ok": False, "error": "Ticker and units are required"}), 400
+
+    try:
+        result = _add_holding_by_ticker(uid, account_id, ticker, units)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 404
 
     return jsonify({
-        "ok": True, "name": name, "ticker": ticker,
-        "units": units, "price": round(price_gbp, 4),
-        "value": round(units * price_gbp, 2),
+        "ok": True, "name": result["name"], "ticker": result["ticker"],
+        "units": result["units"], "price": round(result["price_gbp"], 4),
+        "value": result["value"],
     })
 
 
@@ -342,8 +374,7 @@ def api_add_holding(account_id):
 def api_add_holding_manual(account_id):
     """JSON API: add a manual holding and return the result (used by wizard JS)."""
     uid = current_user.id
-    account = fetch_account(account_id, uid)
-    if not account:
+    if not fetch_account(account_id, uid):
         return jsonify({"ok": False, "error": "Account not found"}), 404
 
     name = (request.form.get("name") or "").strip()
@@ -355,29 +386,11 @@ def api_add_holding_manual(account_id):
     if not name or not units or not price or units <= 0 or price <= 0:
         return jsonify({"ok": False, "error": "Name, units and price are required"}), 400
 
-    catalogue_id = add_holding_catalogue_item({
-        "holding_name": name, "ticker": ticker,
-        "asset_type": asset_type, "bucket": "Other", "notes": "",
-    }, uid)
-
-    update_catalogue_price(
-        catalogue_id, price, "GBP", None,
-        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-    )
-    if ticker:
-        reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
-
-    add_holding({
-        "account_id": account_id, "holding_catalogue_id": catalogue_id,
-        "holding_name": name, "ticker": ticker, "asset_type": asset_type,
-        "bucket": "Other", "value": round(units * price, 2),
-        "units": units, "price": price, "notes": "",
-    })
-
+    result = _add_holding_manual(uid, account_id, name, ticker, asset_type, units, price)
     return jsonify({
-        "ok": True, "name": name, "ticker": ticker,
-        "units": units, "price": round(price, 4),
-        "value": round(units * price, 2),
+        "ok": True, "name": result["name"], "ticker": result["ticker"],
+        "units": result["units"], "price": round(result["price_gbp"], 4),
+        "value": result["value"],
     })
 
 
@@ -454,54 +467,11 @@ def account_add_holding(account_id):
         flash("Please enter a valid ticker and number of units.", "error")
         return redirect(url_for("accounts.account_detail", account_id=account_id))
 
-    price_data = fetch_price(ticker)
-    if not price_data:
-        flash(f"Couldn't fetch a price for '{ticker}'. Check the ticker and try again.", "error")
-        return redirect(url_for("accounts.account_detail", account_id=account_id))
-
-    price_raw = price_data["price"]
-    currency = price_data["currency"]
-    price_gbp = price_raw / 100 if currency == "GBp" else price_raw
-
-    instrument = None
     try:
-        instrument = lookup_instrument(ticker)
-    except Exception as e:
-        current_app.logger.warning("lookup_instrument(%s) failed: %s", ticker, e)
-
-    name = (instrument["name"] if instrument else None) or ticker
-    asset_type = (instrument["asset_type"] if instrument else None) or "ETF"
-
-    catalogue_id = add_holding_catalogue_item({
-        "holding_name": name,
-        "ticker": ticker,
-        "asset_type": asset_type,
-        "bucket": "Global Equity",
-        "notes": "",
-    }, uid)
-
-    update_catalogue_price(
-        catalogue_id,
-        price_raw,
-        currency,
-        price_data.get("change_pct"),
-        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-    )
-
-    reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
-
-    add_holding({
-        "account_id": account_id,
-        "holding_catalogue_id": catalogue_id,
-        "holding_name": name,
-        "ticker": ticker,
-        "asset_type": asset_type,
-        "bucket": "Global Equity",
-        "value": round(units * price_gbp, 2),
-        "units": units,
-        "price": price_gbp,
-        "notes": "",
-    })
+        _add_holding_by_ticker(uid, account_id, ticker, units)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("accounts.account_detail", account_id=account_id))
 
     if account["valuation_mode"] != "holdings":
         update_account({**dict(account), "valuation_mode": "holdings",
@@ -529,34 +499,7 @@ def account_add_holding_manual(account_id):
         flash("Please fill in the holding name, units, and price.", "error")
         return redirect(url_for("accounts.account_detail", account_id=account_id))
 
-    catalogue_id = add_holding_catalogue_item({
-        "holding_name": name,
-        "ticker": ticker,
-        "asset_type": asset_type,
-        "bucket": "Other",
-        "notes": "",
-    }, uid)
-
-    update_catalogue_price(
-        catalogue_id, price, "GBP", None,
-        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-    )
-
-    if ticker:
-        reconnect_holdings_to_catalogue(ticker, catalogue_id, uid)
-
-    add_holding({
-        "account_id": account_id,
-        "holding_catalogue_id": catalogue_id,
-        "holding_name": name,
-        "ticker": ticker,
-        "asset_type": asset_type,
-        "bucket": "Other",
-        "value": round(units * price, 2),
-        "units": units,
-        "price": price,
-        "notes": "",
-    })
+    _add_holding_manual(uid, account_id, name, ticker, asset_type, units, price)
 
     if account["valuation_mode"] != "holdings":
         update_account({**dict(account), "valuation_mode": "holdings",
@@ -577,7 +520,6 @@ def update_cash(account_id):
     cash = request.form.get("uninvested_cash", "")
     rate = request.form.get("cash_interest_rate", "")
 
-    from app.calculations import to_float
     payload = dict(account)
     payload["uninvested_cash"] = to_float(cash) if cash else 0.0
     payload["cash_interest_rate"] = (to_float(rate) / 100.0) if rate else 0.0
@@ -651,7 +593,6 @@ def account_edit_holding(account_id, holding_id):
 
     # Also update catalogue price if modified
     if price is not None and existing["holding_catalogue_id"]:
-        from app.models import update_catalogue_price, sync_holding_prices_from_catalogue
         update_catalogue_price(
             existing["holding_catalogue_id"],
             price,
