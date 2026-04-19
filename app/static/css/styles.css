@@ -3643,6 +3643,21 @@ button.badge-like-button {
     padding: 0.35rem 0.6rem;
     font-size: 0.78rem;
   }
+
+  /* Budget subnav has 5 tabs — wrap into 2 rows: 2 on top, 3 on bottom */
+  .subnav-budget {
+    flex-wrap: wrap;
+    border-radius: 1rem;
+  }
+  .subnav-budget a:nth-child(1),
+  .subnav-budget a:nth-child(2) {
+    flex-basis: 45%;
+  }
+  .subnav-budget a:nth-child(3),
+  .subnav-budget a:nth-child(4),
+  .subnav-budget a:nth-child(5) {
+    flex-basis: 28%;
+  }
 }
 
 .subnav a:hover {
