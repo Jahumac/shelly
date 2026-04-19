@@ -206,6 +206,20 @@ def tag_totals(accounts, holdings_totals=None):
     return totals
 
 
+def goal_current_value(selected_tags, accounts, holdings_totals=None):
+    """Return the combined value of accounts matching any of the selected tags.
+    Each account is counted once even if it matches multiple tags."""
+    if not selected_tags:
+        return 0.0
+    tag_set = set(selected_tags)
+    total = 0.0
+    for account in accounts:
+        account_tags = {t.strip() for t in (account.get("tags") or "").split(",") if t.strip()}
+        if account_tags & tag_set:
+            total += effective_account_value(account, holdings_totals)
+    return total
+
+
 def total_monthly_contributions(accounts):
     return sum(to_float(a["monthly_contribution"]) for a in accounts)
 

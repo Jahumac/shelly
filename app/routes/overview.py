@@ -11,6 +11,7 @@ from app.calculations import (
     calculate_isa_usage,
     calculate_pension_usage,
     effective_account_value,
+    goal_current_value,
     is_review_due,
     pension_allowance_limits,
     progress_to_goal,
@@ -71,7 +72,7 @@ def overview():
     goal_target = float(goal["target_value"]) if goal else 0
     if goal:
         _primary_tags = [t.strip() for t in (goal["selected_tags"] or "").split(",") if t.strip()]
-        _primary_current = sum(tag_totals_map.get(t, 0.0) for t in _primary_tags) if _primary_tags else invested_total
+        _primary_current = goal_current_value(_primary_tags, accounts, holdings_totals) if _primary_tags else invested_total
     else:
         _primary_current = invested_total
     goal_progress = progress_to_goal(_primary_current, goal_target)
@@ -99,7 +100,7 @@ def overview():
         # Use tag-filtered value if the goal has selected_tags, else total portfolio
         selected_tags = [t.strip() for t in (g["selected_tags"] or "").split(",") if t.strip()]
         if selected_tags:
-            current = sum(tag_totals_map.get(t, 0.0) for t in selected_tags)
+            current = goal_current_value(selected_tags, accounts, holdings_totals)
         else:
             current = invested_total
         gp = progress_to_goal(current, gt)

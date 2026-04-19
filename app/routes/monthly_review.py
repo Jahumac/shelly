@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 
 from app.calculations import (
     effective_account_value,
+    goal_current_value,
     progress_to_goal,
     review_ready_date as calc_review_ready_date,
     tag_totals,
@@ -198,7 +199,7 @@ def monthly_review():
         tag_totals_map = tag_totals(all_accounts, holdings_totals)
         selected_tags = [t.strip() for t in (goal["selected_tags"] or "").split(",") if t.strip()]
         current = (
-            sum(tag_totals_map.get(t, 0.0) for t in selected_tags)
+            goal_current_value(selected_tags, all_accounts, holdings_totals)
             if selected_tags
             else total_invested(all_accounts, holdings_totals)
         )
