@@ -81,6 +81,7 @@
     </div>
     {% if alert.cta_form_action %}
     <form method="post" action="{{ alert.cta_form_action }}" class="form-reset">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="badge badge-meta">{{ alert.cta_text }}</button>
     </form>
     {% elif alert.cta_href %}
@@ -182,6 +183,7 @@
     <div class="flex flex-center gap-075">
       <p class="text-muted m-0 text-sm-2">Auto-update: {{ 'On' if assumptions and assumptions.auto_update_prices else 'Off' }}</p>
       <form method="post" action="/holdings/trigger-price-update" class="form-reset">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="badge badge-meta" title="Fetch latest prices now">↻ Refresh</button>
       </form>
     </div>

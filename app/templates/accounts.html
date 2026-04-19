@@ -110,6 +110,7 @@
 
     {% if detail_mode == 'edit' %}
       <form method="post" class="settings-form mt-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="form_name" value="account">
         <section class="panel panel-sm">
           <h3 class="section-title">Edit Account</h3>
@@ -273,6 +274,7 @@
           <a class="badge" href="/accounts/{{ selected.id }}#holdings-section">← Cancel</a>
         </div>
         <form method="post" action="/accounts/{{ selected.id }}/holdings/{{ edit_holding.id }}/edit" class="settings-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-grid">
             <label>
               <span>Units</span>
@@ -742,6 +744,7 @@
         {% endif %}
 
         <form method="post" class="settings-form mt-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="add_override">
           <div class="form-grid">
             <label><span>From month</span><input type="date" name="from_month" required><small class="form-hint">Any day — we use the month</small></label>

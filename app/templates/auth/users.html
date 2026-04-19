@@ -63,6 +63,7 @@
   </div>
 
   <form id="edit-user-form" method="POST" action="/users/{{ edit_user.id }}/edit" class="settings-form mt-1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>
       <span>Username</span>
       <input type="text" name="username" value="{{ edit_user.username }}" minlength="3" autocomplete="off">
@@ -131,6 +132,7 @@
   </div>
 
   <form method="POST" action="{{ url_for('auth.create_user_route') }}" class="settings-form mt-1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>
       <span>Username</span>
       <input type="text" name="username" required minlength="3" autocomplete="off">

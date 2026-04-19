@@ -39,6 +39,7 @@
     <div class="badge-row">
       {% if yfinance_available and instruments_in_use %}
       <form method="post" class="form-reset">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="form_name" value="refresh_all">
         <button type="submit" class="badge badge-meta">↻ Refresh prices</button>
       </form>
@@ -160,6 +161,7 @@
         <h3 class="section-title-sm">Delete instrument?</h3>
         <p class="text-sm-2 text-muted">This removes <strong>{{ selected.holding_name }}</strong> from the catalogue. Existing account holdings are not affected.</p>
         <form method="post" class="settings-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="delete_catalogue_holding">
           <div class="badge-row mt-1">
             <button type="submit" class="button-danger">Yes, delete</button>
@@ -170,6 +172,7 @@
 
     {% elif detail_mode == 'edit' %}
       <form method="post" class="settings-form mt-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="form_name" value="catalogue">
         <div class="form-grid">
           <label class="form-full-col"><span>Name</span><input type="text" name="catalogue_holding_name" value="{{ selected.holding_name }}"></label>
@@ -233,6 +236,7 @@
 
       {% if selected.ticker and yfinance_available %}
       <form method="post" class="mt-075">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="form_name" value="refresh_price">
         <button type="submit" class="badge badge-meta">↻ Refresh price</button>
       </form>
@@ -254,6 +258,7 @@
           </div>
         </div>
         <form method="post" action="/holdings/{{ selected.id }}/add-to-account" class="settings-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="form-grid">
             <label>
               <span>Account</span>
@@ -349,6 +354,7 @@
       /* "Save to catalogue" button — hidden when already tracked */
       var addToCatBtn = inCat ? '' :
         '<form method="post" style="margin:0;">' +
+          '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">' +
           '<input type="hidden" name="form_name" value="catalogue">' +
           '<input type="hidden" name="catalogue_holding_name" value="' + data.name.replace(/"/g,'&quot;') + '">' +
           '<input type="hidden" name="catalogue_ticker" value="' + data.ticker + '">' +
@@ -364,6 +370,7 @@
 
       var addToAcctForm =
         '<form method="post" action="' + addAction + '" id="search-add-form" style="display:flex;align-items:flex-end;gap:0.6rem;flex-wrap:wrap;margin-top:0.75rem;">' +
+          '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">' +
           '<input type="hidden" name="ticker" value="' + data.ticker + '">' +
           '<input type="hidden" name="name" value="' + data.name.replace(/"/g,'&quot;') + '">' +
           '<input type="hidden" name="asset_type" value="' + data.asset_type + '">' +

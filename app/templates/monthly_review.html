@@ -539,6 +539,7 @@ if (updateAllBtn) {
     <div class="review-list">
       {% for item in manual_items %}
         <form method="post" class="settings-form simple-list-item">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="update_account_balance">
           <input type="hidden" name="month" value="{{ month_key }}">
           <input type="hidden" name="account_id" value="{{ item.account_id }}">
@@ -624,6 +625,7 @@ if (updateAllBtn) {
   <p class="helper-text">Got a lot of holdings to update? Shelly can read CSV exports from most UK brokers — or you can use his own template to update everything in one go. This is optional — if you've already updated your numbers above, you're all set.</p>
   <div id="csv-import-panel" class="hidden">
     <form method="post" action="/monthly-review/import-csv" enctype="multipart/form-data" class="csv-upload-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label class="csv-upload-field">
         <span>Platform</span>
         <select name="platform" required>
