@@ -41,6 +41,16 @@ from .users import (
     update_user,
 )
 
+# Debts
+from .debts import (
+    build_debt_card,
+    create_debt,
+    delete_debt,
+    fetch_all_debts,
+    fetch_debt,
+    update_debt,
+)
+
 # Goals
 from .goals import (
     create_goal,

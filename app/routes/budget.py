@@ -7,21 +7,27 @@ from flask_login import current_user, login_required
 from app.utils import optional_float
 
 from app.models import (
+    build_debt_card,
     create_budget_item,
     create_budget_section,
+    create_debt,
     delete_budget_item,
     delete_budget_items_by_section,
     delete_budget_section,
+    delete_debt,
     fetch_all_accounts,
+    fetch_all_debts,
     fetch_budget_entries,
     fetch_budget_item,
     fetch_budget_items,
     fetch_budget_sections,
     fetch_budget_trend,
+    fetch_debt,
     fetch_months_with_budget_entries,
     fetch_prior_month_budget_entries,
     update_budget_item,
     update_budget_section,
+    update_debt,
     upsert_budget_entry,
 )
 
@@ -580,3 +586,62 @@ def budget_item_action(item_id):
     if not ok:
         flash("Budget item not found.", "error")
     return redirect(url_for("budget.budget_items_view"))
+
+
+# ── Debts ─────────────────────────────────────────────────────────────────────
+
+@budget_bp.route("/debts/", methods=["GET", "POST"])
+@login_required
+def budget_debts():
+    uid = current_user.id
+
+    if request.method == "POST":
+        form = request.form
+        form_name = form.get("form_name")
+
+        if form_name == "create_debt":
+            create_debt({
+                "name": form.get("name", "").strip(),
+                "original_amount": _optional_float(form.get("original_amount"), 0.0),
+                "current_balance": _optional_float(form.get("current_balance"), 0.0),
+                "monthly_payment": _optional_float(form.get("monthly_payment"), 0.0),
+                "apr": _optional_float(form.get("apr"), 0.0),
+                "notes": form.get("notes", "").strip(),
+            }, uid)
+            return redirect(url_for("budget.budget_debts"))
+
+        if form_name == "update_debt":
+            debt_id = int(form.get("debt_id", 0))
+            if fetch_debt(debt_id, uid):
+                update_debt(debt_id, {
+                    "name": form.get("name", "").strip(),
+                    "original_amount": _optional_float(form.get("original_amount"), 0.0),
+                    "current_balance": _optional_float(form.get("current_balance"), 0.0),
+                    "monthly_payment": _optional_float(form.get("monthly_payment"), 0.0),
+                    "apr": _optional_float(form.get("apr"), 0.0),
+                    "notes": form.get("notes", "").strip(),
+                }, uid)
+            return redirect(url_for("budget.budget_debts"))
+
+        if form_name == "delete_debt":
+            debt_id = int(form.get("debt_id", 0))
+            if fetch_debt(debt_id, uid):
+                delete_debt(debt_id, uid)
+            return redirect(url_for("budget.budget_debts"))
+
+        return redirect(url_for("budget.budget_debts"))
+
+    raw_debts = fetch_all_debts(uid)
+    debt_cards = [build_debt_card(d) for d in raw_debts]
+
+    selected_id = request.args.get("debt_id", type=int)
+    page_mode = request.args.get("mode", "view")
+    selected_debt = next((d for d in raw_debts if d["id"] == selected_id), None) if selected_id else None
+
+    return render_template(
+        "budget_debts.html",
+        debt_cards=debt_cards,
+        selected_debt=selected_debt,
+        page_mode=page_mode,
+        active_page="budget",
+    )

@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import hero_stat, empty_state %}
+{% block title %}Debts · Shelly{% endblock %}
+{% block content %}
+
+<nav class="subnav">
+  <a href="/budget/">Budget Plan</a>
+  <a href="/monthly-review/">Monthly Update</a>
+  <a href="/allowance/">Allowances</a>
+  <a href="/budget/trend/">Trend</a>
+  <a href="/budget/debts/" class="subnav-active">Debts</a>
+</nav>
+
+{% include '_month_strip.html' %}
+
+{# ── Hero ─────────────────────────────────────────────────────────────────── #}
+{% set total_owed = debt_cards | sum(attribute='current_balance') %}
+{% set total_monthly = debt_cards | sum(attribute='monthly_payment') %}
+{% set total_interest = namespace(val=0) %}
+{% for d in debt_cards %}{% if d.total_interest %}{% set total_interest.val = total_interest.val + d.total_interest %}{% endif %}{% endfor %}
+
+<section class="card highlight mb-1 month-accent-{{ current_month_num }}">
+  <div class="hero-top">
+    <div>
+      <p class="eyebrow">Debts</p>
+      <h2 class="hero-value">£{{ '{:,.0f}'.format(total_owed) }} owed</h2>
+      <p class="hero-subtitle">Track what you owe, see when you'll be free, and find out how much faster you could get there by overpaying.</p>
+    </div>
+    <div class="hero-turtle-wrap">
+      <img src="{{ url_for('static', filename='icons/shelly/Overview.png') }}" alt="" class="hero-turtle">
+    </div>
+  </div>
+  {% if debt_cards %}
+  <div class="hero-strip">
+    {% call hero_stat('Total owed') %}<strong>£{{ '{:,.0f}'.format(total_owed) }}</strong>{% endcall %}
+    {% call hero_stat('Monthly payments') %}<strong>£{{ '{:,.0f}'.format(total_monthly) }}</strong>{% endcall %}
+    {% call hero_stat('Total interest left') %}<strong class="text-danger">£{{ '{:,.0f}'.format(total_interest.val) }}</strong>{% endcall %}
+    {% call hero_stat('Debts') %}<strong>{{ debt_cards | length }}</strong>{% endcall %}
+  </div>
+  {% endif %}
+</section>
+
+<div class="row-end">
+  {% if page_mode == 'view' %}
+    <a class="badge badge-primary-action" href="/budget/debts/?mode=create">+ Add debt</a>
+  {% else %}
+    <a class="badge" href="/budget/debts/">Back to debts</a>
+  {% endif %}
+</div>
+
+{# ── Debt cards ───────────────────────────────────────────────────────────── #}
+{% if debt_cards %}
+<section class="card-grid goal-grid mb-1">
+  {% for d in debt_cards %}
+  <a class="card goal-link-card" href="/budget/debts/?mode=edit&debt_id={{ d.id }}">
+    <div class="section-header mb-075 flex-start">
+      <div>
+        <h2 class="goal-card-title">{{ d.name }}</h2>
+        <p class="goal-card-meta">
+          £{{ '{:,.0f}'.format(d.monthly_payment) }}/mo · {% if d.apr > 0 %}{{ '{:.1f}'.format(d.apr) }}% APR{% else %}0% interest{% endif %}
+        </p>
+      </div>
+    </div>
+
+    {# Progress bar — how much paid off vs original #}
+    {% if d.original_amount > 0 and d.paid_off_pct > 0 %}
+    <div class="progress" role="progressbar" aria-valuenow="{{ d.paid_off_pct | round(1) }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar" style="width: {{ d.paid_off_pct | round(1) }}%; background: var(--accent-3);"></div>
+    </div>
+    <small>{{ '{:.1f}'.format(d.paid_off_pct) }}% paid off · £{{ '{:,.0f}'.format(d.current_balance) }} remaining</small>
+    {% else %}
+    <p>£{{ '{:,.2f}'.format(d.current_balance) }} outstanding</p>
+    {% endif %}
+
+    <div class="mt-075">
+      {% if d.months_remaining is not none %}
+        <p class="helper-text"><strong>Paid off:</strong>
+          {% if d.payoff_date %}{{ d.payoff_date.strftime('%B %Y') }}{% endif %}
+          ({{ d.months_remaining }} month{{ '' if d.months_remaining == 1 else 's' }})
+        </p>
+        {% if d.total_interest is not none %}
+        <p class="helper-text text-danger"><strong>Total interest:</strong> £{{ '{:,.0f}'.format(d.total_interest) }}</p>
+        {% endif %}
+      {% else %}
+        <p class="helper-text text-danger">Payment too low to cover interest — increase monthly payment</p>
+      {% endif %}
+    </div>
+
+    {% if d.notes %}<p class="helper-text mt-075">{{ d.notes }}</p>{% endif %}
+  </a>
+  {% endfor %}
+</section>
+{% else %}
+<section class="card mb-1">
+  {{ empty_state('No debts tracked',
+                 'Add a loan, credit card or any other debt and Shelly will tell you exactly when you\'ll be free — and how much faster you could get there.',
+                 cta_text='+ Add your first debt', cta_href='/budget/debts/?mode=create') }}
+</section>
+{% endif %}
+
+{# ── Create form ──────────────────────────────────────────────────────────── #}
+{% if page_mode == 'create' %}
+<section class="card mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">New Debt</p>
+      <h2>Add a debt</h2>
+    </div>
+  </div>
+  <form method="post" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_name" value="create_debt">
+    <div class="form-grid">
+      <label>
+        <span>Name</span>
+        <input type="text" name="name" required placeholder="e.g. Car loan, Credit card">
+      </label>
+      <label>
+        <span>Outstanding balance (£)</span>
+        <input type="number" step="0.01" name="current_balance" required placeholder="e.g. 15000">
+        <small class="form-hint">How much is left to pay right now.</small>
+      </label>
+      <label>
+        <span>Monthly payment (£)</span>
+        <input type="number" step="0.01" name="monthly_payment" required placeholder="e.g. 455">
+      </label>
+      <label>
+        <span>APR (%)</span>
+        <input type="number" step="0.01" name="apr" placeholder="e.g. 6.9" min="0">
+        <small class="form-hint">Annual interest rate. Leave blank or 0 for 0% (e.g. interest-free period).</small>
+      </label>
+      <label>
+        <span>Original loan amount (£) <span style="color:var(--muted);font-weight:400;">optional</span></span>
+        <input type="number" step="0.01" name="original_amount" placeholder="e.g. 15000">
+        <small class="form-hint">Used to show how much you've paid off so far.</small>
+      </label>
+      <label class="form-full-col">
+        <span>Notes</span>
+        <input type="text" name="notes" placeholder="Optional — e.g. Barclays loan ref 1234">
+      </label>
+    </div>
+    <div class="badge-row mt-1">
+      <button type="submit">Add debt</button>
+      <a class="badge" href="/budget/debts/">Cancel</a>
+    </div>
+  </form>
+</section>
+
+{# ── Edit / Delete form ───────────────────────────────────────────────────── #}
+{% elif selected_debt and page_mode in ('edit', 'delete') %}
+<section class="card mt-1" data-focus-panel>
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Debt Detail</p>
+      <h2>{{ selected_debt.name }}</h2>
+    </div>
+    <div class="badge-row">
+      {% if page_mode != 'edit' %}<a class="badge" href="/budget/debts/?mode=edit&debt_id={{ selected_debt.id }}">Edit</a>{% endif %}
+      {% if page_mode != 'delete' %}<a class="badge badge-danger" href="/budget/debts/?mode=delete&debt_id={{ selected_debt.id }}">Delete</a>{% endif %}
+    </div>
+  </div>
+
+  {% if page_mode == 'edit' %}
+  <form method="post" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_name" value="update_debt">
+    <input type="hidden" name="debt_id" value="{{ selected_debt.id }}">
+    <div class="form-grid">
+      <label>
+        <span>Name</span>
+        <input type="text" name="name" value="{{ selected_debt.name }}" required>
+      </label>
+      <label>
+        <span>Outstanding balance (£)</span>
+        <input type="number" step="0.01" name="current_balance" value="{{ selected_debt.current_balance }}" required>
+        <small class="form-hint">Update this each time you check your balance.</small>
+      </label>
+      <label>
+        <span>Monthly payment (£)</span>
+        <input type="number" step="0.01" name="monthly_payment" value="{{ selected_debt.monthly_payment }}" required>
+      </label>
+      <label>
+        <span>APR (%)</span>
+        <input type="number" step="0.01" name="apr" value="{{ selected_debt.apr or '' }}" min="0">
+      </label>
+      <label>
+        <span>Original loan amount (£)</span>
+        <input type="number" step="0.01" name="original_amount" value="{{ selected_debt.original_amount or '' }}">
+      </label>
+      <label class="form-full-col">
+        <span>Notes</span>
+        <input type="text" name="notes" value="{{ selected_debt.notes or '' }}">
+      </label>
+    </div>
+    <div class="badge-row mt-1">
+      <button type="submit">Save changes</button>
+      <a class="badge" href="/budget/debts/">Cancel</a>
+    </div>
+  </form>
+
+  {% elif page_mode == 'delete' %}
+  <p>This will remove <strong>{{ selected_debt.name }}</strong> from your debt tracker. Your budget items are not affected.</p>
+  <form method="post" class="settings-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="form_name" value="delete_debt">
+    <input type="hidden" name="debt_id" value="{{ selected_debt.id }}">
+    <div class="badge-row mt-1">
+      <button type="submit" class="button-danger">Yes, remove debt</button>
+      <a class="badge" href="/budget/debts/">Cancel</a>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{# ── Per-debt detail + what-if ─────────────────────────────────────────────── #}
+{% for d in debt_cards %}
+{% if d.months_remaining is not none %}
+<section class="card mb-1" id="debt-{{ d.id }}">
+  <div class="section-header">
+    <div>
+      <p class="eyebrow">Breakdown</p>
+      <h2>{{ d.name }}</h2>
+    </div>
+    <a class="badge badge-sm" href="/budget/debts/?mode=edit&debt_id={{ d.id }}">Edit</a>
+  </div>
+
+  {# Key stats grid #}
+  <div class="hero-strip" style="margin-bottom:1rem;">
+    <div class="hero-stat">
+      <span class="hero-stat-label">Balance</span>
+      <span class="hero-stat-value"><strong>£{{ '{:,.2f}'.format(d.current_balance) }}</strong></span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-label">Monthly payment</span>
+      <span class="hero-stat-value"><strong>£{{ '{:,.2f}'.format(d.monthly_payment) }}</strong></span>
+    </div>
+    {% if d.apr > 0 %}
+    <div class="hero-stat">
+      <span class="hero-stat-label">Monthly interest</span>
+      <span class="hero-stat-value"><strong class="text-danger">£{{ '{:,.2f}'.format(d.monthly_interest) }}</strong></span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-label">Monthly to principal</span>
+      <span class="hero-stat-value"><strong style="color:var(--accent-3);">£{{ '{:,.2f}'.format([d.monthly_payment - d.monthly_interest, 0] | max) }}</strong></span>
+    </div>
+    {% endif %}
+    <div class="hero-stat">
+      <span class="hero-stat-label">Paid off</span>
+      <span class="hero-stat-value"><strong>{{ d.payoff_date.strftime('%b %Y') if d.payoff_date else '—' }}</strong></span>
+    </div>
+    {% if d.total_interest is not none %}
+    <div class="hero-stat">
+      <span class="hero-stat-label">Total interest</span>
+      <span class="hero-stat-value"><strong class="text-danger">£{{ '{:,.0f}'.format(d.total_interest) }}</strong></span>
+    </div>
+    {% endif %}
+  </div>
+
+  {# What-if overpayment calculator #}
+  <div class="section-header mb-05">
+    <div>
+      <p class="eyebrow">What if you paid more?</p>
+    </div>
+  </div>
+  <p class="helper-text">See how much time and interest you'd save by increasing your monthly payment.</p>
+
+  <div class="settings-form" style="max-width:420px;">
+    <label>
+      <span>Extra monthly payment (£)</span>
+      <input type="number" step="10" min="0" placeholder="e.g. 100"
+             id="extra-{{ d.id }}"
+             data-balance="{{ d.current_balance }}"
+             data-payment="{{ d.monthly_payment }}"
+             data-apr="{{ d.apr }}"
+             data-months="{{ d.months_remaining }}"
+             data-interest="{{ d.total_interest or 0 }}"
+             class="debt-whatif-input">
+    </label>
+    <div class="badge-row" style="gap:0.4rem;flex-wrap:wrap;">
+      <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ d.id }}" data-amount="50">+£50</button>
+      <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ d.id }}" data-amount="100">+£100</button>
+      <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ d.id }}" data-amount="200">+£200</button>
+      <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ d.id }}" data-amount="{{ d.monthly_payment }}">Double payments</button>
+    </div>
+  </div>
+
+  <div id="result-{{ d.id }}" class="whatif-result mt-1" style="display:none;">
+    <div class="whatif-result-item">
+      <span>New payoff date</span>
+      <strong id="wi-date-{{ d.id }}">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>Months saved</span>
+      <strong id="wi-months-saved-{{ d.id }}" style="color:var(--accent-3);">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>Interest saved</span>
+      <strong id="wi-int-saved-{{ d.id }}" style="color:var(--accent-3);">—</strong>
+    </div>
+    <div class="whatif-result-item">
+      <span>Total interest (new)</span>
+      <strong id="wi-int-new-{{ d.id }}" class="text-danger">—</strong>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+
+<script>
+(function () {
+  /* ── Debt payoff maths (mirrors Python logic) ─────────────────── */
+  function monthsToPayoff(balance, payment, apr) {
+    if (balance <= 0) return 0;
+    if (payment <= 0) return null;
+    var r = apr / 100 / 12;
+    if (r === 0) return Math.ceil(balance / payment);
+    if (payment <= balance * r) return null; // can't cover interest
+    return Math.ceil(-Math.log(1 - balance * r / payment) / Math.log(1 + r));
+  }
+
+  function totalInterest(balance, payment, months) {
+    if (months === null) return null;
+    return Math.max(payment * months - balance, 0);
+  }
+
+  function addMonths(months) {
+    var d = new Date();
+    d.setMonth(d.getMonth() + months);
+    return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+  }
+
+  function fmt(v) { return '£' + Math.round(v).toLocaleString('en-GB'); }
+
+  /* ── Quick-fill buttons ───────────────────────────────────────── */
+  document.querySelectorAll('.debt-quick-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.dataset.target);
+      if (input) {
+        input.value = parseFloat(btn.dataset.amount) || '';
+        input.dispatchEvent(new Event('input'));
+      }
+    });
+  });
+
+  /* ── Live calculator ──────────────────────────────────────────── */
+  document.querySelectorAll('.debt-whatif-input').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var id = input.id.replace('extra-', '');
+      var balance  = parseFloat(input.dataset.balance)  || 0;
+      var payment  = parseFloat(input.dataset.payment)  || 0;
+      var apr      = parseFloat(input.dataset.apr)      || 0;
+      var origMonths   = parseInt(input.dataset.months)   || 0;
+      var origInterest = parseFloat(input.dataset.interest) || 0;
+      var extra    = parseFloat(input.value) || 0;
+      var result   = document.getElementById('result-' + id);
+
+      if (extra <= 0) { if (result) result.style.display = 'none'; return; }
+
+      var newPayment = payment + extra;
+      var newMonths  = monthsToPayoff(balance, newPayment, apr);
+      var newInterest = newMonths !== null ? totalInterest(balance, newPayment, newMonths) : null;
+
+      if (result) result.style.display = '';
+
+      var monthsSaved = newMonths !== null ? Math.max(origMonths - newMonths, 0) : null;
+      var intSaved    = (newInterest !== null) ? Math.max(origInterest - newInterest, 0) : null;
+
+      var dateEl      = document.getElementById('wi-date-' + id);
+      var mSavedEl    = document.getElementById('wi-months-saved-' + id);
+      var iSavedEl    = document.getElementById('wi-int-saved-' + id);
+      var iNewEl      = document.getElementById('wi-int-new-' + id);
+
+      if (dateEl)   dateEl.textContent   = newMonths !== null ? addMonths(newMonths) : 'Cannot pay off';
+      if (mSavedEl) mSavedEl.textContent = monthsSaved !== null ? monthsSaved + ' month' + (monthsSaved === 1 ? '' : 's') : '—';
+      if (iSavedEl) iSavedEl.textContent = intSaved !== null ? fmt(intSaved) : '—';
+      if (iNewEl)   iNewEl.textContent   = newInterest !== null ? fmt(newInterest) : '—';
+    });
+  });
+})();
+</script>
+{% endblock %}

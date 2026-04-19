@@ -645,6 +645,22 @@ def _run_migrations(conn):
     except Exception:
         pass
 
+    # ── Debts tracker ────────────────────────────────────────────────────
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS debts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            name TEXT NOT NULL,
+            original_amount REAL DEFAULT 0,
+            current_balance REAL NOT NULL DEFAULT 0,
+            monthly_payment REAL NOT NULL DEFAULT 0,
+            apr REAL DEFAULT 0,
+            notes TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+
     # ── account_daily_snapshots: per-account daily values ─────────────────
     try:
         conn.execute("""
