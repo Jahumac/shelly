@@ -224,20 +224,35 @@
       });
     });
 
+    /* ── Tag sync helper — call before any form submit ─────────────── */
+    function syncTagsInForm(form) {
+      var tagHiddenInput = form.querySelector('[data-tags-hidden-input]');
+      if (!tagHiddenInput) return;
+      var checked = Array.from(form.querySelectorAll('[data-tag-checkbox]:checked')).map(function(el) {
+        return el.value;
+      });
+      tagHiddenInput.value = checked.join(', ');
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
       document.querySelectorAll('form').forEach(function (form) {
         var tagHiddenInput = form.querySelector('[data-tags-hidden-input]');
         if (tagHiddenInput) {
-          var syncTags = function () {
-            var checked = Array.from(form.querySelectorAll('[data-tag-checkbox]:checked')).map(function (el) {
-              return el.value;
-            });
-            tagHiddenInput.value = checked.join(', ');
-          };
+          /* Sync on every checkbox change */
           form.querySelectorAll('[data-tag-checkbox]').forEach(function (checkbox) {
-            checkbox.addEventListener('change', syncTags);
+            checkbox.addEventListener('change', function() { syncTagsInForm(form); });
+            /* Also sync on click — iOS sometimes fires click but not change */
+            checkbox.addEventListener('click', function() {
+              setTimeout(function() { syncTagsInForm(form); }, 0);
+            });
           });
-          syncTags();
+          /* Also sync when tapping the label (covers hidden checkboxes on iOS) */
+          form.querySelectorAll('.tag-chip').forEach(function(chip) {
+            chip.addEventListener('click', function() {
+              setTimeout(function() { syncTagsInForm(form); }, 0);
+            });
+          });
+          syncTagsInForm(form);
         }
       });
 
@@ -418,11 +433,15 @@
       window.__shellyIsOffline = function () { return !navigator.onLine || !lastPingOk; };
     })();
 
-    /* ── Form submit: disable button & show spinner ────────────────── */
+    /* ── Form submit: sync tags + disable button & show spinner ──────── */
     document.querySelectorAll('form').forEach(function(form) {
       /* Skip forms with AJAX handling (budget inline saves) */
       if (form.classList.contains('budget-amount-form')) return;
       form.addEventListener('submit', function(e) {
+        /* Always sync tags right before submit — belt-and-suspenders
+           in case the change/click listeners didn't fire on iOS */
+        syncTagsInForm(form);
+
         var isPost = form.method && form.method.toUpperCase() === 'POST';
         if (isPost && window.__shellyIsOffline && window.__shellyIsOffline()) {
           e.preventDefault();
