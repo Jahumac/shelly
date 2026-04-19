@@ -647,7 +647,8 @@ def budget_debts():
     # from loan inception so past payments are visible alongside future ones.
     schedule = []
     payments_made = 0
-    total_interest_all = None  # interest over the whole life of the loan
+    total_interest_all = None
+    interest_paid = 0
 
     if selected_debt:
         payments_made = selected_debt.get("payments_made", 0)
