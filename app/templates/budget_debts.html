@@ -451,7 +451,8 @@
     return Math.ceil(-Math.log(1 - balance * r / payment) / Math.log(1 + r));
   }
 
-  function totalInterest(balance, payment, months) {
+  function totalInterest(balance, payment, apr, months) {
+    if (apr === 0) return 0;
     if (months === null) return null;
     return Math.max(payment * months - balance, 0);
   }
@@ -491,7 +492,7 @@
 
       var newPayment  = payment + extra;
       var newMonths   = monthsToPayoff(balance, newPayment, apr);
-      var newInterest = newMonths !== null ? totalInterest(balance, newPayment, newMonths) : null;
+      var newInterest = newMonths !== null ? totalInterest(balance, newPayment, apr, newMonths) : null;
 
       if (result) result.style.display = '';
 

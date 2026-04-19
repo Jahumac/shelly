@@ -99,6 +99,8 @@ def debt_months_remaining(balance, monthly_payment, apr):
 
 def debt_total_interest(balance, monthly_payment, apr, months=None):
     """Total interest paid over the life of the debt."""
+    if apr == 0:
+        return 0.0
     if months is None:
         months = debt_months_remaining(balance, monthly_payment, apr)
     if months is None:
