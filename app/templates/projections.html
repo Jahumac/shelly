@@ -108,18 +108,24 @@
         <span class="budget-row-name">{{ row.name }}</span>
         <span class="budget-row-note">{{ row.wrapper_type }} · {{ '{:.1f}'.format(row.growth_rate * 100) }}% net
           {%- if row.annual_fee_pct %} <span style="color:var(--muted);">({{ '{:.1f}'.format(row.gross_growth_rate * 100) }}% − {{ '{:.2f}'.format(row.annual_fee_pct) }}% fees{% if row.platform_fee_pct or row.platform_fee_flat %}: {{ '{:.2f}'.format(row.platform_fee_pct) }}% platform{% if row.platform_fee_flat %} + £{{ '{:,.0f}'.format(row.platform_fee_flat) }}/yr{% endif %}{% if row.fund_fee_pct %} + {{ '{:.2f}'.format(row.fund_fee_pct) }}% fund{% endif %}{% endif %})</span>{% endif %}
-          {%- if row.effective_contribution != row.monthly_contribution %} · you pay £{{ '{:,.0f}'.format(row.monthly_contribution) }} → £{{ '{:,.0f}'.format(row.effective_contribution) }}/mo into pot
-            {%- if row.tax_relief %} (incl. £{{ '{:,.0f}'.format(row.tax_relief) }} tax relief){% endif %}
-            {%- if row.government_bonus %} (incl. £{{ '{:,.0f}'.format(row.government_bonus) }} govt bonus){% endif %}
-            {%- if row.employer %} (incl. £{{ '{:,.0f}'.format(row.employer) }} employer){% endif %}
+          {%- set gross_into_pot = row.effective_contribution + row.contribution_fee %}
+          {%- if row.effective_contribution != row.monthly_contribution or row.contribution_fee > 0 %} · you pay £{{ '{:,.2f}'.format(row.monthly_contribution) }}
+            {%- if row.tax_relief %} + £{{ '{:,.2f}'.format(row.tax_relief) }} tax relief{% endif %}
+            {%- if row.government_bonus %} + £{{ '{:,.2f}'.format(row.government_bonus) }} govt bonus{% endif %}
+            {%- if row.employer %} + £{{ '{:,.2f}'.format(row.employer) }} employer{% endif %}
+            {%- if row.contribution_fee > 0 %} − £{{ '{:,.2f}'.format(row.contribution_fee) }} contribution fee{% endif %}
+            = £{{ '{:,.2f}'.format(row.effective_contribution) }}/mo into pot
           {%- else %} · £{{ '{:,.0f}'.format(row.monthly_contribution) }}/mo
           {%- endif %}
         </span>
         {% if row.self_assessment > 0 %}
-        <span class="budget-row-note" style="color:var(--accent-3);">Plus £{{ '{:,.0f}'.format(row.self_assessment) }}/mo reclaimable via self-assessment</span>
+        <span class="budget-row-note" style="color:var(--accent-3);">Plus £{{ '{:,.2f}'.format(row.self_assessment) }}/mo reclaimable via self-assessment</span>
+        {% endif %}
+        {% if row.contribution_fee > 0 %}
+        <span class="budget-row-note text-danger">{{ '{:.2f}'.format(row.contribution_fee_pct) }}% contribution fee costs £{{ '{:,.2f}'.format(row.contribution_fee) }}/mo — £{{ '{:,.0f}'.format(row.contribution_fee * 12) }}/yr</span>
         {% endif %}
         {% if row.fee_impact > 0 %}
-        <span class="budget-row-note text-danger">Fees cost you £{{ '{:,.0f}'.format(row.fee_impact) }} over the period</span>
+        <span class="budget-row-note text-danger">Annual fees cost £{{ '{:,.0f}'.format(row.fee_impact) }} in lost growth over the period</span>
         {% endif %}
       </div>
       <div class="budget-row-right proj-row-right">

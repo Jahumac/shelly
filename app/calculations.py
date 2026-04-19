@@ -440,6 +440,8 @@ def projected_accounts(accounts, assumptions):
             "tax_relief": breakdown["tax_relief"],
             "government_bonus": breakdown["government_bonus"],
             "employer": breakdown["employer"],
+            "contribution_fee": breakdown["contribution_fee"],
+            "contribution_fee_pct": to_float(_safe_get(account, "contribution_fee_pct", 0)),
             "self_assessment": breakdown["self_assessment"],
             "method_label": breakdown["method_label"],
             "projected_value": projected,
