@@ -18,11 +18,14 @@ goals_bp = Blueprint("goals", __name__)
 
 
 def _goal_payload_from_form(form):
+    # getlist handles multiple checkboxes named "selected_tags" (direct submit approach).
+    # Falls back to a single hidden input value if only one value is present.
+    tag_values = [t.strip() for t in form.getlist("selected_tags") if t.strip()]
     return {
         "name": form.get("name", "").strip(),
         "target_value": max(0.0, float(form.get("target_value", 0) or 0)),
         "goal_type": form.get("goal_type", "Tagged Goal").strip(),
-        "selected_tags": form.get("selected_tags", ""),
+        "selected_tags": ", ".join(tag_values),
         "notes": form.get("notes", "").strip(),
     }
 

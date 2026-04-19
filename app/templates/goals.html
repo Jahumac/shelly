@@ -112,11 +112,10 @@
       </label>
       <label class="form-full-col">
         <span>Include tags</span>
-        <input type="hidden" name="selected_tags" value="" data-tags-hidden-input>
         <div class="tag-picker">
           {% for tag in tag_options %}
           <label class="tag-chip">
-            <input type="checkbox" value="{{ tag }}" data-tag-checkbox>
+            <input type="checkbox" name="selected_tags" value="{{ tag }}">
             <span>{{ tag }}</span>
           </label>
           {% endfor %}
@@ -163,11 +162,10 @@
         </label>
         <label class="form-full-col">
           <span>Include tags</span>
-          <input type="hidden" name="selected_tags" value="{{ selected_goal.selected_tags if selected_goal.selected_tags else '' }}" data-tags-hidden-input>
           <div class="tag-picker">
             {% for tag in tag_options %}
             <label class="tag-chip">
-              <input type="checkbox" value="{{ tag }}" data-tag-checkbox {% if tag in selected_goal_tags %}checked{% endif %}>
+              <input type="checkbox" name="selected_tags" value="{{ tag }}" {% if tag in selected_goal_tags %}checked{% endif %}>
               <span>{{ tag }}</span>
             </label>
             {% endfor %}

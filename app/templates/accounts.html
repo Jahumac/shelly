@@ -138,11 +138,10 @@
             </label>
             <label class="form-full-col">
               <span>Tags</span>
-              <input type="hidden" name="tags" value="{{ selected.tags or '' }}" data-tags-hidden-input>
               <div class="tag-picker" data-tag-picker>
                 {% for tag in tag_options %}
                 <label class="tag-chip">
-                  <input type="checkbox" value="{{ tag }}" data-tag-checkbox {% if tag in selected_tags %}checked{% endif %}>
+                  <input type="checkbox" name="tags" value="{{ tag }}" {% if tag in selected_tags %}checked{% endif %}>
                   <span>{{ tag }}</span>
                   {% if tag in custom_tags %}
                   <button type="button" class="tag-delete" data-delete-tag="{{ tag }}" aria-label="Remove tag {{ tag }}">&times;</button>

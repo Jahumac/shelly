@@ -63,7 +63,7 @@ def _account_payload_from_form(form):
         "provider": form.get("provider", ""),
         "wrapper_type": form.get("wrapper_type", ""),
         "category": form.get("category", ""),
-        "tags": form.get("tags", ""),
+        "tags": ", ".join(t.strip() for t in form.getlist("tags") if t.strip()),
         "current_value": optional_float(form.get("current_value"), 0.0, min_val=0.0),
         "monthly_contribution": optional_float(form.get("monthly_contribution"), 0.0, min_val=0.0),
         "pension_contribution_day": max(0, min(31, int(form.get("pension_contribution_day", 0) or 0))),
