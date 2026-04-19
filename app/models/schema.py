@@ -661,6 +661,12 @@ def _run_migrations(conn):
         )
     """)
 
+    # ── Debts: add start_date column ─────────────────────────────────────
+    try:
+        conn.execute("ALTER TABLE debts ADD COLUMN start_date TEXT")
+    except Exception:
+        pass
+
     # ── account_daily_snapshots: per-account daily values ─────────────────
     try:
         conn.execute("""

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from io import BytesIO
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from app.utils import optional_float
@@ -30,6 +30,7 @@ from app.models import (
     update_debt,
     upsert_budget_entry,
 )
+from app.models.debts import amortisation_schedule
 
 budget_bp = Blueprint("budget", __name__)
 
@@ -607,6 +608,7 @@ def budget_debts():
                 "monthly_payment": _optional_float(form.get("monthly_payment"), 0.0),
                 "apr": _optional_float(form.get("apr"), 0.0),
                 "notes": form.get("notes", "").strip(),
+                "start_date": form.get("start_date", "").strip() or None,
             }, uid)
             return redirect(url_for("budget.budget_debts"))
 
@@ -620,6 +622,7 @@ def budget_debts():
                     "monthly_payment": _optional_float(form.get("monthly_payment"), 0.0),
                     "apr": _optional_float(form.get("apr"), 0.0),
                     "notes": form.get("notes", "").strip(),
+                    "start_date": form.get("start_date", "").strip() or None,
                 }, uid)
             return redirect(url_for("budget.budget_debts"))
 
@@ -636,12 +639,109 @@ def budget_debts():
 
     selected_id = request.args.get("debt_id", type=int)
     page_mode = request.args.get("mode", "view")
-    selected_debt = next((d for d in raw_debts if d["id"] == selected_id), None) if selected_id else None
+    selected_debt_raw = next((d for d in raw_debts if d["id"] == selected_id), None) if selected_id else None
+    selected_debt = next((d for d in debt_cards if d["id"] == selected_id), None) if selected_id else None
+
+    # Build amortisation schedule for the selected debt detail view
+    schedule = []
+    if selected_debt and selected_debt["months_remaining"]:
+        schedule = amortisation_schedule(
+            selected_debt["current_balance"],
+            selected_debt["apr"],
+            selected_debt["monthly_payment"],
+        )
 
     return render_template(
         "budget_debts.html",
         debt_cards=debt_cards,
         selected_debt=selected_debt,
+        selected_debt_raw=selected_debt_raw,
+        schedule=schedule,
         page_mode=page_mode,
         active_page="budget",
+    )
+
+
+@budget_bp.route("/debts/export.xlsx")
+@login_required
+def budget_debts_export():
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return "openpyxl not installed", 500
+
+    uid = current_user.id
+    raw_debts = fetch_all_debts(uid)
+    debt_cards = [build_debt_card(d) for d in raw_debts]
+
+    wb = openpyxl.Workbook()
+    hdr_font = Font(bold=True)
+    red_fill = PatternFill("solid", fgColor="FFCCCC")
+    grn_fill = PatternFill("solid", fgColor="CCFFCC")
+
+    # ── Summary sheet ────────────────────────────────────────────────────────
+    ws = wb.active
+    ws.title = "Summary"
+    headers = ["Debt", "Balance", "Monthly Payment", "APR %", "Months Left",
+               "Payoff Date", "Total Interest", "Total Cost", "Auto-tracked"]
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col, value=h)
+        c.font = hdr_font
+
+    for row_i, d in enumerate(debt_cards, 2):
+        ws.cell(row=row_i, column=1, value=d["name"])
+        ws.cell(row=row_i, column=2, value=round(d["current_balance"], 2))
+        ws.cell(row=row_i, column=3, value=round(d["monthly_payment"], 2))
+        ws.cell(row=row_i, column=4, value=round(d["apr"], 2))
+        ws.cell(row=row_i, column=5, value=d["months_remaining"])
+        ws.cell(row=row_i, column=6, value=d["payoff_date"].strftime("%b %Y") if d["payoff_date"] else "—")
+        ws.cell(row=row_i, column=7, value=round(d["total_interest"], 2) if d["total_interest"] is not None else None)
+        ws.cell(row=row_i, column=8, value=round(d["total_cost"], 2) if d["total_cost"] is not None else None)
+        ws.cell(row=row_i, column=9, value="Yes" if d["auto_tracked"] else "No")
+
+    # ── Per-debt amortisation sheets ──────────────────────────────────────────
+    overpayments = [0, 50, 100, 200]
+    for d in debt_cards:
+        if not d["months_remaining"]:
+            continue
+        safe_name = d["name"][:28]
+        ws2 = wb.create_sheet(title=safe_name)
+
+        # What-if header row
+        col_offset = 0
+        for extra in overpayments:
+            label = f"Base (£{d['monthly_payment']:.0f}/mo)" if extra == 0 else f"+£{extra}/mo"
+            ws2.cell(row=1, column=col_offset + 1, value="Month").font = hdr_font
+            ws2.cell(row=1, column=col_offset + 2, value=f"{label} — Payment").font = hdr_font
+            ws2.cell(row=1, column=col_offset + 3, value="Interest").font = hdr_font
+            ws2.cell(row=1, column=col_offset + 4, value="Principal").font = hdr_font
+            ws2.cell(row=1, column=col_offset + 5, value="Balance").font = hdr_font
+            col_offset += 6  # gap column
+
+        schedules = [
+            amortisation_schedule(d["current_balance"], d["apr"], d["monthly_payment"] + extra)
+            for extra in overpayments
+        ]
+        max_rows = max(len(s) for s in schedules)
+        for row_i in range(max_rows):
+            col_offset = 0
+            for sched in schedules:
+                if row_i < len(sched):
+                    r = sched[row_i]
+                    ws2.cell(row=row_i + 2, column=col_offset + 1, value=r["month"])
+                    ws2.cell(row=row_i + 2, column=col_offset + 2, value=round(r["payment"], 2))
+                    ws2.cell(row=row_i + 2, column=col_offset + 3, value=round(r["interest"], 2))
+                    ws2.cell(row=row_i + 2, column=col_offset + 4, value=round(r["principal"], 2))
+                    ws2.cell(row=row_i + 2, column=col_offset + 5, value=round(r["balance"], 2))
+                col_offset += 6
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name="debts.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
