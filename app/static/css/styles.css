@@ -229,13 +229,60 @@ nav a.active {
 }
 
 .offline-banner {
-  background: rgba(248,113,113,0.1);
-  color: var(--error);
-  border: 1px solid rgba(248,113,113,0.25);
-  border-radius: 10px;
-  padding: 0.65rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #7f1d1d;
+  color: #fecaca;
+  border-bottom: 1px solid #991b1b;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.offline-banner::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f87171;
+  flex-shrink: 0;
+}
+.online-toast {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #14532d;
+  color: #bbf7d0;
+  border-bottom: 1px solid #166534;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.4s;
+}
+.online-toast::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+}
+/* Push page content down when the fixed banner is showing */
+body.is-offline .site-header,
+body.is-back-online .site-header {
+  margin-top: 2.25rem;
 }
 
 .card-grid {

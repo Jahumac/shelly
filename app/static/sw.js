@@ -8,7 +8,7 @@
  *  - Images/fonts: Cache-first, long-lived
  */
 
-const CACHE_NAME = 'shelly-v1.5.0';
+const CACHE_NAME = 'shelly-v1.7.0';
 
 /* App shell files to pre-cache on install */
 const APP_SHELL = [
@@ -201,7 +201,7 @@ function offlineHTML() {
   <div class="offline-card">
     <div class="offline-icon">🐢</div>
     <h1>Shelly's tucked in</h1>
-    <p>Can't reach the server right now — even turtles need a break. Check your connection and try again. Pages you've visited before should still be cached.</p>
+    <p>You're offline and this page hasn't been cached yet. Check your connection and try again — pages you've visited before will still load.</p>
     <button onclick="location.reload()">Try Again</button>
   </div>
 </body>

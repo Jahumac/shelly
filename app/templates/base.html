@@ -44,7 +44,8 @@
     </nav>
   </header>
   <main class="page-shell">
-    <div id="offline-banner" class="offline-banner hidden">Offline mode: pages you’ve opened before may load, but changes won’t be saved.</div>
+    <div id="offline-banner" class="offline-banner hidden">You’re offline — you can browse pages you’ve visited before, but changes won’t be saved.</div>
+    <div id="online-toast" class="online-toast hidden">Back online</div>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -341,42 +342,58 @@
     });
 
     (function () {
-      var banner = document.getElementById('offline-banner');
+      var banner = document.getElementById(‘offline-banner’);
+      var toast  = document.getElementById(‘online-toast’);
       if (!banner) return;
+      var wasOffline = false;
       var lastPingOk = true;
+      var toastTimer = null;
 
-      function show(msg) {
-        banner.textContent = msg;
-        document.body.classList.add('is-offline');
-        banner.classList.remove('hidden');
+      function showOffline() {
+        document.body.classList.remove(‘is-back-online’);
+        document.body.classList.add(‘is-offline’);
+        banner.classList.remove(‘hidden’);
+        if (toast) toast.classList.add(‘hidden’);
       }
 
-      function hide() {
-        document.body.classList.remove('is-offline');
-        banner.classList.add('hidden');
+      function showOnline() {
+        document.body.classList.remove(‘is-offline’);
+        banner.classList.add(‘hidden’);
+        if (wasOffline && toast) {
+          document.body.classList.add(‘is-back-online’);
+          toast.classList.remove(‘hidden’);
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () {
+            toast.classList.add(‘hidden’);
+            document.body.classList.remove(‘is-back-online’);
+          }, 3000);
+        }
+        wasOffline = false;
       }
 
       function checkServer() {
         if (!navigator.onLine) {
+          wasOffline = true;
           lastPingOk = false;
-          show('Offline mode: pages you’ve opened before may load, but changes won’t be saved.');
+          showOffline();
           return;
         }
-        fetch('/api/ping', { cache: 'no-store' })
+        fetch(‘/api/ping’, { cache: ‘no-store’ })
           .then(function (r) {
             lastPingOk = !!(r && r.ok);
-            if (lastPingOk) hide();
-            else show('Can’t reach the server right now — you can browse cached pages, but changes won’t be saved.');
+            if (lastPingOk) showOnline();
+            else { wasOffline = true; showOffline(); }
           })
           .catch(function () {
+            wasOffline = true;
             lastPingOk = false;
-            show('Can’t reach the server right now — you can browse cached pages, but changes won’t be saved.');
+            showOffline();
           });
       }
 
       checkServer();
-      window.addEventListener('online', checkServer);
-      window.addEventListener('offline', checkServer);
+      window.addEventListener(‘online’,  checkServer);
+      window.addEventListener(‘offline’, checkServer);
       window.__shellyIsOffline = function () { return !navigator.onLine || !lastPingOk; };
     })();
 
