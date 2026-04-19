@@ -243,6 +243,7 @@
         <span class="badge-row budget-row-actions">
           <a class="badge" href="/budget/items/?item_id={{ item.id }}&mode=edit">Edit</a>
           <form method="post" action="/budget/items/{{ item.id }}" class="form-contents">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="form_name" value="delete">
             <button type="submit" class="badge badge-danger" data-confirm="Remove {{ item.name }} from your budget?" data-confirm-title="Delete budget item?" data-confirm-ok="Yes, remove it" data-confirm-cancel="Keep it">Delete</button>
           </form>
