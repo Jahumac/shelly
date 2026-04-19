@@ -642,14 +642,37 @@ def budget_debts():
     selected_debt_raw = next((d for d in raw_debts if d["id"] == selected_id), None) if selected_id else None
     selected_debt = next((d for d in debt_cards if d["id"] == selected_id), None) if selected_id else None
 
-    # Build amortisation schedule for the selected debt detail view
+    # Build amortisation schedule for the selected debt detail view.
+    # If auto-tracked (start_date + original_amount set), show the full schedule
+    # from loan inception so past payments are visible alongside future ones.
     schedule = []
-    if selected_debt and selected_debt["months_remaining"]:
-        schedule = amortisation_schedule(
-            selected_debt["current_balance"],
-            selected_debt["apr"],
-            selected_debt["monthly_payment"],
-        )
+    payments_made = 0
+    total_interest_all = None  # interest over the whole life of the loan
+
+    if selected_debt:
+        payments_made = selected_debt.get("payments_made", 0)
+        original = selected_debt.get("original_amount", 0)
+
+        if selected_debt["auto_tracked"] and original > 0:
+            # Full schedule from original balance
+            schedule = amortisation_schedule(
+                original,
+                selected_debt["apr"],
+                selected_debt["monthly_payment"],
+            )
+        elif selected_debt["months_remaining"]:
+            # Remaining schedule only (no start date)
+            schedule = amortisation_schedule(
+                selected_debt["current_balance"],
+                selected_debt["apr"],
+                selected_debt["monthly_payment"],
+            )
+
+        if schedule:
+            total_interest_all = sum(r["interest"] for r in schedule)
+            interest_paid = sum(r["interest"] for r in schedule[:payments_made])
+        else:
+            interest_paid = 0
 
     return render_template(
         "budget_debts.html",
@@ -657,6 +680,9 @@ def budget_debts():
         selected_debt=selected_debt,
         selected_debt_raw=selected_debt_raw,
         schedule=schedule,
+        payments_made=payments_made,
+        total_interest_all=total_interest_all,
+        interest_paid=interest_paid,
         page_mode=page_mode,
         active_page="budget",
     )
