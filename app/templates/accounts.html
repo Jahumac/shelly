@@ -184,7 +184,7 @@
             {% if selected.growth_mode == 'custom' and ('cash isa' in _wt_lower or 'cash' in _cat_lower or 'savings' in _cat_lower) %}
             <label data-custom-rate-field {% if selected.growth_mode != 'custom' %}class="hidden"{% endif %}>
               <span>Interest paid on day of month</span>
-              <input type="number" name="interest_payment_day" min="0" max="28" value="{{ selected.interest_payment_day or 0 }}">
+              <input type="number" name="interest_payment_day" min="0" max="31" value="{{ selected.interest_payment_day or 0 }}">
               <small class="form-hint">Day of the month when interest is credited to your account (e.g. 3 for the 3rd). Set 0 if unknown or not applicable.</small>
             </label>
             {% endif %}

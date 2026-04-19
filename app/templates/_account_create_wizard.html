@@ -216,7 +216,7 @@
           </label>
           <label id="cw-posting-field" style="display:none;">
             <span>Pension contribution posting day</span>
-            <input type="number" name="pension_contribution_day" id="cw-posting-day" min="0" max="28" value="0">
+            <input type="number" name="pension_contribution_day" id="cw-posting-day" min="0" max="31" value="0">
             <small class="form-hint">Optional. Set 0 to use salary day from Settings.</small>
           </label>
         </div>
@@ -277,6 +277,7 @@
           <label><span>Account goal</span><input type="number" step="0.01" name="goal_value" placeholder="Optional target balance"></label>
           <label class="form-full-col"><span>Notes</span><input type="text" name="notes" placeholder="Optional"></label>
         </div>
+        <div id="cw-create-error" class="flash-msg flash-error" style="display:none;margin-top:0.75rem;"></div>
         <div class="cw-actions">
           <button type="button" class="badge" data-cw-prev>Back</button>
           <button type="button" class="badge badge-accent" id="cw-create-btn">Create account</button>
@@ -697,12 +698,17 @@
 
     /* Gather form fields */
     var fd = new FormData();
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) fd.append('csrf_token', csrfMeta.getAttribute('content'));
     form.querySelectorAll('input[name], select[name]').forEach(function(el) { fd.append(el.name, el.value); });
+
+    var errorBox = document.getElementById('cw-create-error');
+    if (errorBox) errorBox.style.display = 'none';
 
     fetch('/accounts/api/create', { method: 'POST', body: fd })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (!data.ok) throw new Error('Account creation failed');
+        if (!data.ok) throw new Error(data.error || 'Account creation failed');
         createdAccountId = data.account_id;
 
         /* Now batch-submit all pending holdings sequentially */
@@ -748,6 +754,11 @@
         createBtn.textContent = 'Create account';
         createBtn.disabled = false;
         console.error('Wizard error:', err);
+        var errorBox = document.getElementById('cw-create-error');
+        if (errorBox) {
+          errorBox.textContent = err.message || 'Something went wrong — please try again.';
+          errorBox.style.display = '';
+        }
       });
   });
 

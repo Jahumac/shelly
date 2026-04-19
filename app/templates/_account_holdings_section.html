@@ -32,7 +32,7 @@
             </div>
             <div class="holdings-cash-field">
               <label class="text-sm text-muted uppercase">Interest Paid on Day</label>
-              <input type="number" name="interest_payment_day" min="0" max="28" class="input-standard mt-025 w-full" value="{{ selected.interest_payment_day or 0 }}" title="Day of month interest is credited (e.g. 3 for 3rd). 0 = not set.">
+              <input type="number" name="interest_payment_day" min="0" max="31" class="input-standard mt-025 w-full" value="{{ selected.interest_payment_day or 0 }}" title="Day of month interest is credited (e.g. 3 for 3rd). 0 = not set.">
             </div>
             <div>
               <button type="submit" class="badge badge-meta">Save Cash Balance</button>
