@@ -262,6 +262,70 @@
         </section>
       </form>
 
+      <script>
+      (function () {
+        function handleDeleteTag(e) {
+          e.preventDefault();
+          e.stopPropagation(); /* prevent label from toggling the checkbox */
+          var tagName = e.currentTarget.getAttribute('data-delete-tag');
+          shellyConfirm({
+            title: 'Remove "' + tagName + '"?',
+            message: 'This removes the tag from the list. Accounts already tagged with it keep their tag — you can remove it manually.',
+            confirmText: 'Yes, remove tag',
+            cancelText: 'Keep it',
+          }).then(function (confirmed) {
+            if (!confirmed) return;
+            var fd = new FormData();
+            fd.append('tag', tagName);
+            fetch('/accounts/api/tags/delete', { method: 'POST', body: fd })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (!data.ok) { alert(data.error || 'Cannot delete this tag'); return; }
+                document.querySelectorAll('[data-delete-tag="' + tagName + '"]').forEach(function (btn) {
+                  var chip = btn.closest('.tag-chip');
+                  if (chip) chip.remove();
+                });
+              });
+          });
+        }
+
+        document.querySelectorAll('.tag-delete').forEach(function (btn) {
+          btn.addEventListener('click', handleDeleteTag);
+        });
+
+        var addBtn = document.querySelector('[data-add-tag-btn]');
+        if (addBtn) {
+          var tagInput = addBtn.closest('.tag-add-row').querySelector('[data-new-tag-input]');
+          addBtn.addEventListener('click', function () {
+            var tagName = (tagInput.value || '').trim();
+            if (!tagName) return;
+            var fd = new FormData();
+            fd.append('tag', tagName);
+            fetch('/accounts/api/tags', { method: 'POST', body: fd })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (!data.ok) { alert(data.error || 'Failed to add tag'); return; }
+                var picker = document.querySelector('[data-tag-picker]');
+                if (picker) {
+                  var lbl = document.createElement('label');
+                  lbl.className = 'tag-chip';
+                  lbl.innerHTML =
+                    '<input type="checkbox" name="tags" value="' + data.tag + '" checked>' +
+                    '<span>' + data.tag + '</span>' +
+                    '<button type="button" class="tag-delete" data-delete-tag="' + data.tag + '" aria-label="Remove tag ' + data.tag + '">&times;</button>';
+                  lbl.querySelector('.tag-delete').addEventListener('click', handleDeleteTag);
+                  picker.appendChild(lbl);
+                }
+                tagInput.value = '';
+              });
+          });
+          tagInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
+          });
+        }
+      })();
+      </script>
+
     {% elif detail_mode == 'edit_holding' and edit_holding %}
       {# ── Edit holding ────────────────────────────────────────────────────── #}
       <section class="panel panel-sm mt-1" id="holdings-section">
