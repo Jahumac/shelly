@@ -119,7 +119,8 @@ async function networkFirst(request, cacheName) {
     }
     return response;
   } catch (e) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request, { ignoreVary: true });
     if (cached) return cached;
     return new Response(JSON.stringify({ error: 'Offline' }), {
       status: 503,
@@ -137,7 +138,8 @@ async function networkFirstPage(request) {
     }
     return response;
   } catch (e) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(PAGE_CACHE);
+    const cached = await cache.match(request, { ignoreVary: true });
     if (cached) return cached;
 
     return new Response(offlineHTML(), {

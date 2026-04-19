@@ -46,6 +46,7 @@
   <main class="page-shell">
     <div id="offline-banner" class="offline-banner hidden">You’re offline — you can browse pages you’ve visited before, but changes won’t be saved.</div>
     <div id="online-toast" class="online-toast hidden">Back online</div>
+    <div id="offline-ready-toast" class="online-toast hidden">Pages saved — app ready to use offline</div>
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -424,7 +425,7 @@
 
     /* ── Service Worker registration ──────────────────────────────────── */
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
         .then(function(reg) {
           /* Check for updates periodically */
           setInterval(function() { reg.update(); }, 60 * 60 * 1000);
@@ -440,19 +441,30 @@
     (function() {
       /* Clear any old warming flags so this runs fresh */
       ['shelly-cache-warmed', 'shelly-cache-warmed-v1.7.0'].forEach(function(k) { localStorage.removeItem(k); });
-      var CACHE_KEY = 'shelly-pages-warmed-v1';
+      var CACHE_KEY = 'shelly-pages-warmed-v2';
       if (!navigator.onLine || localStorage.getItem(CACHE_KEY)) return;
       var pagesToWarm = ['/', '/accounts/', '/budget/', '/goals/',
                          '/projections/', '/performance/', '/allowance/', '/settings/'];
       var warmed = 0;
+      var total = pagesToWarm.length;
       function warmCache() {
         pagesToWarm.forEach(function(url) {
           fetch(url, { credentials: 'same-origin' })
-            .then(function() { warmed++; if (warmed === pagesToWarm.length) localStorage.setItem(CACHE_KEY, '1'); })
+            .then(function(r) {
+              if (r.ok) warmed++;
+              if (warmed === total) {
+                localStorage.setItem(CACHE_KEY, '1');
+                /* Show confirmation toast */
+                var t = document.getElementById('offline-ready-toast');
+                if (t) {
+                  t.classList.remove('hidden');
+                  setTimeout(function() { t.classList.add('hidden'); }, 4000);
+                }
+              }
+            })
             .catch(function() {});
         });
       }
-      /* Start after 1s — quick enough to finish before user goes offline */
       setTimeout(warmCache, 1000);
     })();
     {% endif %}
