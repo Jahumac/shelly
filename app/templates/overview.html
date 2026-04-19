@@ -223,6 +223,7 @@
       <a href="/allowance/#topup" class="badge badge-sm ml-025">Record top-up</a>
     </div>
   </div>
+  {% if metrics.has_lisa %}
   <div class="card allowance-card">
     <h2>LISA Allowance {{ metrics.tax_year }}</h2>
     <p>£{{ '{:,.0f}'.format(metrics.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(metrics.lisa_allowance) }}</span></p>
@@ -233,6 +234,7 @@
       <a href="/allowance/#topup" class="badge badge-sm ml-025">Record top-up</a>
     </div>
   </div>
+  {% endif %}
   <div class="card allowance-card">
     <h2>Pension Allowance {{ metrics.tax_year }}</h2>
     <p>£{{ '{:,.0f}'.format(metrics.pension_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(metrics.pension_allowance) }}</span></p>

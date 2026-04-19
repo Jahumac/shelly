@@ -159,6 +159,7 @@ def overview():
         "pension_progress": allowance_progress(pension_usage["pension_used"], pension_allowance),
         "pension_personal_limit": pension_limits["personal_relief_limit"],
         "effective_values": {account["id"]: effective_account_value(account, holdings_totals) for account in accounts},
+        "has_lisa": any("Lifetime" in (a.get("wrapper_type") or "") or "LISA" in (a.get("wrapper_type") or "") for a in raw_accounts),
     }
 
     # ── Monthly review nudge ──────────────────────────────────────────────────

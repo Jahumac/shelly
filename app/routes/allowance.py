@@ -60,6 +60,8 @@ def allowance_overview():
     isa_allowance = float(assumptions["isa_allowance"]) if assumptions else 20000
     lisa_allowance = float(assumptions["lisa_allowance"]) if assumptions else 4000
 
+    has_lisa = any("Lifetime" in (a.get("wrapper_type") or "") or "LISA" in (a.get("wrapper_type") or "") for a in accounts)
+
     # LISA age warning — contributions stop at 50; warn at 49+
     current_age = current_age_from_assumptions(assumptions) if assumptions else 0
     lisa_age_warning = current_age >= 49 if current_age else False
@@ -143,6 +145,7 @@ def allowance_overview():
         cgt_annual_exemption=CGT_ANNUAL_EXEMPTION,
         lisa_age_warning=lisa_age_warning,
         lisa_months_remaining=lisa_months_remaining,
+        has_lisa=has_lisa,
     )
 
 

@@ -19,7 +19,7 @@
     <div>
       <p class="eyebrow">Tax Year {{ tax_year }}</p>
       <h2 class="hero-value">Allowances</h2>
-      <p class="hero-subtitle">Track ISA, LISA, pension, dividends and capital gains across all accounts</p>
+      <p class="hero-subtitle">Track ISA{% if has_lisa %}, LISA{% endif %}, pension, dividends and capital gains across all accounts</p>
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Budget.png') }}" alt="" class="hero-turtle">
@@ -27,7 +27,7 @@
   </div>
   <div class="hero-strip">
     {% call hero_stat('ISA used') %}<strong>£{{ '{:,.0f}'.format(usage.isa_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(isa_allowance) }}</small>{% endcall %}
-    {% call hero_stat('LISA used') %}<strong>£{{ '{:,.0f}'.format(usage.lisa_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(lisa_allowance) }}</small>{% endcall %}
+    {% if has_lisa %}{% call hero_stat('LISA used') %}<strong>£{{ '{:,.0f}'.format(usage.lisa_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(lisa_allowance) }}</small>{% endcall %}{% endif %}
     {% call hero_stat('Pension used') %}<strong>£{{ '{:,.0f}'.format(pension_usage.pension_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(pension_limits.effective_allowance) }}</small>{% endcall %}
     {% call hero_stat('Dividends') %}<strong>£{{ '{:,.0f}'.format(dividend_used) }}</strong><small class="text-muted"> / £{{ '{:,.0f}'.format(dividend_allowance) }}</small>{% endcall %}
     {% call hero_stat('CGT net gain') %}<strong>£{{ '{:,.0f}'.format(cgt_net) }}</strong>{% endcall %}
@@ -41,7 +41,7 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Tax-Free Wrappers</p>
-      <h3>ISA &amp; LISA</h3>
+      <h3>ISA{% if has_lisa %} &amp; LISA{% endif %}</h3>
     </div>
   </div>
   <p class="helper-text mb-1">Growth, income and gains inside these wrappers are completely tax-free. No CGT, no dividend tax, no income tax.</p>
@@ -50,11 +50,12 @@
       <h2>ISA Allowance</h2>
       <p>£{{ '{:,.0f}'.format(usage.isa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(isa_allowance) }}</span></p>
       <div class="progress" role="progressbar" aria-valuenow="{{ (isa_progress * 100)|round(1) }}" aria-valuemin="0" aria-valuemax="100" aria-label="ISA allowance used"><div class="progress-bar" data-pct="{{ (isa_progress * 100)|round(1) }}"></div></div>
-      <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used · includes LISA</small>
+      <small>{{ '{:.1f}'.format(isa_progress * 100) }}% used{% if has_lisa %} · includes LISA{% endif %}</small>
       {% if usage.projected_isa != usage.isa_used %}
       <small class="block mt-025 text-muted">On track: £{{ '{:,.0f}'.format(usage.projected_isa) }} / £{{ '{:,.0f}'.format(isa_allowance) }} by end of tax year</small>
       {% endif %}
     </div>
+    {% if has_lisa %}
     <div class="card allowance-card">
       <h2>LISA Allowance</h2>
       <p>£{{ '{:,.0f}'.format(usage.lisa_used) }} <span class="allowance-denom">/ £{{ '{:,.0f}'.format(lisa_allowance) }}</span></p>
@@ -66,6 +67,7 @@
       <small class="block mt-025" style="color:var(--accent-3)">⚠ Withdrawing before age 60 (except for a first home purchase) incurs a 25% government penalty — you'd lose more than just the bonus.</small>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 </section>
 
