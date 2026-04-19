@@ -437,24 +437,22 @@
     /* The service worker intercepts each fetch and stores it in cache,    */
     /* so all pages are available offline even if never manually visited.  */
     {% if current_user.is_authenticated %}
-    if (navigator.onLine && !sessionStorage.getItem('shelly-cache-warmed')) {
-      sessionStorage.setItem('shelly-cache-warmed', '1');
+    (function() {
+      var CACHE_KEY = 'shelly-cache-warmed-v1.7.0';
+      if (!navigator.onLine || localStorage.getItem(CACHE_KEY)) return;
       var pagesToWarm = ['/', '/accounts/', '/budget/', '/goals/',
                          '/projections/', '/performance/', '/allowance/', '/settings/'];
-      /* Wait until the browser is idle so we don't compete with the current page */
-      var warmCache = function() {
+      var warmed = 0;
+      function warmCache() {
         pagesToWarm.forEach(function(url) {
-          if (url !== window.location.pathname) {
-            fetch(url, { credentials: 'same-origin' }).catch(function() {});
-          }
+          fetch(url, { credentials: 'same-origin' })
+            .then(function() { warmed++; if (warmed === pagesToWarm.length) localStorage.setItem(CACHE_KEY, '1'); })
+            .catch(function() {});
         });
-      };
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(warmCache, { timeout: 5000 });
-      } else {
-        setTimeout(warmCache, 2000);
       }
-    }
+      /* Start after 1s — quick enough to finish before user goes offline */
+      setTimeout(warmCache, 1000);
+    })();
     {% endif %}
   </script>
 </body>
