@@ -103,9 +103,14 @@
               <input type="number" step="0.001" name="fund_fee_pct" placeholder="e.g. 0.22" min="0" max="5">
               <small class="form-hint">Fund ongoing charge. E.g. VWRP 0.22%.</small>
             </label>
+            <label>
+              <span>Contribution fee (%)</span>
+              <input type="number" step="0.001" name="contribution_fee_pct" placeholder="e.g. 1.8" min="0" max="10">
+              <small class="form-hint">Charged on each contribution before it's invested. E.g. Nest 1.8%.</small>
+            </label>
           </div>
           <input type="hidden" name="annual_fee_pct" value="0">
-          <small class="form-hint text-muted block mt-05">All optional — Shelly combines these into one effective fee. You can always add these later.</small>
+          <small class="form-hint text-muted block mt-05">All optional — Shelly combines annual fees into one effective rate. Contribution fee reduces each payment before it's invested.</small>
         </details>
         <div class="cw-actions">
           <button type="button" class="badge" data-cw-prev>Back</button>

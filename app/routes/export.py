@@ -255,15 +255,22 @@ def export_projections():
         acc_platform_flat = to_float(_safe_get(acc, "platform_fee_flat", 0))
         acc_platform_cap = to_float(_safe_get(acc, "platform_fee_cap", 0))
         acc_fund_pct = to_float(_safe_get(acc, "fund_fee_pct", 0))
+        acc_contribution_fee_pct = to_float(_safe_get(acc, "contribution_fee_pct", 0))
         acc_monthly = effective_monthly_contribution(acc, assumptions)
         acc_current = to_float(acc["current_value"])
         acc_projected = projected_account_value(acc, assumptions)
         acc_projected_no_fees = projected_account_value_no_fees(acc, assumptions)
         acc_fee_impact = acc_projected_no_fees - acc_projected
         acc_breakdown = contribution_breakdown(acc, assumptions)
-        has_fees = acc_fee_pct > 0
+        acc_contrib_fee_monthly = to_float(acc_breakdown.get("contribution_fee", 0))
+        acc_total_months_for_fees = int(exact_years * 12)
+        acc_total_contrib_fees = acc_contrib_fee_monthly * acc_total_months_for_fees
+        has_annual_fees = acc_fee_pct > 0
+        has_contrib_fee = acc_contribution_fee_pct > 0
+        has_fees = has_annual_fees or has_contrib_fee
 
-        _title_cell(ws_acc, 1, f"Shelly Finance — {acc['name']}", 7 if has_fees else 5)
+        max_cols = 7 if has_annual_fees else (6 if has_contrib_fee else 5)
+        _title_cell(ws_acc, 1, f"Shelly Finance — {acc['name']}", max_cols)
         sub = ws_acc.cell(row=2, column=1, value=f"{acc['wrapper_type']} · {acc.get('provider') or ''}")
         sub.font = _SUBTITLE_FONT
 
@@ -274,10 +281,14 @@ def export_projections():
         summary_rows = [
             ("Current value", acc_current, GBP),
             ("You pay (monthly)", acc_breakdown["personal"], GBP),
+        ]
+        if has_contrib_fee:
+            summary_rows.append(("Contribution fee deducted (monthly)", -acc_contrib_fee_monthly, GBP))
+        summary_rows += [
             ("Total into pot (monthly)", acc_monthly, GBP),
             ("Growth rate (net of fees)", f"{acc_growth*100:.1f}%", None),
         ]
-        if has_fees:
+        if has_annual_fees:
             summary_rows.append(("Growth rate (gross)", f"{acc_gross*100:.1f}%", None))
             # Show granular fee breakdown if available
             if acc_platform_pct > 0:
@@ -287,47 +298,72 @@ def export_projections():
                 summary_rows.append(("Platform fee (flat)", f"£{acc_platform_flat:,.0f}/yr", None))
             if acc_fund_pct > 0:
                 summary_rows.append(("Fund fee (OCF)", f"{acc_fund_pct:.2f}%", None))
-            summary_rows.append(("Total effective fee", f"{acc_fee_pct:.2f}%", None))
+            summary_rows.append(("Total effective annual fee", f"{acc_fee_pct:.2f}%", None))
+        if has_contrib_fee:
+            summary_rows.append(("Contribution fee", f"{acc_contribution_fee_pct:.2f}% per contribution", None))
+            summary_rows.append(("Total contribution fees paid", acc_total_contrib_fees, GBP0))
         summary_rows.append(("Projected at retirement", acc_projected, GBP0))
-        if has_fees:
-            summary_rows.append(("Value without fees", acc_projected_no_fees, GBP0))
-            summary_rows.append(("Lifetime cost of fees", acc_fee_impact, GBP0))
+        if has_annual_fees:
+            summary_rows.append(("Value without annual fees", acc_projected_no_fees, GBP0))
+            summary_rows.append(("Lifetime cost of annual fees", acc_fee_impact, GBP0))
 
         for ri, (label, val, fmt) in enumerate(summary_rows, 5):
             _data_row(ws_acc, ri, [label, val], num_formats={2: fmt} if fmt else {})
 
-        # Year-by-year table
+        # Year-by-year table — columns vary by which fees apply
         yby_start = 5 + len(summary_rows) + 1
-        if has_fees:
-            _header_row(ws_acc, yby_start, ["Age", "Year", "Projected Value", "Growth", "Contributions", "Value (no fees)", "Fee Impact"])
-            _set_col_width(ws_acc, 6, 22)
-            _set_col_width(ws_acc, 7, 18)
+        if has_annual_fees and has_contrib_fee:
+            yby_headers = ["Age", "Year", "Projected Value", "Growth", "Contributions", "Contrib. Fee (yr)", "Value (no ann. fees)", "Ann. Fee Impact"]
+        elif has_annual_fees:
+            yby_headers = ["Age", "Year", "Projected Value", "Growth", "Contributions", "Value (no fees)", "Fee Impact"]
+        elif has_contrib_fee:
+            yby_headers = ["Age", "Year", "Projected Value", "Growth", "Contributions", "Contrib. Fee (yr)"]
         else:
-            _header_row(ws_acc, yby_start, ["Age", "Year", "Projected Value", "Growth", "Contributions"])
+            yby_headers = ["Age", "Year", "Projected Value", "Growth", "Contributions"]
+        _header_row(ws_acc, yby_start, yby_headers)
         _set_col_width(ws_acc, 3, 22)
         _set_col_width(ws_acc, 4, 18)
         _set_col_width(ws_acc, 5, 18)
+        if len(yby_headers) >= 6:
+            _set_col_width(ws_acc, 6, 22)
+        if len(yby_headers) >= 7:
+            _set_col_width(ws_acc, 7, 22)
+        if len(yby_headers) >= 8:
+            _set_col_width(ws_acc, 8, 18)
 
         is_lisa = acc.get("wrapper_type") == "Lifetime ISA"
         prev_val = acc_current
         for yr in range(0, whole_years + 1):
             age = int(current_age + yr)
             val = projected_account_value_at_year(acc, assumptions, yr)
-            # LISA contributions stop at age 50
             if yr == 0:
                 contrib_this_year = 0
+                contrib_fee_this_year = 0
             elif is_lisa and (current_age + yr) > 50:
                 contrib_this_year = 0
+                contrib_fee_this_year = 0
             else:
                 contrib_this_year = acc_monthly * 12
+                contrib_fee_this_year = acc_contrib_fee_monthly * 12
             growth_this_year = (val - prev_val - contrib_this_year) if yr > 0 else 0
             year_label = f"{curr_year + yr} (today)" if yr == 0 else curr_year + yr
-            if has_fees:
+
+            if has_annual_fees and has_contrib_fee:
                 val_no_fees = projected_account_value_at_year_no_fees(acc, assumptions, yr)
-                fee_impact_yr = val_no_fees - val
                 _data_row(ws_acc, yby_start + 1 + yr, [
-                    age, year_label, val, growth_this_year, contrib_this_year, val_no_fees, fee_impact_yr,
+                    age, year_label, val, growth_this_year, contrib_this_year,
+                    contrib_fee_this_year, val_no_fees, val_no_fees - val,
+                ], num_formats={3: GBP0, 4: GBP0, 5: GBP0, 6: GBP0, 7: GBP0, 8: GBP0})
+            elif has_annual_fees:
+                val_no_fees = projected_account_value_at_year_no_fees(acc, assumptions, yr)
+                _data_row(ws_acc, yby_start + 1 + yr, [
+                    age, year_label, val, growth_this_year, contrib_this_year,
+                    val_no_fees, val_no_fees - val,
                 ], num_formats={3: GBP0, 4: GBP0, 5: GBP0, 6: GBP0, 7: GBP0})
+            elif has_contrib_fee:
+                _data_row(ws_acc, yby_start + 1 + yr, [
+                    age, year_label, val, growth_this_year, contrib_this_year, contrib_fee_this_year,
+                ], num_formats={3: GBP0, 4: GBP0, 5: GBP0, 6: GBP0})
             else:
                 _data_row(ws_acc, yby_start + 1 + yr, [
                     age, year_label, val, growth_this_year, contrib_this_year,
@@ -337,29 +373,35 @@ def export_projections():
         # Final fractional-year row
         if exact_years > whole_years:
             final_r = yby_start + 1 + whole_years + 1
-            if has_fees:
+            if has_annual_fees and has_contrib_fee:
                 _data_row(ws_acc, final_r, [
-                    int(retirement_age),
-                    curr_year + whole_years + 1,
-                    acc_projected,
-                    "", "",
-                    acc_projected_no_fees,
-                    acc_fee_impact,
+                    int(retirement_age), curr_year + whole_years + 1, acc_projected, "", "", "",
+                    acc_projected_no_fees, acc_fee_impact,
+                ], bold=True, num_formats={3: GBP0, 7: GBP0, 8: GBP0})
+            elif has_annual_fees:
+                _data_row(ws_acc, final_r, [
+                    int(retirement_age), curr_year + whole_years + 1, acc_projected, "", "",
+                    acc_projected_no_fees, acc_fee_impact,
                 ], bold=True, num_formats={3: GBP0, 6: GBP0, 7: GBP0})
+            elif has_contrib_fee:
+                _data_row(ws_acc, final_r, [
+                    int(retirement_age), curr_year + whole_years + 1, acc_projected, "", "", "",
+                ], bold=True, num_formats={3: GBP0})
             else:
                 _data_row(ws_acc, final_r, [
-                    int(retirement_age),
-                    curr_year + whole_years + 1,
-                    acc_projected,
-                    "", "",
+                    int(retirement_age), curr_year + whole_years + 1, acc_projected, "", "",
                 ], bold=True, num_formats={3: GBP0})
 
         # ── Monthly breakdown table ──────────────────────────────────
         yearly_end = yby_start + 1 + whole_years + (2 if exact_years > whole_years else 1)
         mby_start = yearly_end + 2  # gap of 1 empty row
 
-        if has_fees:
+        if has_annual_fees and has_contrib_fee:
+            _header_row(ws_acc, mby_start, ["Month", "Projected Value", "Contrib. Fee (mo)", "Value (no ann. fees)", "Ann. Fee Impact"])
+        elif has_annual_fees:
             _header_row(ws_acc, mby_start, ["Month", "Projected Value", "Value (no fees)", "Fee Impact"])
+        elif has_contrib_fee:
+            _header_row(ws_acc, mby_start, ["Month", "Projected Value", "Contrib. Fee (mo)"])
         else:
             _header_row(ws_acc, mby_start, ["Month", "Projected Value"])
 
@@ -371,11 +413,23 @@ def export_projections():
             if m == 0:
                 m_label += " (today)"
             m_val = projected_account_value_at_month(acc, assumptions, m)
-            if has_fees:
+            # Contribution fee is constant each month (except month 0)
+            m_contrib_fee = acc_contrib_fee_monthly if m > 0 else 0.0
+
+            if has_annual_fees and has_contrib_fee:
+                m_val_nf = projected_account_value_at_month_no_fees(acc, assumptions, m)
+                _data_row(ws_acc, mby_start + 1 + m, [
+                    m_label, m_val, m_contrib_fee, m_val_nf, m_val_nf - m_val,
+                ], num_formats={2: GBP0, 3: GBP0, 4: GBP0, 5: GBP0})
+            elif has_annual_fees:
                 m_val_nf = projected_account_value_at_month_no_fees(acc, assumptions, m)
                 _data_row(ws_acc, mby_start + 1 + m, [
                     m_label, m_val, m_val_nf, m_val_nf - m_val,
                 ], num_formats={2: GBP0, 3: GBP0, 4: GBP0})
+            elif has_contrib_fee:
+                _data_row(ws_acc, mby_start + 1 + m, [
+                    m_label, m_val, m_contrib_fee,
+                ], num_formats={2: GBP0, 3: GBP0})
             else:
                 _data_row(ws_acc, mby_start + 1 + m, [
                     m_label, m_val,
@@ -383,10 +437,18 @@ def export_projections():
 
         # Final retirement row
         m_final_r = mby_start + 1 + acc_total_months + 1
-        if has_fees:
+        if has_annual_fees and has_contrib_fee:
+            _data_row(ws_acc, m_final_r, [
+                "Retirement", acc_projected, acc_total_contrib_fees, acc_projected_no_fees, acc_fee_impact,
+            ], bold=True, num_formats={2: GBP0, 3: GBP0, 4: GBP0, 5: GBP0})
+        elif has_annual_fees:
             _data_row(ws_acc, m_final_r, [
                 "Retirement", acc_projected, acc_projected_no_fees, acc_fee_impact,
             ], bold=True, num_formats={2: GBP0, 3: GBP0, 4: GBP0})
+        elif has_contrib_fee:
+            _data_row(ws_acc, m_final_r, [
+                "Retirement", acc_projected, acc_total_contrib_fees,
+            ], bold=True, num_formats={2: GBP0, 3: GBP0})
         else:
             _data_row(ws_acc, m_final_r, [
                 "Retirement", acc_projected,
