@@ -424,7 +424,7 @@
 
     /* ── Service Worker registration ──────────────────────────────────── */
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('/sw.js')
         .then(function(reg) {
           /* Check for updates periodically */
           setInterval(function() { reg.update(); }, 60 * 60 * 1000);
