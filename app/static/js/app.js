@@ -531,6 +531,13 @@
           });
         }
 
+        if (submitBtn) {
+          submitBtn.addEventListener('click', async function() {
+            var price = parseFloat(priceEl ? priceEl.value : '0') || 0;
+            await autoSave(price);
+          });
+        }
+
         if (unitsEl) unitsEl.addEventListener('input', recalc);
         if (priceEl) priceEl.addEventListener('input', recalc);
       });
@@ -552,6 +559,78 @@
           setTimeout(() => { updateAllBtn.disabled = false; updateAllBtn.textContent = '↻ Update All Prices'; }, 2000);
         });
       }
+
+      /* Guide (The Routine) toggle */
+      var guideToggle = document.getElementById('guide-toggle');
+      var guidePanel  = document.getElementById('guide-panel');
+      if (guideToggle && guidePanel) {
+        guideToggle.addEventListener('click', function() {
+          var hidden = guidePanel.classList.contains('hidden');
+          guidePanel.classList.toggle('hidden', !hidden);
+          guideToggle.textContent = hidden ? 'Hide' : 'Show';
+        });
+      }
+
+      /* CSV import toggle */
+      var csvToggle = document.getElementById('csv-import-toggle');
+      var csvPanel  = document.getElementById('csv-import-panel');
+      var csvCancel = document.getElementById('csv-import-cancel');
+      if (csvToggle && csvPanel) {
+        csvToggle.addEventListener('click', function() {
+          var hidden = csvPanel.classList.contains('hidden');
+          csvPanel.classList.toggle('hidden', !hidden);
+          csvToggle.textContent = hidden ? 'Hide' : 'Show';
+        });
+      }
+      if (csvCancel && csvPanel) {
+        csvCancel.addEventListener('click', function() {
+          csvPanel.classList.add('hidden');
+          if (csvToggle) csvToggle.textContent = 'Show';
+        });
+      }
+
+      /* Mark as Complete — open native dialog */
+      var markCompleteBtn  = document.getElementById('mark-complete-btn');
+      var markCompleteForm = document.getElementById('mark-complete-form');
+      var completeDialog   = document.getElementById('confirm-complete-dialog');
+      var confirmYes       = document.getElementById('confirm-complete-yes');
+      var confirmNo        = document.getElementById('confirm-complete-no');
+      if (markCompleteBtn && completeDialog) {
+        markCompleteBtn.addEventListener('click', function() {
+          if (completeDialog.showModal) {
+            completeDialog.showModal();
+          } else {
+            completeDialog.setAttribute('open', '');
+          }
+        });
+      }
+      if (confirmYes && markCompleteForm) {
+        confirmYes.addEventListener('click', function() { markCompleteForm.submit(); });
+      }
+      if (confirmNo && completeDialog) {
+        confirmNo.addEventListener('click', function() {
+          if (completeDialog.close) {
+            completeDialog.close();
+          } else {
+            completeDialog.removeAttribute('open');
+          }
+        });
+      }
+
+      /* Month navigation (prev/next) */
+      function shiftMonth(key, delta) {
+        var parts = key.split('-');
+        var y = parseInt(parts[0]);
+        var m = parseInt(parts[1]) + delta;
+        if (m < 1)  { m = 12; y--; }
+        if (m > 12) { m = 1;  y++; }
+        window.location.href = '/monthly-review/?month=' + y + '-' + (m < 10 ? '0' + m : m);
+      }
+      var prevMonthBtn = document.querySelector('.review-prev-month');
+      var nextMonthBtn = document.querySelector('.review-next-month');
+      if (prevMonthBtn) prevMonthBtn.addEventListener('click', function() { shiftMonth(MONTH_KEY, -1); });
+      if (nextMonthBtn) nextMonthBtn.addEventListener('click', function() { shiftMonth(MONTH_KEY, 1); });
+
     })();
 
     // 13. Budget Debts Logic

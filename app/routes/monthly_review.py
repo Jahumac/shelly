@@ -190,6 +190,21 @@ def monthly_review():
         and item["account_id"] not in skipped_account_ids
     )
 
+    # Build manual_holdings: flat list of individual holdings from holdings-based accounts
+    # with field names matching the template expectations
+    manual_holdings = []
+    for item in holdings_items:
+        for h in holdings_by_account.get(item['account_id'], []):
+            manual_holdings.append({
+                'id': h['id'],
+                'account_id': h['account_id'],
+                'name': h['holding_name'],
+                'account_name': h['account_name'],
+                'ticker': h['ticker'] or '',
+                'units': float(h['units'] or 0),
+                'price': float(h['price'] or 0),
+            })
+
     # Goal progress
     goal = fetch_primary_goal(uid)
     goal_data = None
@@ -233,8 +248,10 @@ def monthly_review():
         review=review,
         month_key=month_key,
         month_label=month_label(month_key),
+        current_month_num=mk_month,
         holdings_items=holdings_items,
         manual_items=manual_items,
+        manual_holdings=manual_holdings,
         contribution_items=contribution_items,
         holdings_by_account=holdings_by_account,
         assumptions=assumptions,
