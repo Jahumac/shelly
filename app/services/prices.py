@@ -569,15 +569,6 @@ def fetch_price(ticker: str):
         symbols_to_try.append(ticker + ".L")
 
     # ── Phase 1: Direct HTTP APIs (Reliable & Live) ────────────────────────
-    # Helper: should we keep looking for a .L version instead of returning?
-    def _lse_pending(sym, res):
-        """True when a non-.L result is in a non-GBP currency and a .L symbol is still to try."""
-        if sym.endswith(".L"):
-            return False
-        if res.get("currency") in ("GBP", "GBp"):
-            return False
-        return any(s.endswith(".L") for s in symbols_to_try[symbols_to_try.index(sym) + 1:])
-
     for sym in symbols_to_try:
         # Try Twelve Data (Source C) first if API key is configured
         res = _try_twelve_data(sym)
@@ -585,8 +576,7 @@ def fetch_price(ticker: str):
             res["yf_symbol"] = sym
             res["source"] = "twelve_data"
             logger.info(f"Fetched {sym} via Source C (Twelve Data): {res['price']} {res['currency']}")
-            if not _lse_pending(sym, res):
-                return res
+            return res
 
         # Try Yahoo Quote API (Source B) as the secondary live source
         res = _try_yahoo_quote(sym)
@@ -594,8 +584,7 @@ def fetch_price(ticker: str):
             res["yf_symbol"] = sym
             res["source"] = "yahoo_quote"
             logger.info(f"Fetched {sym} via Source B (quote): {res['price']} {res['currency']}")
-            if not _lse_pending(sym, res):
-                return res
+            return res
 
         # Fallback to Yahoo Chart API (Source A)
         res = _try_yahoo_http(sym)
@@ -603,7 +592,11 @@ def fetch_price(ticker: str):
             res["yf_symbol"] = sym
             res["source"] = "yahoo_chart"
             logger.info(f"Fetched {sym} via Source A (chart): {res['price']} {res['currency']}")
-            if not _lse_pending(sym, res):
+            # Prefer LSE version for GBP-priced instruments if multiple results exist
+            if sym.endswith(".L") or res.get("currency") in ("GBP", "GBp"):
+                return res
+            # If we have a non-LSE result, keep it but keep looking for an LSE one
+            if not any(s.endswith(".L") for s in symbols_to_try[symbols_to_try.index(sym)+1:]):
                 return res
 
     # ── Phase 2: yfinance (Fallback) ─────────────────────────────────────
