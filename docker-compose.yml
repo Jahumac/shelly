@@ -6,4 +6,6 @@ services:
       - "8001:8000"
     volumes:
       - ./data:/app/data
+    environment:
+      - TWELVE_DATA_API_KEY=your_api_key_here
     restart: unless-stopped

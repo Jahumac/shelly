@@ -35,4 +35,5 @@
   <Config Name="Data Directory" Target="/app/data" Default="/mnt/user/appdata/shelly-finance" Mode="rw" Description="Where Shelly stores its SQLite database and secret key. Back this up!" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/shelly-finance</Config>
   <Config Name="Demo Username (read-only)" Target="DEMO_READ_ONLY_USERNAME" Default="demo" Mode="" Description="Username treated as read-only; all writes are blocked for this user." Type="Variable" Display="advanced" Required="false" Mask="false">demo</Config>
   <Config Name="Enable Public Demo Login" Target="DEMO_PUBLIC_LOGIN_ENABLED" Default="0" Mode="" Description="If set to 1, adds a 'Try demo' button on the login page and enables /demo passwordless login for the demo user." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="Twelve Data API Key" Target="TWELVE_DATA_API_KEY" Default="" Mode="" Description="Optional API key from Twelve Data for more reliable live price updates. Get a free key at twelvedata.com" Type="Variable" Display="always" Required="false" Mask="true"></Config>
 </Container>
