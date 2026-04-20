@@ -48,6 +48,7 @@ TICKER_ALIASES = {
 }
 
 logger = logging.getLogger(__name__)
+_TWELVE_SYMBOL_CACHE = {}
 
 
 def _twelve_request_json(url: str):
@@ -295,35 +296,35 @@ def _try_twelve_data(symbol: str):
 
     logger.info(f"Attempting Twelve Data fetch for {symbol} using key: {api_key[:5]}...")
     try:
-        # Twelve Data symbol compatibility varies by exchange suffix.
-        # Try a few common mappings for LSE instruments.
-        symbols_to_try = [symbol]
-        if symbol.endswith(".L"):
+        # Keep API usage low:
+        # 1) Try cached successful mapping first.
+        # 2) For LSE tickers, try at most two variants.
+        cached = _TWELVE_SYMBOL_CACHE.get(symbol)
+        if cached:
+            symbols_to_try = [cached]
+        elif symbol.endswith(".L"):
             base = symbol[:-2]
-            symbols_to_try = [f"{base}:LSE", f"{base}.LON", symbol, base]
+            symbols_to_try = [f"{base}:LSE", symbol]
+        else:
+            symbols_to_try = [symbol]
         last_error = None
 
         for td_symbol in symbols_to_try:
             encoded = urllib.parse.quote(td_symbol)
-            url = f"https://api.twelvedata.com/price?symbol={encoded}&apikey={api_key}"
+            # Use only one endpoint per symbol candidate to avoid double spending.
+            url = f"https://api.twelvedata.com/quote?symbol={encoded}&apikey={api_key}"
             try:
                 data = _twelve_request_json(url)
             except Exception as e:
                 last_error = str(e)
                 continue
 
-            if "price" not in data:
-                # Try a second endpoint for quote data (includes change pct)
-                url = f"https://api.twelvedata.com/quote?symbol={encoded}&apikey={api_key}"
-                try:
-                    data = _twelve_request_json(url)
-                except Exception as e:
-                    last_error = str(e)
-                    continue
-
-            if "price" in data:
+            # quote endpoint usually returns "close"; some plans/markets expose "price".
+            raw_price = data.get("price") or data.get("close")
+            if raw_price is not None:
+                _TWELVE_SYMBOL_CACHE[symbol] = td_symbol
                 res = {
-                    "price": round(float(data["price"]), 4),
+                    "price": round(float(raw_price), 4),
                     "currency": data.get("currency", "GBP"),
                     "change_pct": round(float(data.get("percent_change", 0)), 2),
                     "name": data.get("name"),
