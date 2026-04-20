@@ -228,8 +228,10 @@ def _try_twelve_data(symbol: str):
     """
     api_key = current_app.config.get("TWELVE_DATA_API_KEY")
     if not api_key:
+        logger.info("Twelve Data API Key not found in config")
         return None
 
+    logger.info(f"Attempting Twelve Data fetch for {symbol} using key: {api_key[:5]}...")
     try:
         # Map LSE symbols for Twelve Data (.L -> :LSE)
         twelve_symbol = symbol
@@ -261,10 +263,10 @@ def _try_twelve_data(symbol: str):
             logger.info(f"Fetched {symbol} via Source C (Twelve Data): {res['price']} {res['currency']}")
             return res
         
-        logger.debug(f"Twelve Data returned no price for {symbol}: {data.get('message')}")
+        logger.info(f"Twelve Data returned no price for {symbol}: {data.get('message')}")
         return None
     except Exception as e:
-        logger.debug(f"Source C (Twelve Data) failed for {symbol}: {e}")
+        logger.info(f"Source C (Twelve Data) failed for {symbol}: {e}")
         return None
 
 
