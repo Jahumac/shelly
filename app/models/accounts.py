@@ -37,10 +37,10 @@ def fetch_latest_price_update(user_id):
                     datetime(
                         CASE
                             -- "YYYY-MM-DD HH:MM" -> add seconds
-                            WHEN length(trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', ''))) = 16
-                                THEN trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', '')) || ':00'
+                            WHEN length(trim(replace(replace(replace(replace(hc.price_updated_at, 'UTC', ''), 'utc', ''), 'Z', ''), 'T', ' '))) = 16
+                                THEN trim(replace(replace(replace(replace(hc.price_updated_at, 'UTC', ''), 'utc', ''), 'Z', ''), 'T', ' ')) || ':00'
                             -- Otherwise keep first 19 chars "YYYY-MM-DD HH:MM:SS"
-                            ELSE substr(trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', '')), 1, 19)
+                            ELSE substr(trim(replace(replace(replace(replace(hc.price_updated_at, 'UTC', ''), 'utc', ''), 'Z', ''), 'T', ' ')), 1, 19)
                         END
                     ) AS dt_utc
                 FROM holding_catalogue hc
@@ -595,4 +595,3 @@ def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int, user_id: int
             (catalogue_id, ticker, catalogue_id, user_id),
         )
         conn.commit()
-
