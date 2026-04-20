@@ -26,4 +26,5 @@ class Config:
     WTF_CSRF_ENABLED = os.environ.get("WTF_CSRF_ENABLED", "1") != "0"
     TESTING = os.environ.get("FLASK_TESTING", "0") == "1"
     TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY")
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
     MANUAL_REFRESH_COOLDOWN_SECONDS = int(os.environ.get("MANUAL_REFRESH_COOLDOWN_SECONDS", "180"))

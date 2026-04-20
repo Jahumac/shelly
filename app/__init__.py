@@ -179,11 +179,11 @@ def create_app():
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # Content Security Policy (CSP)
-        # Allows styles from Google Fonts, scripts from Cloudflare (Chart.js),
-        # and images/scripts from self.
+        # Stricter policy: scripts only from self and trusted CDN.
+        # Inline JS removed from base.html to allow 'unsafe-inline' removal if possible.
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+            "script-src 'self' https://cdnjs.cloudflare.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
