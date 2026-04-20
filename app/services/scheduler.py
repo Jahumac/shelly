@@ -395,6 +395,7 @@ def trigger_manual_update(app, user_id):
     Returns a dict with status and message.
     """
     from app.models import fetch_holding_catalogue_in_use
+    from app.services.prices import probe_twelve_data
 
     with app.app_context():
         try:
@@ -409,11 +410,13 @@ def trigger_manual_update(app, user_id):
                 }
 
             summary = _run_price_update_for_user(app, user_id, slot_name="manual") or {}
+            td_probe = probe_twelve_data() if summary.get("twelve_data_key_present") else {"ok": False, "message": "no_api_key"}
             by_source = summary.get("by_source") or {}
             msg = (
                 f"Processed {summary.get('tickers_processed', 0)} tickers, "
                 f"updated {summary.get('success_count', 0)}. "
                 f"TDKey={'Yes' if summary.get('twelve_data_key_present') else 'No'}, "
+                f"TDProbe={'ok' if td_probe.get('ok') else td_probe.get('message')}, "
                 f"TwelveData={by_source.get('twelve_data', 0)}, "
                 f"YahooQuote={by_source.get('yahoo_quote', 0)}, "
                 f"YahooChart={by_source.get('yahoo_chart', 0)}, "

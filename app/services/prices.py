@@ -48,6 +48,26 @@ TICKER_ALIASES = {
 
 logger = logging.getLogger(__name__)
 
+
+def probe_twelve_data():
+    """Quick connectivity/auth probe for Twelve Data using a stable symbol."""
+    api_key = current_app.config.get("TWELVE_DATA_API_KEY")
+    if not api_key:
+        return {"ok": False, "message": "no_api_key"}
+    try:
+        encoded = urllib.parse.quote("AAPL")
+        url = f"https://api.twelvedata.com/quote?symbol={encoded}&apikey={api_key}"
+        req = urllib.request.Request(url)
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+        if "price" in data:
+            return {"ok": True, "message": "ok"}
+        msg = data.get("message") or data.get("status") or "no_price_in_response"
+        code = data.get("code")
+        return {"ok": False, "message": f"{code}:{msg}" if code else str(msg)}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
 def is_price_stale(last_updated_str: str, threshold_minutes: int = 15):
     """Check if a price is older than the threshold."""
     if not last_updated_str:
