@@ -13,10 +13,10 @@ Versioning: mounted at /api/v1. Breaking changes go under /api/v2.
 from functools import wraps
 
 from flask import Blueprint, current_app, g, jsonify, request
-
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.extensions import limiter
 from app.calculations import effective_account_value, is_price_stale
 from app.utils import valid_month_key
 from app.models import (
@@ -42,6 +42,13 @@ from app.models import (
 )
 
 api_bp = Blueprint("api_v1", __name__, url_prefix="/api/v1")
+
+
+# Rate limit helper — no-op if Flask-Limiter isn't installed
+def _limit(limit_string, **kwargs):
+    if limiter:
+        return limiter.limit(limit_string, **kwargs)
+    return lambda f: f
 
 
 def _err(code, message, status):
@@ -117,6 +124,7 @@ def _goal_to_dict(row):
 
 @api_bp.route("/me")
 @api_auth_required
+@_limit("60 per minute")
 def me():
     u = g.api_user
     return jsonify({
@@ -128,6 +136,7 @@ def me():
 
 @api_bp.route("/accounts")
 @api_auth_required
+@_limit("60 per minute")
 def list_accounts():
     rows = fetch_all_accounts(g.api_user.id)
     return jsonify({"accounts": [_account_to_dict(r) for r in rows]})
@@ -135,6 +144,7 @@ def list_accounts():
 
 @api_bp.route("/accounts/<int:account_id>")
 @api_auth_required
+@_limit("60 per minute")
 def get_account(account_id):
     row = fetch_account(account_id, g.api_user.id)
     if row is None:
@@ -146,6 +156,7 @@ def get_account(account_id):
 
 @api_bp.route("/holdings")
 @api_auth_required
+@_limit("60 per minute")
 def list_holdings():
     rows = fetch_all_holdings(g.api_user.id)
     return jsonify({"holdings": [_holding_to_dict(r) for r in rows]})
@@ -153,6 +164,7 @@ def list_holdings():
 
 @api_bp.route("/goals")
 @api_auth_required
+@_limit("60 per minute")
 def list_goals():
     rows = fetch_all_goals(g.api_user.id)
     return jsonify({"goals": [_goal_to_dict(r) for r in rows]})
@@ -160,6 +172,7 @@ def list_goals():
 
 @api_bp.route("/overview")
 @api_auth_required
+@_limit("60 per minute")
 def overview():
     accounts = fetch_all_accounts(g.api_user.id)
     total = sum(float(a["current_value"] or 0) for a in accounts)
@@ -173,6 +186,7 @@ def overview():
 
 @api_bp.route("/budget/<month_key>")
 @api_auth_required
+@_limit("60 per minute")
 def get_budget(month_key):
     if not valid_month_key(month_key):
         return _err("bad_request", "month_key must be YYYY-MM", 400)

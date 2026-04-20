@@ -177,6 +177,20 @@ def create_app():
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Content Security Policy (CSP)
+        # Allows styles from Google Fonts, scripts from Cloudflare (Chart.js),
+        # and images/scripts from self.
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp
+
         return response
 
     return app

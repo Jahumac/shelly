@@ -140,14 +140,21 @@ def delete_user(user_id):
 
 # ── API tokens ────────────────────────────────────────────────────────────────
 # Bearer tokens for the JSON API. Mint via scripts/api_token.py create <user>.
+# Tokens are stored as SHA-256 hashes.
+
+def _hash_token(token):
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()
+
 
 def create_api_token(user_id, label=None):
     import secrets
     token = secrets.token_hex(32)
+    hashed = _hash_token(token)
     with get_connection() as conn:
         conn.execute(
             "INSERT INTO api_tokens (user_id, token, label) VALUES (?, ?, ?)",
-            (user_id, token, label),
+            (user_id, hashed, label),
         )
         conn.commit()
     return token
@@ -156,6 +163,7 @@ def create_api_token(user_id, label=None):
 def fetch_user_by_api_token(token):
     if not token:
         return None
+    hashed = _hash_token(token)
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -163,13 +171,13 @@ def fetch_user_by_api_token(token):
             JOIN api_tokens t ON t.user_id = u.id
             WHERE t.token = ?
             """,
-            (token,),
+            (hashed,),
         ).fetchone()
         if row is None:
             return None
         conn.execute(
             "UPDATE api_tokens SET last_used_at = datetime('now') WHERE token = ?",
-            (token,),
+            (hashed,),
         )
         conn.commit()
     return User(row["id"], row["username"], row["password_hash"], row["is_admin"])

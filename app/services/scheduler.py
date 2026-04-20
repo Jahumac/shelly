@@ -158,6 +158,7 @@ def _scheduled_check(app):
                 window_end   = now.replace(hour=evening_h, minute=evening_m, second=0, microsecond=0)
 
                 if not (window_start <= now <= window_end):
+                    logger.debug(f"User {user_id}: outside update window ({window_start.strftime('%H:%M')} - {window_end.strftime('%H:%M')})")
                     continue  # outside this user's active window
 
                 # Check last run time — skip if less than 1 hour ago
@@ -182,6 +183,7 @@ def _scheduled_check(app):
 
                         hours_since = (now - last_dt).total_seconds() / 3600
                         if hours_since < 1:
+                            logger.debug(f"User {user_id}: last update was {hours_since:.1f}h ago — skipping")
                             continue
 
                     # Claim this run and prune old records (keep 90 days)
@@ -195,7 +197,7 @@ def _scheduled_check(app):
                     )
                     conn.commit()
 
-                logger.info(f"Triggering price update for user {user_id}")
+                logger.info(f"Triggering auto price update for user {user_id} (window: {window_start.strftime('%H:%M')}-{window_end.strftime('%H:%M')})")
                 _run_price_update_for_user(app, user_id, slot_name="auto")
 
             except Exception as e:

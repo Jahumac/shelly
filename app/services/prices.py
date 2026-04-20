@@ -139,14 +139,18 @@ def _try_yahoo_http(symbol: str):
     This is the most reliable fallback — it uses the same endpoint that
     Yahoo's website uses and handles tickers that yfinance can't resolve.
     """
+    import time
     try:
         encoded = urllib.parse.quote(symbol)
+        # Use a timestamp to bust any server-side or proxy caches
+        ts = int(time.time())
+        # Use range=1d, interval=1m to get the absolute latest intraday data
         url = (
             f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}"
-            f"?range=5d&interval=1d"
+            f"?range=1d&interval=1m&_={ts}"
         )
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
         resp = urllib.request.urlopen(req, timeout=10)
         data = json.loads(resp.read())
@@ -156,24 +160,27 @@ def _try_yahoo_http(symbol: str):
             return None
 
         meta = result[0].get("meta", {})
-        price = meta.get("regularMarketPrice")
+        # Prefer the very latest price from the chart data if available
+        price = None
         prev_close = meta.get("chartPreviousClose") or meta.get("previousClose")
-        currency = meta.get("currency", "GBP")
-
+        
+        # Try indicators first (most recent)
+        indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
+        closes = indicators.get("close", [])
+        valid_closes = [c for c in closes if c is not None]
+        if valid_closes:
+            price = valid_closes[-1]
+            if not prev_close and len(valid_closes) >= 2:
+                prev_close = valid_closes[0]
+        
+        # Fallback to meta price
         if not price:
-            # Try getting price from the timestamp data
-            closes = (result[0].get("indicators", {})
-                      .get("quote", [{}])[0]
-                      .get("close", []))
-            valid_closes = [c for c in closes if c is not None]
-            if valid_closes:
-                price = valid_closes[-1]
-                if len(valid_closes) >= 2:
-                    prev_close = prev_close or valid_closes[-2]
+            price = meta.get("regularMarketPrice")
 
         if not price:
             return None
 
+        currency = meta.get("currency", "GBP")
         change_pct = None
         if prev_close and prev_close > 0:
             change_pct = ((price - prev_close) / prev_close * 100)
@@ -329,10 +336,10 @@ def fetch_price(ticker: str):
     Strategy for a UK-focused dashboard:
     1. Check known aliases (e.g. VHVG → VHVG.L) for tickers that are
        known to fail with yfinance but work via the HTTP API.
-    2. Try the raw ticker via yfinance.
-    3. If it doesn't end with .L, also try ticker + ".L" (London Stock Exchange).
-    4. If yfinance fails, try Yahoo's v8 chart HTTP API directly — this
-       bypasses yfinance entirely and handles many tickers yfinance can't.
+    2. Try Yahoo's v8 chart HTTP API directly — this is the most
+       reliable source for live prices and handles many tickers yfinance can't.
+    3. If HTTP fails, try the yfinance library as a backup.
+    4. If both fail and it doesn't end with .L, also try ticker + ".L" (London Stock Exchange).
     5. Last resort: search Yahoo Finance by name and try the best match.
 
     Returns a dict with keys: price, currency, change_pct, yf_symbol
@@ -342,37 +349,8 @@ def fetch_price(ticker: str):
         return None
     ticker = ticker.strip().upper()
 
-    # ── Phase 0: prefer known alias up-front (reduces yfinance noise) ────
+    # ── Phase 0: prefer known alias up-front ────
     alias = TICKER_ALIASES.get(ticker)
-    if alias and not ticker.endswith(".L"):
-        alias_result = _try_ticker(alias)
-        if alias_result:
-            alias_result["yf_symbol"] = alias
-            return alias_result
-
-    # ── Phase 1: yfinance (fast path) ────────────────────────────────────
-    raw_result = _try_ticker(ticker)
-    lse_result = None
-
-    if not ticker.endswith(".L"):
-        lse_result = _try_ticker(ticker + ".L")
-
-    # Prefer the LSE version if it exists and is priced in GBP/GBp
-    if lse_result and lse_result.get("currency") in ("GBP", "GBp"):
-        lse_result["yf_symbol"] = ticker + ".L"
-        return lse_result
-
-    if raw_result:
-        raw_result["yf_symbol"] = ticker
-        return raw_result
-
-    # Fallback: return LSE even if not GBP (better than nothing)
-    if lse_result:
-        lse_result["yf_symbol"] = ticker + ".L"
-        return lse_result
-
-    # ── Phase 2: direct HTTP API (bypasses yfinance entirely) ────────────
-    # Try known alias first, then raw, then .L
     symbols_to_try = []
     if alias:
         symbols_to_try.append(alias)
@@ -380,23 +358,33 @@ def fetch_price(ticker: str):
     if not ticker.endswith(".L"):
         symbols_to_try.append(ticker + ".L")
 
+    # ── Phase 1: Direct HTTP API (Reliable & Live) ────────────────────────
     for sym in symbols_to_try:
         http_result = _try_yahoo_http(sym)
         if http_result:
             http_result["yf_symbol"] = sym
-            logger.info(f"${ticker} resolved via HTTP API → {sym}")
-            return http_result
+            # Prefer LSE version for GBP-priced instruments if multiple results exist
+            if sym.endswith(".L") or http_result.get("currency") in ("GBP", "GBp"):
+                return http_result
+            # If we have a non-LSE result, keep it but keep looking for an LSE one
+            if not any(s.endswith(".L") for s in symbols_to_try[symbols_to_try.index(sym)+1:]):
+                return http_result
+
+    # ── Phase 2: yfinance (Fallback) ─────────────────────────────────────
+    for sym in symbols_to_try:
+        yf_result = _try_ticker(sym)
+        if yf_result:
+            yf_result["yf_symbol"] = sym
+            return yf_result
 
     # ── Phase 3: search Yahoo Finance for the symbol ─────────────────────
     found_symbol = _search_yahoo(ticker)
     if found_symbol:
-        # Try yfinance first (faster), then HTTP
-        search_result = _try_ticker(found_symbol)
+        search_result = _try_yahoo_http(found_symbol)
         if not search_result:
-            search_result = _try_yahoo_http(found_symbol)
+            search_result = _try_ticker(found_symbol)
         if search_result:
             search_result["yf_symbol"] = found_symbol
-            logger.info(f"${ticker} resolved via search → {found_symbol}")
             return search_result
 
     return None
