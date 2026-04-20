@@ -48,6 +48,19 @@ TICKER_ALIASES = {
 
 logger = logging.getLogger(__name__)
 
+def is_price_stale(last_updated_str: str, threshold_minutes: int = 15):
+    """Check if a price is older than the threshold."""
+    if not last_updated_str:
+        return True
+    try:
+        # standard SQL format YYYY-MM-DD HH:MM:SS
+        last_dt = datetime.strptime(last_updated_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        diff = (now - last_dt).total_seconds() / 60
+        return diff > threshold_minutes
+    except Exception:
+        return True
+
 def _try_ticker(symbol: str):
     """Return dict with price/currency/change_pct for a Yahoo Finance symbol, or None.
 
