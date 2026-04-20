@@ -166,11 +166,32 @@ def future_value(current_value, monthly_contribution, annual_growth_rate, years)
     return future_current + future_contrib
 
 
-def to_float(value):
+def convert_to_gbp(amount, from_currency, fx_rates=None):
+    """Convert an amount from a source currency to GBP.
+
+    fx_rates should be a dict like {'USD': 1.25, 'EUR': 1.17} (how many per 1 GBP).
+    If rates are missing, returns the amount unchanged (legacy behavior).
+    """
+    if not amount or not from_currency or from_currency.upper() == "GBP":
+        return to_float(amount)
+
+    currency = from_currency.upper()
+    if from_currency == "GBp":  # Pence to Pounds
+        return to_float(amount) / 100.0
+
+    if not fx_rates or currency not in fx_rates:
+        return to_float(amount)
+
+    # Conversion: GBP = Amount / Rate
+    # e.g. $100 / 1.25 = £80
+    return to_float(amount) / to_float(fx_rates[currency])
+
+
+def to_float(val, default=0.0):
     try:
-        return float(value or 0)
+        return float(val or default)
     except (ValueError, TypeError):
-        return 0.0
+        return default
 
 
 def _safe_get(row, key, default=None):

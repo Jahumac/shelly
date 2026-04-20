@@ -234,12 +234,16 @@ def update_catalogue_price(catalogue_id, price, currency, change_pct, updated_at
 def sync_holding_prices_from_catalogue(catalogue_id, price, currency):
     """Propagate a refreshed catalogue price to all account holdings linked to it.
 
-    Converts GBp → GBP automatically (Yahoo Finance returns pence for LSE funds).
+    Converts non-GBP holdings (USD, EUR, GBp) to GBP automatically.
     Updates both the per-unit price and the total value (units × price) on every
     holdings row that has holding_catalogue_id = catalogue_id.
     """
-    # Always store GBP in the holdings table
-    price_gbp = price / 100.0 if currency == "GBp" else price
+    from app.calculations import convert_to_gbp
+    from app.services.prices import fetch_fx_rates
+
+    # Get current FX rates (USD, EUR)
+    fx_rates = fetch_fx_rates()
+    price_gbp = convert_to_gbp(price, currency, fx_rates)
 
     with get_connection() as conn:
         rows = conn.execute(

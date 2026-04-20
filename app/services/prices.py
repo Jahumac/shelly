@@ -477,6 +477,40 @@ def fetch_history(ticker: str, period: str = "1y"):
         return None
 
 
+# Global FX cache to reduce API calls
+_FX_RATE_CACHE = {"rates": {}, "updated_at": None}
+
+
+def fetch_fx_rates():
+    """Fetch current GBPUSD and GBPEUR rates.
+    Uses the global cache if updated within the last hour.
+    """
+    global _FX_RATE_CACHE
+    now = datetime.now(timezone.utc)
+    if _FX_RATE_CACHE["updated_at"] and (now - _FX_RATE_CACHE["updated_at"]) < timedelta(hours=1):
+        return _FX_RATE_CACHE["rates"]
+
+    rates = {}
+    for pair in ["GBPUSD=X", "GBPEUR=X"]:
+        # Try Twelve Data first if key is present
+        res = _try_twelve_data(pair)
+        if not res:
+            res = _try_yahoo_quote(pair)
+        if not res:
+            res = _try_yahoo_http(pair)
+
+        if res:
+            currency = pair[3:6]  # USD or EUR
+            rates[currency] = res["price"]
+
+    if rates:
+        _FX_RATE_CACHE["rates"] = rates
+        _FX_RATE_CACHE["updated_at"] = now
+        logger.info(f"Updated FX rates: {rates}")
+
+    return rates or _FX_RATE_CACHE["rates"]
+
+
 def fetch_price(ticker: str):
     """Fetch the current price for a ticker.
 
