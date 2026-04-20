@@ -17,7 +17,7 @@ It's designed specifically for **UK investors** — ISAs, SIPPs, Lifetime ISAs, 
 ## Features
 
 ### Accounts & Holdings
-Track any combination of investment accounts: Stocks & Shares ISA, Cash ISA, Lifetime ISA, SIPP, Workplace Pension, GIA, and more. Each account can be valued manually (enter a balance) or built up from individual holdings with live price lookups via Yahoo Finance.
+Track any combination of investment accounts: Stocks & Shares ISA, Cash ISA, Lifetime ISA, SIPP, Workplace Pension, GIA, and more. Each account can be valued manually (enter a balance) or built up from individual holdings with live price lookups via Twelve Data and Yahoo Finance (with automatic FX conversion for USD/EUR holdings).
 
 ### Broker CSV Import
 Import holdings directly from your broker's CSV export. Supported platforms:
