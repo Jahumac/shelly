@@ -285,7 +285,15 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
     from app.services.prices import refresh_catalogue_prices, is_price_stale
 
     try:
+        summary = {
+            "catalogue_total": 0,
+            "tickers_processed": 0,
+            "success_count": 0,
+            "by_source": {"twelve_data": 0, "yahoo_quote": 0, "yahoo_chart": 0, "yfinance": 0, "other": 0},
+            "latest_price_update": None,
+        }
         catalogue = fetch_holding_catalogue_in_use(user_id)
+        summary["catalogue_total"] = len(catalogue or [])
         if not catalogue:
             accounts = fetch_all_accounts(user_id)
             holdings_totals = fetch_holding_totals_by_account(user_id)
@@ -295,7 +303,7 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
             save_daily_snapshot(user_id, sum(v for _, v in acct_vals))
             save_account_daily_snapshots(user_id, acct_vals)
             logger.info(f"Saved portfolio snapshot for user {user_id} ({slot_name})")
-            return
+            return summary
 
         # Filter for stale prices unless manual update requested
         tickers_to_update = catalogue
@@ -315,6 +323,7 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
             price_results = refresh_catalogue_prices(tickers_to_update)
             by_source = {"twelve_data": 0, "yahoo_quote": 0, "yahoo_chart": 0, "yfinance": 0, "other": 0}
             ok_count = 0
+            summary["tickers_processed"] = len(price_results)
 
             with get_connection() as conn:
                 for result in price_results:
@@ -324,6 +333,7 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
                         if src not in by_source:
                             src = "other"
                         by_source[src] += 1
+                        summary["latest_price_update"] = result.get("updated_at") or summary["latest_price_update"]
                         conn.execute(
                             """
                             UPDATE holding_catalogue
@@ -346,6 +356,8 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
                     else:
                         current_app.logger.error(f"[Shelly] ✗ {result.get('ticker')}: {result.get('error')}")
                 conn.commit()
+            summary["success_count"] = ok_count
+            summary["by_source"] = by_source
             logger.info(
                 "Price provider breakdown user %s (%s): success=%s/%s, twelve_data=%s, yahoo_quote=%s, yahoo_chart=%s, yfinance=%s",
                 user_id,
@@ -368,10 +380,12 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
         save_account_daily_snapshots(user_id, acct_vals)
 
         logger.info(f"Price update for user {user_id} complete ({slot_name}).")
+        return summary
 
     except Exception as e:
         current_app.logger.error(f"[Shelly] Price update FAILED for user {user_id}: {e}")
         logger.error(f"Price update failed for user {user_id}: {e}")
+        return None
 
 
 def trigger_manual_update(app, user_id):
@@ -385,19 +399,30 @@ def trigger_manual_update(app, user_id):
         try:
             catalogue = fetch_holding_catalogue_in_use(user_id)
             if not catalogue:
-                _run_price_update_for_user(app, user_id, slot_name="manual")
+                summary = _run_price_update_for_user(app, user_id, slot_name="manual")
                 return {
                     "ok": True,
-                    "message": "No holdings to update — saved a portfolio snapshot.",
+                    "message": "No holdings linked to live prices — only snapshot saved.",
                     "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                    "summary": summary,
                 }
 
-            _run_price_update_for_user(app, user_id, slot_name="manual")
+            summary = _run_price_update_for_user(app, user_id, slot_name="manual") or {}
+            by_source = summary.get("by_source") or {}
+            msg = (
+                f"Processed {summary.get('tickers_processed', 0)} tickers, "
+                f"updated {summary.get('success_count', 0)}. "
+                f"TwelveData={by_source.get('twelve_data', 0)}, "
+                f"YahooQuote={by_source.get('yahoo_quote', 0)}, "
+                f"YahooChart={by_source.get('yahoo_chart', 0)}, "
+                f"yfinance={by_source.get('yfinance', 0)}."
+            )
 
             return {
                 "ok": True,
-                "message": "Prices updated and portfolio snapshot saved.",
-                "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                "message": msg,
+                "updated_at": summary.get("latest_price_update") or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                "summary": summary,
             }
 
         except Exception as e:
