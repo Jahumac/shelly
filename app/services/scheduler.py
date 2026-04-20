@@ -270,16 +270,19 @@ def _accrue_manual_accounts(user_id, accounts):
         update_account(update_payload, user_id)
 
 
-def _run_price_update_for_user(app, user_id, slot_name=None):
-    """Fetch fresh prices and save a snapshot for a single user.
-    Must be called from within an active app context."""
+def _run_price_update_for_user(app, user_id, slot_name="auto"):
+    """Fetch live prices and update catalogue + holding values.
+
+    If slot_name is "manual", we bypass any 'is_price_stale' check to force
+    an update from the APIs (Source C/B/A).
+    """
     from app.models import (
         get_connection, fetch_holding_catalogue_in_use, fetch_all_accounts,
         fetch_holding_totals_by_account, save_daily_snapshot,
         save_account_daily_snapshots, sync_holding_prices_from_catalogue
     )
     from app.calculations import effective_account_value
-    from app.services.prices import refresh_catalogue_prices
+    from app.services.prices import refresh_catalogue_prices, is_price_stale
 
     try:
         catalogue = fetch_holding_catalogue_in_use(user_id)
@@ -291,38 +294,51 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
             acct_vals = [(a["id"], effective_account_value(a, holdings_totals)) for a in accounts]
             save_daily_snapshot(user_id, sum(v for _, v in acct_vals))
             save_account_daily_snapshots(user_id, acct_vals)
-            logger.info(f"Saved portfolio snapshot for user {user_id} ({slot_name or 'manual'})")
+            logger.info(f"Saved portfolio snapshot for user {user_id} ({slot_name})")
             return
 
-        logger.info(f"Fetching prices for {len(catalogue)} instruments...")
-        price_results = refresh_catalogue_prices(catalogue)
+        # Filter for stale prices unless manual update requested
+        tickers_to_update = catalogue
+        if slot_name != "manual":
+            tickers_to_update = [
+                t for t in catalogue
+                if is_price_stale(t.get("price_updated_at"), threshold_minutes=15)
+            ]
+            skipped = len(catalogue) - len(tickers_to_update)
+            if skipped > 0:
+                logger.debug(f"Skipping {skipped} fresh tickers for user {user_id}")
 
-        with get_connection() as conn:
-            for result in price_results:
-                if result.get("success"):
-                    conn.execute(
-                        """
-                        UPDATE holding_catalogue
-                        SET last_price = ?, price_currency = ?, price_change_pct = ?, price_updated_at = ?
-                        WHERE id = ?
-                        """,
-                        (
-                            result.get("price"),
-                            result.get("currency"),
-                            result.get("change_pct"),
-                            result.get("updated_at"),
+        if not tickers_to_update:
+            logger.info(f"No tickers need refreshing for user {user_id} ({slot_name})")
+        else:
+            logger.info(f"Price update for user {user_id} ({slot_name}): processing {len(tickers_to_update)} tickers")
+            price_results = refresh_catalogue_prices(tickers_to_update)
+
+            with get_connection() as conn:
+                for result in price_results:
+                    if result.get("success"):
+                        conn.execute(
+                            """
+                            UPDATE holding_catalogue
+                            SET last_price = ?, price_currency = ?, price_change_pct = ?, price_updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                result.get("price"),
+                                result.get("currency"),
+                                result.get("change_pct"),
+                                result.get("updated_at"),
+                                result.get("id"),
+                            ),
+                        )
+                        sync_holding_prices_from_catalogue(
                             result.get("id"),
-                        ),
-                    )
-                    # Propagate fresh price to all linked holdings in account pots
-                    sync_holding_prices_from_catalogue(
-                        result.get("id"),
-                        result.get("price"),
-                        result.get("currency")
-                    )
-                else:
-                    current_app.logger.error(f"[Shelly] ✗ {result.get('ticker')}: {result.get('error')}")
-            conn.commit()
+                            result.get("price"),
+                            result.get("currency")
+                        )
+                    else:
+                        current_app.logger.error(f"[Shelly] ✗ {result.get('ticker')}: {result.get('error')}")
+                conn.commit()
 
         accounts = fetch_all_accounts(user_id)
         holdings_totals = fetch_holding_totals_by_account(user_id)
@@ -333,8 +349,7 @@ def _run_price_update_for_user(app, user_id, slot_name=None):
         save_daily_snapshot(user_id, sum(v for _, v in acct_vals))
         save_account_daily_snapshots(user_id, acct_vals)
 
-        successful = sum(1 for r in price_results if r.get("success"))
-        logger.info(f"Updated {successful}/{len(price_results)} holdings for user {user_id} ({slot_name or 'manual'})")
+        logger.info(f"Price update for user {user_id} complete ({slot_name}).")
 
     except Exception as e:
         current_app.logger.error(f"[Shelly] Price update FAILED for user {user_id}: {e}")

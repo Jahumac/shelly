@@ -420,3 +420,20 @@ def overview():
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
     return resp
+
+
+@overview_bp.route("/refresh-prices", methods=["POST"])
+@login_required
+def refresh_prices():
+    """Manually trigger a price update.
+
+    This is now a FORCED update — it bypasses the 15-minute freshness check
+    to ensure the user sees an immediate result and can verify API keys.
+    """
+    from flask import current_app, redirect, url_for
+    from app.services.scheduler import _run_price_update_for_user
+
+    # We pass slot_name="manual" which our scheduler treats as a forced update
+    _run_price_update_for_user(current_app, current_user.id, slot_name="manual")
+
+    return redirect(url_for("overview.overview"))
