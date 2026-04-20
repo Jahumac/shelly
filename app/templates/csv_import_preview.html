@@ -192,29 +192,4 @@
   </section>
 {% endif %}
 
-<script>
-(function () {
-  var selectBtn   = document.getElementById('select-all-btn');
-  var deselectBtn = document.getElementById('deselect-all-btn');
-
-  function setAll(checked) {
-    document.querySelectorAll('.import-checkbox').forEach(function (cb) {
-      cb.checked = checked;
-    });
-  }
-
-  if (selectBtn)   selectBtn.addEventListener('click',   function () { setAll(true); });
-  if (deselectBtn) deselectBtn.addEventListener('click', function () { setAll(false); });
-
-  // Dim row when unchecked
-  document.querySelectorAll('.import-checkbox').forEach(function (cb) {
-    function update() {
-      cb.closest('tr').classList.toggle('import-row-dim', !cb.checked);
-    }
-    cb.addEventListener('change', update);
-    update();
-  });
-}());
-</script>
-
 {% endblock %}

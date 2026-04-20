@@ -183,26 +183,6 @@
         <a class="badge" id="goal-cancel-btn" href="/goals/">Cancel</a>
       </div>
     </form>
-    <script>
-    (function () {
-      var form = document.querySelector('[name="form_name"][value="update_goal"]').closest('form');
-      var cancelBtn = document.getElementById('goal-cancel-btn');
-      if (!form || !cancelBtn) return;
-      var original = new FormData(form);
-      function isDirty() {
-        var current = new FormData(form);
-        for (var pair of current.entries()) {
-          if (original.get(pair[0]) !== pair[1]) return true;
-        }
-        return false;
-      }
-      cancelBtn.addEventListener('click', function (e) {
-        if (isDirty()) {
-          if (!confirm('You have unsaved changes. Discard them?')) e.preventDefault();
-        }
-      });
-    })();
-    </script>
 
   {% elif page_mode == 'delete' %}
     <p>This will remove <strong>{{ selected_goal_card.item.name }}</strong>. Do this only if you are sure.</p>

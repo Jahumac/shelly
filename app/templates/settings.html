@@ -111,15 +111,6 @@
         <span>MPAA allowance (£)</span>
         <input type="number" step="0.01" name="mpaa_allowance" value="{{ assumptions.mpaa_allowance if assumptions and assumptions.mpaa_allowance is not none else 10000 }}">
       </label>
-      <script>
-        (function() {
-          var toggle = document.getElementById('mpaa-toggle');
-          var row = document.getElementById('mpaa-row');
-          function sync() { row.style.display = toggle.checked ? '' : 'none'; }
-          toggle.addEventListener('change', sync);
-          sync();
-        })();
-      </script>
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
         <input type="checkbox" name="auto_update_prices" value="1" id="auto-update-toggle" {{ 'checked' if not assumptions or assumptions.auto_update_prices != 0 else '' }}>
@@ -138,15 +129,6 @@
           <small class="form-hint">After UK market closes (4:30 PM)</small>
         </label>
       </div>
-      <script>
-        (function() {
-          var toggle = document.getElementById('auto-update-toggle');
-          var timesRow = document.getElementById('update-times-row');
-          function sync() { timesRow.style.display = toggle.checked ? '' : 'none'; }
-          toggle.addEventListener('change', sync);
-          sync();
-        })();
-      </script>
 
       <label class="form-full-col" style="border-top:1px solid var(--border); padding-top:1rem; margin-top:0.5rem;">
         <span style="font-weight:600; font-size:0.95rem;">Monthly Update Timing</span>
@@ -378,36 +360,6 @@
     </form>
   </div>
 </section>
-
-<script>
-(function() {
-  var revealBtn  = document.getElementById('reset-reveal-btn');
-  var formWrap   = document.getElementById('reset-form');
-  var confirmWrap= document.getElementById('reset-confirm');
-  var input      = document.getElementById('reset-input');
-  var submitBtn  = document.getElementById('reset-submit');
-  var cancelBtn  = document.getElementById('reset-cancel');
-
-  if (!revealBtn) return;
-
-  revealBtn.addEventListener('click', function() {
-    confirmWrap.style.display = 'none';
-    formWrap.style.display = '';
-    input.focus();
-  });
-
-  cancelBtn.addEventListener('click', function() {
-    formWrap.style.display = 'none';
-    confirmWrap.style.display = '';
-    input.value = '';
-    submitBtn.disabled = true;
-  });
-
-  input.addEventListener('input', function() {
-    submitBtn.disabled = input.value.trim().toUpperCase() !== 'RESET';
-  });
-})();
-</script>
 
 {% endif %}
 

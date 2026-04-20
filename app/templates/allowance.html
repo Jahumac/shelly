@@ -662,13 +662,4 @@
     </div>
   </form>
 </section>
-
-<script>
-  document.querySelectorAll('.progress-bar[data-pct]').forEach(function (el) {
-    var pct = parseFloat(el.dataset.pct || '0');
-    if (!isFinite(pct) || pct < 0) pct = 0;
-    if (pct > 100) pct = 100;
-    el.style.width = pct + '%';
-  });
-</script>
 {% endblock %}
