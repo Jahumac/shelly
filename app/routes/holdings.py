@@ -17,7 +17,7 @@ from app.models import (
     update_catalogue_price,
     update_holding,
 )
-from app.services.prices import fetch_price, fetch_history, lookup_instrument
+from app.services.prices import fetch_price, fetch_history, lookup_instrument, to_gbp
 from app.services.scheduler import trigger_manual_update
 
 holdings_bp = Blueprint("holdings", __name__)
@@ -103,7 +103,7 @@ def api_price():
         return jsonify({"error": "not found"}), 404
     price_raw = data["price"]
     currency_raw = data["currency"]
-    price_gbp = price_raw / 100.0 if currency_raw == "GBp" else price_raw
+    price_gbp = to_gbp(price_raw, currency_raw)
     updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return jsonify({
         "price": round(price_gbp, 4),

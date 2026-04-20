@@ -13,7 +13,7 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 
@@ -477,6 +477,23 @@ def fetch_history(ticker: str, period: str = "1y"):
         return None
 
 
+def to_gbp(price: float, currency: str) -> float:
+    """Convert a raw price in any currency to GBP.
+
+    - GBp (pence): divide by 100
+    - USD / EUR: divide by the live GBPUSD / GBPEUR rate from fetch_fx_rates()
+    - GBP or unknown: return as-is
+    """
+    if currency == "GBp":
+        return price / 100.0
+    if currency in ("USD", "EUR"):
+        fx = fetch_fx_rates()
+        rate = fx.get(currency)
+        if rate and rate > 0:
+            return price / rate
+    return price  # assume GBP
+
+
 # Global FX cache to reduce API calls
 _FX_RATE_CACHE = {"rates": {}, "updated_at": None}
 
@@ -624,7 +641,7 @@ def lookup_instrument(query: str):
 
     price = price_data["price"]
     currency = price_data["currency"]
-    price_gbp = price / 100.0 if currency == "GBp" else price
+    price_gbp = to_gbp(price, currency)
 
     return {
         "ticker": ticker_used,

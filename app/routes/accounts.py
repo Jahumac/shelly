@@ -38,7 +38,7 @@ from app.models import (
     update_catalogue_price,
     update_holding,
 )
-from app.services.prices import fetch_price, lookup_instrument
+from app.services.prices import fetch_price, lookup_instrument, to_gbp
 from app.utils import optional_float, optional_int, split_tags, valid_month_key
 
 ASSET_TYPE_OPTIONS = ["ETF", "Fund", "Share", "Pension Fund", "Cash", "Bond", "Other"]
@@ -286,7 +286,7 @@ def _add_holding_by_ticker(uid, account_id, ticker, units):
 
     price_raw = price_data["price"]
     currency = price_data["currency"]
-    price_gbp = price_raw / 100 if currency == "GBp" else price_raw
+    price_gbp = to_gbp(price_raw, currency)
 
     instrument = None
     try:
