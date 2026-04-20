@@ -22,18 +22,37 @@ def fetch_all_accounts(user_id):
 # ── Catalogue price freshness ─────────────────────────────────────────────────
 
 def fetch_latest_price_update(user_id):
-    """Return the most recent price_updated_at timestamp across catalogue items that are actually held."""
+    """Return the most recent price_updated_at across held catalogue items.
+
+    price_updated_at has historically been stored in mixed text formats
+    (e.g. "YYYY-MM-DD HH:MM UTC", "YYYY-MM-DD HH:MM:SS", ISO variants with T/Z).
+    We normalize to a SQLite datetime before taking MAX to avoid lexical
+    ordering bugs where older rows can incorrectly win.
+    """
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT MAX(hc.price_updated_at) AS latest
-            FROM holding_catalogue hc
-            JOIN holdings h ON h.holding_catalogue_id = hc.id
-            JOIN accounts a ON a.id = h.account_id
-            WHERE a.user_id = ?
-              AND a.is_active = 1
-              AND hc.is_active = 1
-              AND hc.price_updated_at IS NOT NULL
+            WITH normalized AS (
+                SELECT
+                    datetime(
+                        CASE
+                            -- "YYYY-MM-DD HH:MM" -> add seconds
+                            WHEN length(trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', ''))) = 16
+                                THEN trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', '')) || ':00'
+                            -- Otherwise keep first 19 chars "YYYY-MM-DD HH:MM:SS"
+                            ELSE substr(trim(replace(replace(replace(hc.price_updated_at, 'T', ' '), 'Z', ''), 'UTC', '')), 1, 19)
+                        END
+                    ) AS dt_utc
+                FROM holding_catalogue hc
+                JOIN holdings h ON h.holding_catalogue_id = hc.id
+                JOIN accounts a ON a.id = h.account_id
+                WHERE a.user_id = ?
+                  AND a.is_active = 1
+                  AND hc.is_active = 1
+                  AND hc.price_updated_at IS NOT NULL
+            )
+            SELECT MAX(dt_utc) AS latest
+            FROM normalized
             """,
             (user_id,),
         ).fetchone()
@@ -576,5 +595,4 @@ def reconnect_holdings_to_catalogue(ticker: str, catalogue_id: int, user_id: int
             (catalogue_id, ticker, catalogue_id, user_id),
         )
         conn.commit()
-
 
