@@ -134,23 +134,17 @@ def _try_ticker(symbol: str):
 
 
 def _try_yahoo_http(symbol: str):
-    """Fetch price directly from Yahoo Finance v8 chart API (bypasses yfinance).
-
-    This is the most reliable fallback — it uses the same endpoint that
-    Yahoo's website uses and handles tickers that yfinance can't resolve.
-    """
+    """Source A: Yahoo Finance v8 chart API. Good for intraday trend + latest price."""
     import time
     try:
         encoded = urllib.parse.quote(symbol)
-        # Use a timestamp to bust any server-side or proxy caches
         ts = int(time.time())
-        # Use range=1d, interval=1m to get the absolute latest intraday data
         url = (
             f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}"
             f"?range=1d&interval=1m&_={ts}"
         )
         req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
         })
         resp = urllib.request.urlopen(req, timeout=10)
         data = json.loads(resp.read())
@@ -160,19 +154,14 @@ def _try_yahoo_http(symbol: str):
             return None
 
         meta = result[0].get("meta", {})
-        # Strategy: Prefer regularMarketPrice if it looks recent,
-        # otherwise fall back to the last data point in the chart.
         price = meta.get("regularMarketPrice")
         prev_close = meta.get("chartPreviousClose") or meta.get("previousClose")
         
-        # Check indicators for a potentially newer price
         indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
         closes = indicators.get("close", [])
         valid_closes = [c for c in closes if c is not None]
         if valid_closes:
             chart_price = valid_closes[-1]
-            # If chart price is available and different from meta price,
-            # it might be newer (or older). Yahoo meta price is usually better.
             if not price:
                 price = chart_price
             if not prev_close and len(valid_closes) >= 2:
@@ -193,10 +182,41 @@ def _try_yahoo_http(symbol: str):
             "name": meta.get("longName") or meta.get("shortName"),
             "quote_type": meta.get("instrumentType") or meta.get("quoteType"),
         }
-        logger.debug(f"Fetched {symbol} via HTTP: {res['price']} {res['currency']}")
         return res
     except Exception as e:
-        logger.debug(f"HTTP fetch failed for {symbol}: {e}")
+        logger.debug(f"Source A (chart) failed for {symbol}: {e}")
+        return None
+
+
+def _try_yahoo_quote(symbol: str):
+    """Source B: Yahoo Finance v7 quote API. Often more stable for current price."""
+    try:
+        encoded = urllib.parse.quote(symbol)
+        url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={encoded}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        })
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+
+        result = data.get("quoteResponse", {}).get("result")
+        if not result or len(result) == 0:
+            return None
+
+        q = result[0]
+        price = q.get("regularMarketPrice") or q.get("postMarketPrice") or q.get("preMarketPrice")
+        if not price:
+            return None
+
+        return {
+            "price": round(float(price), 4),
+            "currency": q.get("currency", "GBP"),
+            "change_pct": round(float(q.get("regularMarketChangePercent", 0)), 2),
+            "name": q.get("longName") or q.get("shortName"),
+            "quote_type": q.get("quoteType"),
+        }
+    except Exception as e:
+        logger.debug(f"Source B (quote) failed for {symbol}: {e}")
         return None
 
 
@@ -362,17 +382,26 @@ def fetch_price(ticker: str):
     if not ticker.endswith(".L"):
         symbols_to_try.append(ticker + ".L")
 
-    # ── Phase 1: Direct HTTP API (Reliable & Live) ────────────────────────
+    # ── Phase 1: Direct HTTP APIs (Reliable & Live) ────────────────────────
     for sym in symbols_to_try:
-        http_result = _try_yahoo_http(sym)
-        if http_result:
-            http_result["yf_symbol"] = sym
+        # Try Quote API first (Source B) as it's usually the most "current"
+        res = _try_yahoo_quote(sym)
+        if res:
+            res["yf_symbol"] = sym
+            logger.debug(f"Fetched {sym} via Source B (quote): {res['price']} {res['currency']}")
+            return res
+
+        # Fallback to Chart API (Source A)
+        res = _try_yahoo_http(sym)
+        if res:
+            res["yf_symbol"] = sym
+            logger.debug(f"Fetched {sym} via Source A (chart): {res['price']} {res['currency']}")
             # Prefer LSE version for GBP-priced instruments if multiple results exist
-            if sym.endswith(".L") or http_result.get("currency") in ("GBP", "GBp"):
-                return http_result
+            if sym.endswith(".L") or res.get("currency") in ("GBP", "GBp"):
+                return res
             # If we have a non-LSE result, keep it but keep looking for an LSE one
             if not any(s.endswith(".L") for s in symbols_to_try[symbols_to_try.index(sym)+1:]):
-                return http_result
+                return res
 
     # ── Phase 2: yfinance (Fallback) ─────────────────────────────────────
     for sym in symbols_to_try:
