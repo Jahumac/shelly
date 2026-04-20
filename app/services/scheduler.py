@@ -291,6 +291,7 @@ def _run_price_update_for_user(app, user_id, slot_name="auto"):
             "success_count": 0,
             "by_source": {"twelve_data": 0, "yahoo_quote": 0, "yahoo_chart": 0, "yfinance": 0, "other": 0},
             "latest_price_update": None,
+            "twelve_data_key_present": bool(app.config.get("TWELVE_DATA_API_KEY")),
         }
         catalogue = fetch_holding_catalogue_in_use(user_id)
         summary["catalogue_total"] = len(catalogue or [])
@@ -412,6 +413,7 @@ def trigger_manual_update(app, user_id):
             msg = (
                 f"Processed {summary.get('tickers_processed', 0)} tickers, "
                 f"updated {summary.get('success_count', 0)}. "
+                f"TDKey={'Yes' if summary.get('twelve_data_key_present') else 'No'}, "
                 f"TwelveData={by_source.get('twelve_data', 0)}, "
                 f"YahooQuote={by_source.get('yahoo_quote', 0)}, "
                 f"YahooChart={by_source.get('yahoo_chart', 0)}, "

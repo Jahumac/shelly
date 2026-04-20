@@ -246,37 +246,40 @@ def _try_twelve_data(symbol: str):
 
     logger.info(f"Attempting Twelve Data fetch for {symbol} using key: {api_key[:5]}...")
     try:
-        # Map LSE symbols for Twelve Data (.L -> :LSE)
-        twelve_symbol = symbol
+        # Twelve Data symbol compatibility varies by exchange suffix.
+        # Try a few common mappings for LSE instruments.
+        symbols_to_try = [symbol]
         if symbol.endswith(".L"):
-            twelve_symbol = symbol.replace(".L", ":LSE")
+            base = symbol[:-2]
+            symbols_to_try = [f"{base}:LSE", f"{base}.LON", symbol, base]
 
-        encoded = urllib.parse.quote(twelve_symbol)
-        url = f"https://api.twelvedata.com/price?symbol={encoded}&apikey={api_key}"
-        
-        req = urllib.request.Request(url)
-        resp = urllib.request.urlopen(req, timeout=10)
-        data = json.loads(resp.read())
+        for td_symbol in symbols_to_try:
+            encoded = urllib.parse.quote(td_symbol)
+            url = f"https://api.twelvedata.com/price?symbol={encoded}&apikey={api_key}"
 
-        if "price" not in data:
-            # Try a second endpoint for quote data (includes change pct)
-            url = f"https://api.twelvedata.com/quote?symbol={encoded}&apikey={api_key}"
             req = urllib.request.Request(url)
             resp = urllib.request.urlopen(req, timeout=10)
             data = json.loads(resp.read())
 
-        if "price" in data:
-            res = {
-                "price": round(float(data["price"]), 4),
-                "currency": data.get("currency", "GBP"),
-                "change_pct": round(float(data.get("percent_change", 0)), 2),
-                "name": data.get("name"),
-                "quote_type": None,
-            }
-            logger.info(f"Fetched {symbol} via Source C (Twelve Data): {res['price']} {res['currency']}")
-            return res
-        
-        logger.info(f"Twelve Data returned no price for {symbol}: {data.get('message')}")
+            if "price" not in data:
+                # Try a second endpoint for quote data (includes change pct)
+                url = f"https://api.twelvedata.com/quote?symbol={encoded}&apikey={api_key}"
+                req = urllib.request.Request(url)
+                resp = urllib.request.urlopen(req, timeout=10)
+                data = json.loads(resp.read())
+
+            if "price" in data:
+                res = {
+                    "price": round(float(data["price"]), 4),
+                    "currency": data.get("currency", "GBP"),
+                    "change_pct": round(float(data.get("percent_change", 0)), 2),
+                    "name": data.get("name"),
+                    "quote_type": None,
+                }
+                logger.info(f"Fetched {symbol} via Source C (Twelve Data) [{td_symbol}]: {res['price']} {res['currency']}")
+                return res
+
+        logger.info(f"Twelve Data returned no price for {symbol} (tried: {', '.join(symbols_to_try)})")
         return None
     except Exception as e:
         logger.info(f"Source C (Twelve Data) failed for {symbol}: {e}")
