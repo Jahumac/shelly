@@ -250,7 +250,7 @@ def _accrue_manual_accounts(user_id, accounts):
         new_val = current_val * ((1 + effective_rate) ** days_elapsed) + (daily_contrib * days_elapsed)
 
         update_payload = dict(acc)
-        update_payload["current_value"] = new_val
+        update_payload["current_value"] = round(new_val, 2)
         update_payload["last_updated"] = now.isoformat()
         update_payload.setdefault("employer_contribution", 0)
         update_payload.setdefault("contribution_method", "standard")
