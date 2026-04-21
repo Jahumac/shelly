@@ -656,8 +656,98 @@
 
     // 13. Budget Debts Logic
     (function initBudgetDebts() {
-      if (!document.querySelector('.debts-container')) return;
+      // No page guard — each section checks for its own elements.
 
+      // ── Amortization helpers ──────────────────────────────────────────
+      function buildSchedule(balance, payment, apr) {
+        var r = apr / 100 / 12;
+        var rows = [];
+        var bal = balance;
+        for (var i = 1; i <= 600 && bal > 0.005; i++) {
+          var interest  = r > 0 ? bal * r : 0;
+          var principal = Math.min(payment - interest, bal);
+          if (principal < 0.001) break;
+          bal = Math.max(bal - principal, 0);
+          rows.push({ month: i, payment: interest + principal,
+                      interest: interest, principal: principal, balance: bal });
+        }
+        return rows;
+      }
+
+      function fmt2(v) {
+        return '£' + v.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+      }
+
+      function renderScheduleHtml(rows) {
+        var html = '<div style="overflow-x:auto;"><table class="data-table">' +
+          '<thead><tr><th class="num">Month</th><th class="num">Payment</th>' +
+          '<th class="num">Interest</th><th class="num">Principal</th>' +
+          '<th class="num">Balance</th></tr></thead><tbody>';
+        rows.forEach(function(r, i) {
+          var hidden = i >= 24 ? ' class="sched-extra" style="display:none;"' : '';
+          html += '<tr' + hidden + '>' +
+            '<td class="num text-muted">' + r.month + '</td>' +
+            '<td class="num">' + fmt2(r.payment) + '</td>' +
+            '<td class="num stat-negative-text">' + fmt2(r.interest) + '</td>' +
+            '<td class="num" style="color:var(--accent-3);">' + fmt2(r.principal) + '</td>' +
+            '<td class="num"><strong>' + fmt2(r.balance) + '</strong></td></tr>';
+        });
+        html += '</tbody></table></div>';
+        if (rows.length > 24) {
+          html += '<div class="badge-row mt-075">' +
+            '<button type="button" class="badge" id="sched-show-all">Show all ' +
+            rows.length + ' months</button></div>';
+        }
+        return html;
+      }
+
+      function wireShowAll() {
+        var btn = document.getElementById('sched-show-all');
+        if (btn) {
+          btn.addEventListener('click', function() {
+            document.querySelectorAll('#debt-sched-container .sched-extra').forEach(function(r) {
+              r.style.display = '';
+            });
+            btn.style.display = 'none';
+          });
+        }
+      }
+
+      function scheduleToCSV(rows, name, extra) {
+        var lines = ['"Payment Schedule — ' + (name || 'Debt').replace(/"/g, '') + '"'];
+        if (extra > 0) lines.push('"Extra monthly payment: £' + extra.toFixed(2) + ' — new total: £' + (extra + (rows[0] ? rows[0].payment : 0)).toFixed(2) + '/mo"');
+        lines.push('');
+        lines.push('Month,Payment (£),Interest (£),Principal (£),Balance (£)');
+        rows.forEach(function(r) {
+          lines.push([r.month, r.payment.toFixed(2), r.interest.toFixed(2),
+                      r.principal.toFixed(2), r.balance.toFixed(2)].join(','));
+        });
+        return lines.join('\n');
+      }
+
+      function downloadCSV(content, filename) {
+        var blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // ── What-if quick buttons ────────────────────────────────────────
+      document.querySelectorAll('.debt-quick-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var input = document.getElementById(btn.dataset.target);
+          if (input) {
+            input.value = parseFloat(btn.dataset.amount) || '';
+            input.dispatchEvent(new Event('input'));
+          }
+        });
+      });
+
+      // ── What-if summary stats (updates as you type) ──────────────────
       function monthsToPayoff(balance, payment, apr) {
         if (balance <= 0) return 0;
         if (payment <= 0) return null;
@@ -676,24 +766,14 @@
       function addMonths(months) {
         var d = new Date();
         d.setMonth(d.getMonth() + months);
-        return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+        return d.toLocaleString('en-GB', {month: 'long', year: 'numeric'});
       }
 
-      function fmt(v) { return '£' + Math.round(v).toLocaleString('en-GB'); }
+      function fmtRound(v) { return '£' + Math.round(v).toLocaleString('en-GB'); }
 
-      document.querySelectorAll('.debt-quick-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var input = document.getElementById(btn.dataset.target);
-          if (input) {
-            input.value = parseFloat(btn.dataset.amount) || '';
-            input.dispatchEvent(new Event('input'));
-          }
-        });
-      });
-
-      document.querySelectorAll('.debt-whatif-input').forEach(function (input) {
-        input.addEventListener('input', function () {
-          var id = input.id.replace('extra-', '');
+      document.querySelectorAll('.debt-whatif-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+          var id           = input.id.replace('extra-', '');
           var balance      = parseFloat(input.dataset.balance)   || 0;
           var payment      = parseFloat(input.dataset.payment)   || 0;
           var apr          = parseFloat(input.dataset.apr)       || 0;
@@ -707,37 +787,112 @@
           var newPayment  = payment + extra;
           var newMonths   = monthsToPayoff(balance, newPayment, apr);
           var newInterest = newMonths !== null ? totalInterest(balance, newPayment, apr, newMonths) : null;
+          var monthsSaved = newMonths !== null ? Math.max(origMonths - newMonths, 0) : null;
+          var intSaved    = newInterest !== null ? Math.max(origInterest - newInterest, 0) : null;
 
           if (result) result.style.display = '';
-
-          var monthsSaved = newMonths !== null ? Math.max(origMonths - newMonths, 0) : null;
-          var intSaved    = (newInterest !== null) ? Math.max(origInterest - newInterest, 0) : null;
-
           var dateEl   = document.getElementById('wi-date-' + id);
           var mSavedEl = document.getElementById('wi-months-saved-' + id);
           var iSavedEl = document.getElementById('wi-int-saved-' + id);
           var iNewEl   = document.getElementById('wi-int-new-' + id);
-
           if (dateEl)   dateEl.textContent   = newMonths !== null ? addMonths(newMonths) : 'Cannot pay off';
           if (mSavedEl) mSavedEl.textContent = monthsSaved !== null ? monthsSaved + ' month' + (monthsSaved === 1 ? '' : 's') : '—';
-          if (iSavedEl) iSavedEl.textContent = intSaved !== null ? fmt(intSaved) : '—';
-          if (iNewEl)   iNewEl.textContent   = newInterest !== null ? fmt(newInterest) : '—';
+          if (iSavedEl) iSavedEl.textContent = intSaved    !== null ? fmtRound(intSaved) : '—';
+          if (iNewEl)   iNewEl.textContent   = newInterest !== null ? fmtRound(newInterest) : '—';
         });
       });
 
-      var showAllBtn = document.getElementById('sched-show-all');
-      if (showAllBtn) {
-        showAllBtn.addEventListener('click', function () {
-          document.querySelectorAll('.sched-extra').forEach(function (r) { r.style.display = ''; });
-          showAllBtn.style.display = 'none';
+      // ── Schedule: Calculate / Reset / Export ─────────────────────────
+      var calcBtn     = document.getElementById('debt-calc-btn');
+      var resetBtn    = document.getElementById('debt-sched-reset');
+      var exportBtn   = document.getElementById('debt-sched-export');
+      var schedEl     = document.getElementById('debt-sched-container');
+      var schedTitle  = document.getElementById('debt-sched-title');
+      var schedHint   = document.getElementById('debt-sched-hint');
+      var whatifInput = document.querySelector('.debt-whatif-input');
+
+      var _origHtml    = schedEl   ? schedEl.innerHTML        : null;
+      var _origTitle   = schedTitle ? schedTitle.textContent  : null;
+      var _origHint    = schedHint  ? schedHint.style.display : null;
+      var _curSchedule = null;
+      var _curExtra    = 0;
+
+      if (schedEl) wireShowAll();
+
+      if (calcBtn && whatifInput && schedEl) {
+        calcBtn.addEventListener('click', function() {
+          var balance  = parseFloat(whatifInput.dataset.balance)  || 0;
+          var payment  = parseFloat(whatifInput.dataset.payment)  || 0;
+          var apr      = parseFloat(whatifInput.dataset.apr)      || 0;
+          var extra    = parseFloat(whatifInput.value)            || 0;
+          if (balance <= 0 || payment <= 0) return;
+
+          var sched = buildSchedule(balance, payment + extra, apr);
+          _curSchedule = sched;
+          _curExtra    = extra;
+
+          if (schedTitle) {
+            schedTitle.textContent = extra > 0
+              ? 'Recalculated · +£' + extra.toLocaleString('en-GB') + '/mo extra'
+              : 'Month by month (current payment)';
+          }
+          if (schedHint) schedHint.style.display = 'none';
+          schedEl.innerHTML = renderScheduleHtml(sched);
+          wireShowAll();
+          if (resetBtn) resetBtn.style.display = '';
         });
       }
 
+      if (resetBtn && schedEl) {
+        resetBtn.addEventListener('click', function() {
+          if (_origHtml !== null) {
+            schedEl.innerHTML = _origHtml;
+            if (schedTitle) schedTitle.textContent = _origTitle;
+            if (schedHint && _origHint !== null) schedHint.style.display = _origHint;
+            _curSchedule = null;
+            _curExtra    = 0;
+            resetBtn.style.display = 'none';
+            wireShowAll();
+          }
+        });
+      }
+
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+          var name = whatifInput ? (whatifInput.dataset.name || 'Debt') : 'Debt';
+          var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          if (_curSchedule && _curSchedule.length) {
+            downloadCSV(scheduleToCSV(_curSchedule, name, _curExtra),
+              'schedule-' + slug + (_curExtra > 0 ? '-extra' : '') + '.csv');
+          } else {
+            // Build CSV from the DOM table (original server-rendered schedule)
+            var rows = document.querySelectorAll('#debt-sched-container tbody tr');
+            var lines = ['"Payment Schedule — ' + name.replace(/"/g, '') + '"', '',
+                         'Month,Payment (£),Interest (£),Principal (£),Balance (£)'];
+            rows.forEach(function(row) {
+              var cells = row.querySelectorAll('td');
+              if (cells.length >= 5) {
+                lines.push([
+                  cells[0].textContent.replace(/[✓\s]/g, '').trim(),
+                  cells[1].textContent.replace(/[£,]/g, '').trim(),
+                  cells[2].textContent.replace(/[£,]/g, '').trim(),
+                  cells[3].textContent.replace(/[£,]/g, '').trim(),
+                  cells[4].textContent.replace(/[£,]/g, '').trim()
+                ].join(','));
+              }
+            });
+            downloadCSV(lines.join('\n'), 'schedule-' + slug + '.csv');
+          }
+        });
+      }
+
+      // ── 0% deal calculator ───────────────────────────────────────────
       var zeroBalance = document.getElementById('zero-balance');
       var zeroMonths  = document.getElementById('zero-months');
       var zeroResult  = document.getElementById('zero-result');
       var zeroMonthly = document.getElementById('zero-monthly');
       var zeroNote    = document.getElementById('zero-note');
+      var zeroFill    = document.getElementById('zero-fill-payment');
 
       function calcZero() {
         if (!zeroBalance || !zeroMonths) return;
@@ -746,8 +901,9 @@
         if (bal <= 0 || mos <= 0) { if (zeroResult) zeroResult.style.display = 'none'; return; }
         var monthly = bal / mos;
         if (zeroMonthly) zeroMonthly.textContent = '£' + monthly.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
-        if (zeroNote) zeroNote.textContent = '(£' + bal.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ÷ ' + mos + ' months)';
-        if (zeroResult) zeroResult.style.display = '';
+        if (zeroNote)    zeroNote.textContent    = '(£' + bal.toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ÷ ' + mos + ' months)';
+        if (zeroFill)    zeroFill.value          = monthly.toFixed(2);
+        if (zeroResult)  zeroResult.style.display = '';
       }
 
       if (zeroBalance) zeroBalance.addEventListener('input', calcZero);

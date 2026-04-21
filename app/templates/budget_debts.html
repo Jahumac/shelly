@@ -142,6 +142,7 @@
              data-apr="{{ selected_debt.apr }}"
              data-months="{{ selected_debt.months_remaining }}"
              data-interest="{{ selected_debt.total_interest or 0 }}"
+             data-name="{{ selected_debt.name }}"
              class="debt-whatif-input">
     </label>
     <div class="badge-row" style="gap:0.4rem;flex-wrap:wrap;">
@@ -149,6 +150,9 @@
       <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ selected_debt.id }}" data-amount="100">+£100</button>
       <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ selected_debt.id }}" data-amount="200">+£200</button>
       <button type="button" class="badge badge-outline debt-quick-btn" data-target="extra-{{ selected_debt.id }}" data-amount="{{ selected_debt.monthly_payment }}">Double payments</button>
+    </div>
+    <div class="badge-row mt-075">
+      <button type="button" class="badge badge-accent" id="debt-calc-btn">↻ Calculate new schedule</button>
     </div>
   </div>
   <div id="result-{{ selected_debt.id }}" class="whatif-result mt-1" style="display:none;">
@@ -177,49 +181,55 @@
   <div class="section-header">
     <div>
       <p class="eyebrow">Payment schedule</p>
-      <h3>{% if payments_made > 0 %}Full loan history · {% endif %}Month by month</h3>
+      <h3 id="debt-sched-title">{% if payments_made > 0 %}Full loan history · {% endif %}Month by month</h3>
+    </div>
+    <div class="badge-row">
+      <button type="button" class="badge" id="debt-sched-reset" style="display:none;">↺ Reset</button>
+      <button type="button" class="badge" id="debt-sched-export">↓ Export schedule</button>
     </div>
   </div>
   {% if payments_made > 0 %}
-  <p class="helper-text mb-075">
+  <p class="helper-text mb-075" id="debt-sched-hint">
     Months 1–{{ payments_made }} are past payments · months {{ payments_made + 1 }}+ are upcoming
   </p>
   {% endif %}
-  <div style="overflow-x:auto;">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th class="num">Month</th>
-          <th class="num">Payment</th>
-          <th class="num">Interest</th>
-          <th class="num">Principal</th>
-          <th class="num">Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in schedule %}
-        {% set is_past = loop.index <= payments_made %}
-        {% set is_hidden = loop.index > 24 and not is_past %}
-        <tr{% if is_hidden %} class="sched-extra" style="display:none;"{% endif %}
-            {% if is_past %}style="opacity:0.5;"{% endif %}>
-          <td class="num text-muted">
-            {{ row.month }}{% if is_past %} ✓{% endif %}
-          </td>
-          <td class="num">£{{ '{:,.2f}'.format(row.payment) }}</td>
-          <td class="num stat-negative-text">£{{ '{:,.2f}'.format(row.interest) }}</td>
-          <td class="num" style="color:var(--accent-3);">£{{ '{:,.2f}'.format(row.principal) }}</td>
-          <td class="num"><strong>£{{ '{:,.2f}'.format(row.balance) }}</strong></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div id="debt-sched-container">
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="num">Month</th>
+            <th class="num">Payment</th>
+            <th class="num">Interest</th>
+            <th class="num">Principal</th>
+            <th class="num">Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in schedule %}
+          {% set is_past = loop.index <= payments_made %}
+          {% set is_hidden = loop.index > 24 and not is_past %}
+          <tr{% if is_hidden %} class="sched-extra" style="display:none;"{% endif %}
+              {% if is_past %}style="opacity:0.5;"{% endif %}>
+            <td class="num text-muted">
+              {{ row.month }}{% if is_past %} ✓{% endif %}
+            </td>
+            <td class="num">£{{ '{:,.2f}'.format(row.payment) }}</td>
+            <td class="num stat-negative-text">£{{ '{:,.2f}'.format(row.interest) }}</td>
+            <td class="num" style="color:var(--accent-3);">£{{ '{:,.2f}'.format(row.principal) }}</td>
+            <td class="num"><strong>£{{ '{:,.2f}'.format(row.balance) }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% set future_hidden = schedule | length > 24 and payments_made < schedule | length %}
+    {% if future_hidden %}
+    <div class="badge-row mt-075">
+      <button type="button" class="badge" id="sched-show-all">Show all {{ schedule | length }} months</button>
+    </div>
+    {% endif %}
   </div>
-  {% set future_hidden = schedule | length > 24 and payments_made < schedule | length %}
-  {% if future_hidden %}
-  <div class="badge-row mt-075">
-    <button type="button" class="badge" id="sched-show-all">Show all {{ schedule | length }} months</button>
-  </div>
-  {% endif %}
 </section>
 {% endif %}
 
