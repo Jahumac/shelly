@@ -1925,6 +1925,19 @@
       if (units) units.addEventListener('input', updateTickerPreview);
     })();
 
+    /* ── Holding detail: back button uses browser history if available ── */
+    (function () {
+      var backBtn = document.getElementById('holding-back-btn');
+      if (!backBtn) return;
+      backBtn.addEventListener('click', function (e) {
+        if (window.history.length > 1) {
+          e.preventDefault();
+          window.history.back();
+        }
+        // else follow the href="/holdings/" fallback naturally
+      });
+    })();
+
     /* ── Month/Year picker: sync selects → hidden input ──────────────── */
     (function () {
       document.querySelectorAll('.month-year-picker').forEach(function(picker) {
