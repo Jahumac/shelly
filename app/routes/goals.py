@@ -2,7 +2,14 @@ from datetime import date
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.calculations import effective_account_value, progress_to_goal, remaining_to_goal
+from app.calculations import (
+    effective_account_value,
+    effective_monthly_contribution,
+    projected_account_value_at_month,
+    progress_to_goal,
+    remaining_to_goal,
+    to_float,
+)
 from app.utils import optional_float, optional_int, split_tags as _split_tags
 from app.models import (
     fetch_assumptions,
@@ -32,36 +39,40 @@ def _goal_payload_from_form(form):
     }
 
 
-def _project_goal(current, target, monthly_contribution, annual_rate_pct):
-    """Estimate how many months until `current` reaches `target`.
+def _project_goal(included_accounts, target, assumptions):
+    """Estimate how many months until the included accounts reach `target`.
 
-    Uses a month-by-month simulation: each month the balance grows by
-    (annual_rate / 12) and the monthly contribution is added.
-    Returns a dict with the result, or None if it can't be computed.
+    Uses the same engine as the Projections page — effective_monthly_contribution
+    (which includes tax relief, employer match, LISA bonus) and per-account growth
+    rates net of fees. Each account is projected independently then summed, so
+    different rates and LISA caps are all handled correctly.
     """
-    remaining = target - current
-    if remaining <= 0:
+    target_f = float(target)
+    current_total = sum(to_float(a["current_value"]) for a in included_accounts)
+
+    if current_total >= target_f:
         return {"reached": True}
-    if monthly_contribution <= 0:
+
+    total_monthly = sum(effective_monthly_contribution(a, assumptions) for a in included_accounts)
+    if total_monthly <= 0:
         return None  # no contributions → can't project
 
-    monthly_rate = (annual_rate_pct / 100) / 12
-    balance = float(current)
-    target_f = float(target)
-    MAX_MONTHS = 50 * 12  # cap at 50 years to avoid infinite loops
+    MAX_MONTHS = 50 * 12
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     for month in range(1, MAX_MONTHS + 1):
-        balance = balance * (1 + monthly_rate) + monthly_contribution
-        if balance >= target_f:
+        projected = sum(
+            projected_account_value_at_month(a, assumptions, month)
+            for a in included_accounts
+        )
+        if projected >= target_f:
             years, rem_months = divmod(month, 12)
-            # Build a human-readable ETA from today
             today = date.today()
-            eta_month = today.month + month
-            eta_year = today.year + (eta_month - 1) // 12
-            eta_month = (eta_month - 1) % 12 + 1
-            month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-            eta_label = f"{month_names[eta_month - 1]} {eta_year}"
+            eta_month_num = today.month + month
+            eta_year = today.year + (eta_month_num - 1) // 12
+            eta_month_num = (eta_month_num - 1) % 12 + 1
+            eta_label = f"{month_names[eta_month_num - 1]} {eta_year}"
 
             if years == 0:
                 duration = f"{rem_months}m"
@@ -80,22 +91,26 @@ def _project_goal(current, target, monthly_contribution, annual_rate_pct):
     return {"reached": False, "total_months": None, "duration": ">50y", "eta_label": None}
 
 
-def _build_goal_card(goal, accounts, holdings_totals, annual_rate_pct=7.0):
+def _build_goal_card(goal, accounts, holdings_totals, assumptions=None):
     selected_tags = _split_tags(goal["selected_tags"]) if "selected_tags" in goal else []
     included_accounts = []
 
     for account in accounts:
         account_tags = _split_tags(account["tags"]) if "tags" in account else []
         if selected_tags and any(tag in account_tags for tag in selected_tags):
-            included_accounts.append(account)
+            # Mirror what the Projections page does: override current_value with
+            # the effective value (so holdings-based accounts use live holdings totals)
+            row = dict(account)
+            row["current_value"] = effective_account_value(account, holdings_totals)
+            included_accounts.append(row)
 
-    current_total = sum(effective_account_value(account, holdings_totals) for account in included_accounts)
+    current_total = sum(a["current_value"] for a in included_accounts)
     target = float(goal["target_value"] or 0)
 
     monthly_contribution = sum(
-        float(a["monthly_contribution"] or 0) for a in included_accounts
+        effective_monthly_contribution(a, assumptions) for a in included_accounts
     )
-    projection = _project_goal(current_total, target, monthly_contribution, annual_rate_pct)
+    projection = _project_goal(included_accounts, target, assumptions)
 
     return {
         "id": goal["id"],
@@ -144,9 +159,8 @@ def goals():
     goal_rows = fetch_all_goals(uid)
 
     assumptions = fetch_assumptions(uid)
-    annual_rate = float(assumptions["annual_growth_rate"] or 7.0) if assumptions and assumptions["annual_growth_rate"] else 7.0
 
-    goal_cards = [_build_goal_card(goal, accounts, holdings_totals, annual_rate) for goal in goal_rows]
+    goal_cards = [_build_goal_card(goal, accounts, holdings_totals, assumptions) for goal in goal_rows]
 
     # Deduplicated total saved: sum each account at most once across all goals
     included_ids = set()
