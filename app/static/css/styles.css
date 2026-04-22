@@ -792,6 +792,28 @@ body.is-back-online .site-header {
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
+.month-year-picker {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.month-year-picker select {
+  flex: 1;
+  background: #0b1220;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+  min-height: 48px;
+  font: inherit;
+}
+
+.month-year-picker select:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
 button.button-danger {
   background: rgba(248, 113, 113, 0.16);
   color: #fee2e2;

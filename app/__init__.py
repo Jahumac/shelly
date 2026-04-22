@@ -150,7 +150,8 @@ def create_app():
             except Exception:
                 pass
 
-        return {"month_strip": strip, "current_month_num": current_month_num}
+        return {"month_strip": strip, "current_month_num": current_month_num,
+                "current_year": date.today().year}
 
     @app.context_processor
     def inject_static_versioner():

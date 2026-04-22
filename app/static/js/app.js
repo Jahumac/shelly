@@ -1925,6 +1925,55 @@
       if (units) units.addEventListener('input', updateTickerPreview);
     })();
 
+    /* ── Month/Year picker: sync selects → hidden input ──────────────── */
+    (function () {
+      document.querySelectorAll('.month-year-picker').forEach(function(picker) {
+        var label = picker.closest('label');
+        if (!label) return;
+        var hidden = label.querySelector('.mp-hidden');
+        var monthSel = picker.querySelector('.mp-month');
+        var yearSel  = picker.querySelector('.mp-year');
+        if (!hidden || !monthSel || !yearSel) return;
+
+        function sync() {
+          if (monthSel.value && yearSel.value) {
+            hidden.value = yearSel.value + '-' + monthSel.value;
+          } else {
+            hidden.value = '';
+          }
+        }
+
+        monthSel.addEventListener('change', sync);
+        yearSel.addEventListener('change', sync);
+
+        // Pre-fill current month/year in the year select
+        var now = new Date();
+        var currentYear = now.getFullYear();
+        var currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+        Array.from(yearSel.options).forEach(function(opt) {
+          if (parseInt(opt.value) === currentYear) opt.selected = true;
+        });
+        Array.from(monthSel.options).forEach(function(opt) {
+          if (opt.value === currentMonth) opt.selected = true;
+        });
+        sync();
+      });
+
+      // Validate on submit that hidden values are set
+      document.querySelectorAll('.override-add-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+          var hiddens = form.querySelectorAll('.mp-hidden');
+          for (var i = 0; i < hiddens.length; i++) {
+            if (!hiddens[i].value) {
+              e.preventDefault();
+              alert('Please select both a month and year for the override period.');
+              return;
+            }
+          }
+        });
+      });
+    })();
+
   }); // End DOMContentLoaded
 
   /* ── Online/Offline status ───────────────────────────────────────── */

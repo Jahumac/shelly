@@ -519,12 +519,52 @@
         <p class="helper-text">No overrides yet — Shelly's using your standard plan amounts.</p>
         {% endif %}
 
-        <form method="post" class="settings-form mt-1">
+        <form method="post" class="settings-form mt-1 override-add-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="add_override">
           <div class="form-grid">
-            <label><span>From month</span><input type="month" name="from_month" required></label>
-            <label><span>To month</span><input type="month" name="to_month" required></label>
+            <label>
+              <span>From month</span>
+              <input type="hidden" name="from_month" class="mp-hidden">
+              <div class="month-year-picker">
+                <select class="mp-month">
+                  <option value="" disabled selected>Month</option>
+                  <option value="01">January</option><option value="02">February</option>
+                  <option value="03">March</option><option value="04">April</option>
+                  <option value="05">May</option><option value="06">June</option>
+                  <option value="07">July</option><option value="08">August</option>
+                  <option value="09">September</option><option value="10">October</option>
+                  <option value="11">November</option><option value="12">December</option>
+                </select>
+                <select class="mp-year">
+                  <option value="" disabled selected>Year</option>
+                  {% for y in range(current_year - 2, current_year + 4) %}
+                  <option value="{{ y }}">{{ y }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </label>
+            <label>
+              <span>To month</span>
+              <input type="hidden" name="to_month" class="mp-hidden">
+              <div class="month-year-picker">
+                <select class="mp-month">
+                  <option value="" disabled selected>Month</option>
+                  <option value="01">January</option><option value="02">February</option>
+                  <option value="03">March</option><option value="04">April</option>
+                  <option value="05">May</option><option value="06">June</option>
+                  <option value="07">July</option><option value="08">August</option>
+                  <option value="09">September</option><option value="10">October</option>
+                  <option value="11">November</option><option value="12">December</option>
+                </select>
+                <select class="mp-year">
+                  <option value="" disabled selected>Year</option>
+                  {% for y in range(current_year - 2, current_year + 4) %}
+                  <option value="{{ y }}">{{ y }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </label>
             <label><span>Override amount (£/mo)</span><input type="number" step="0.01" name="override_amount" placeholder="e.g. 50" required></label>
             <label><span>Reason (optional)</span><input type="text" name="reason" placeholder="e.g. Car repair, parental leave"></label>
           </div>
