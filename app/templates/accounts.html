@@ -523,8 +523,8 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="add_override">
           <div class="form-grid">
-            <label><span>From month</span><input type="date" name="from_month" required><small class="form-hint">Any day — we use the month</small></label>
-            <label><span>To month</span><input type="date" name="to_month" required><small class="form-hint">Any day — we use the month</small></label>
+            <label><span>From month</span><input type="month" name="from_month" required></label>
+            <label><span>To month</span><input type="month" name="to_month" required></label>
             <label><span>Override amount (£/mo)</span><input type="number" step="0.01" name="override_amount" placeholder="e.g. 50" required></label>
             <label><span>Reason (optional)</span><input type="text" name="reason" placeholder="e.g. Car repair, parental leave"></label>
           </div>
