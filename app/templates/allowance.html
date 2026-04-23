@@ -136,7 +136,7 @@
     </div>
   </div>
   <p class="helper-text mb-1">
-    Made a lump-sum payment into an ISA outside your regular monthly contribution? Log it here so Shelly keeps your allowance accurate.
+    Your regular monthly contributions are already counted automatically (based on each account's monthly contribution × months elapsed). Log <strong>extra</strong> transfers here — bonuses, catch-ups, or one-off top-ups that weren't part of the regular plan.
   </p>
   {% if isa_accounts %}
   <form method="post" action="/allowance/add" class="settings-form">
@@ -310,6 +310,9 @@
       <h2>Record a Pension Payment</h2>
     </div>
   </div>
+  <p class="helper-text mb-1">
+    Your regular pension contributions are already counted automatically. Log <strong>extra</strong> payments here — salary sacrifice bonuses, SIPP top-ups, or carry-forward catch-ups.
+  </p>
   {% if pension_accounts %}
   <form method="post" action="/allowance/pension/add" class="settings-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
