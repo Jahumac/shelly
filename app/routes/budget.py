@@ -956,18 +956,38 @@ def budget_debts():
         original = selected_debt.get("original_amount", 0)
 
         if selected_debt["auto_tracked"] and original > 0:
-            # Full schedule from original balance
+            # Full schedule from original balance — anchor dates from start_date
+            anchor = None
+            if selected_debt.get("start_date"):
+                try:
+                    from datetime import date as _date
+                    anchor = _date.fromisoformat(selected_debt["start_date"])
+                except (ValueError, TypeError):
+                    pass
             schedule = amortisation_schedule(
                 original,
                 selected_debt["apr"],
                 selected_debt["monthly_payment"],
+                start_date=anchor,
             )
         elif selected_debt["months_remaining"]:
-            # Remaining schedule only (no start date)
+            # Remaining schedule only — anchor from start_date + payments already made
+            anchor = None
+            if selected_debt.get("start_date"):
+                try:
+                    from datetime import date as _date
+                    from app.models.debts import _add_months
+                    anchor = _add_months(
+                        _date.fromisoformat(selected_debt["start_date"]),
+                        selected_debt.get("payments_made", 0),
+                    )
+                except (ValueError, TypeError):
+                    pass
             schedule = amortisation_schedule(
                 selected_debt["current_balance"],
                 selected_debt["apr"],
                 selected_debt["monthly_payment"],
+                start_date=anchor,
             )
 
         if schedule:
@@ -1101,9 +1121,22 @@ def budget_debts_export():
             ("Double", base_payment),
         ]
 
+        # Anchor date: start_date shifted forward by payments already made
+        export_anchor = None
+        if d.get("start_date"):
+            try:
+                from datetime import date as _date
+                from app.models.debts import _add_months
+                export_anchor = _add_months(
+                    _date.fromisoformat(d["start_date"]),
+                    d.get("payments_made", 0),
+                )
+            except (ValueError, TypeError):
+                pass
+
         for label, extra in scenarios:
             new_payment = base_payment + extra
-            sched = amortisation_schedule(d["current_balance"], d["apr"], new_payment)
+            sched = amortisation_schedule(d["current_balance"], d["apr"], new_payment, start_date=export_anchor)
             total_interest = sum(r["interest"] for r in sched)
             months_saved = (d["months_remaining"] or 0) - len(sched) if extra > 0 else 0
             interest_saved = (d["total_interest"] or 0) - total_interest if extra > 0 else 0
@@ -1140,13 +1173,15 @@ def budget_debts_export():
                 vc.font = bold_font if "saved" not in k else Font(name="Aptos", bold=True, color="16A34A", size=10)
 
             header_row = len(summaries) + 3
+            date_col_header = "Date" if export_anchor else "Month"
             hdr_row(ws2, header_row,
-                    ["Month", "Payment", "Interest", "To Principal", "Balance"],
-                    widths=[10, 16, 16, 16, 16])
+                    [date_col_header, "Payment", "Interest", "To Principal", "Balance"],
+                    widths=[14, 16, 16, 16, 16])
 
             for row_i, row in enumerate(sched, header_row + 1):
                 fill = alt_fill if row_i % 2 == 0 else no_fill
-                data_cell(ws2, row_i, 1, row["month"])
+                date_label = row["date"].strftime("%-d %b %Y") if "date" in row else row["month"]
+                data_cell(ws2, row_i, 1, date_label)
                 data_cell(ws2, row_i, 2, row["payment"],   num_fmt=GBP)
                 c = data_cell(ws2, row_i, 3, row["interest"],  num_fmt=GBP)
                 c.font = red_font

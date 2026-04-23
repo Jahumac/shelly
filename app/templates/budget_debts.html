@@ -190,7 +190,7 @@
   </div>
   {% if payments_made > 0 %}
   <p class="helper-text mb-075" id="debt-sched-hint">
-    Months 1–{{ payments_made }} are past payments · months {{ payments_made + 1 }}+ are upcoming
+    First {{ payments_made }} payment{{ 's' if payments_made != 1 }} are past · remaining are upcoming
   </p>
   {% endif %}
   <div id="debt-sched-container">
@@ -198,7 +198,7 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th class="num">Month</th>
+            <th>{% if schedule and schedule[0].date is defined %}Date{% else %}Month{% endif %}</th>
             <th class="num">Payment</th>
             <th class="num">Interest</th>
             <th class="num">Principal</th>
@@ -211,8 +211,8 @@
           {% set is_hidden = loop.index > 24 and not is_past %}
           <tr{% if is_hidden %} class="sched-extra" style="display:none;"{% endif %}
               {% if is_past %}style="opacity:0.5;"{% endif %}>
-            <td class="num text-muted">
-              {{ row.month }}{% if is_past %} ✓{% endif %}
+            <td class="text-muted">
+              {% if row.date is defined %}{{ row.date.strftime('%-d %b %Y') }}{% else %}{{ row.month }}{% endif %}{% if is_past %} ✓{% endif %}
             </td>
             <td class="num">£{{ '{:,.2f}'.format(row.payment) }}</td>
             <td class="num stat-negative-text">£{{ '{:,.2f}'.format(row.interest) }}</td>

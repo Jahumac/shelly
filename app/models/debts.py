@@ -120,8 +120,21 @@ def debt_payoff_date(months):
     return date(year, month, 1)
 
 
-def amortisation_schedule(balance, apr, monthly_payment, max_months=360):
-    """Return a list of monthly rows: month, payment, interest, principal, balance."""
+def _add_months(d, n):
+    """Add n months to a date, clamping to the last day of the target month."""
+    month = d.month - 1 + n
+    year = d.year + month // 12
+    month = month % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def amortisation_schedule(balance, apr, monthly_payment, max_months=360, start_date=None):
+    """Return a list of monthly rows: month, payment, interest, principal, balance.
+
+    If start_date (a date object) is provided, each row also gets a 'date' field
+    with the actual calendar date of that payment.
+    """
     r = apr / 100.0 / 12.0
     rows = []
     for i in range(1, max_months + 1):
@@ -132,13 +145,16 @@ def amortisation_schedule(balance, apr, monthly_payment, max_months=360):
         payment = min(monthly_payment, balance + interest)
         principal = round(payment - interest, 2)
         balance = max(round(balance - principal, 2), 0)
-        rows.append({
+        row = {
             "month": i,
             "payment": payment,
             "interest": interest,
             "principal": principal,
             "balance": balance,
-        })
+        }
+        if start_date:
+            row["date"] = _add_months(start_date, i - 1)
+        rows.append(row)
         if monthly_payment <= interest and i > 1:
             break  # can't pay off
     return rows
