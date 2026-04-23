@@ -346,6 +346,128 @@ def budget_import():
     return redirect(url_for("budget.budget", month=month_key))
 
 
+# ── Annual import (12-month workbook produced by annual-export) ──────────────
+
+_MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _sheet_name_to_month_key(sheet_name):
+    """Parse 'Apr 2026' → '2026-04'. Returns None if the name doesn't match."""
+    parts = (sheet_name or "").strip().split()
+    if len(parts) != 2:
+        return None
+    name, yr = parts
+    if name not in _MONTH_NAMES:
+        return None
+    try:
+        year = int(yr)
+    except ValueError:
+        return None
+    month = _MONTH_NAMES.index(name) + 1
+    return f"{year:04d}-{month:02d}"
+
+
+def _parse_annual_month_sheet(ws, month_key, uid, existing_items_by_id, existing_items_by_name):
+    """Parse an annual-export month tab (cols: item_id, name, notes, amount).
+
+    Matches by item_id first (reliable), falls back to name+section. Unknown items
+    are skipped. Returns (items_applied, linked_sync_triggers) where the latter is
+    a list of (item_id, amount) for post-commit override sync.
+    """
+    items_applied = 0
+    linked_syncs = []
+
+    for row in ws.iter_rows(min_row=4, values_only=True):
+        if not row or len(row) < 4:
+            continue
+        id_cell, name_cell, _notes_cell, amount_cell = row[0], row[1], row[2], row[3]
+
+        # Skip section headers (row has an "Amount" literal in col D) and totals
+        if isinstance(amount_cell, str):
+            continue
+
+        # Item row: id_cell is an int (from the hidden column A)
+        matched_item = None
+        if isinstance(id_cell, int) and id_cell in existing_items_by_id:
+            matched_item = existing_items_by_id[id_cell]
+        elif isinstance(name_cell, str):
+            matched_item = existing_items_by_name.get(name_cell.strip().lower())
+
+        if not matched_item:
+            continue
+
+        try:
+            amount = float(amount_cell) if amount_cell is not None else 0.0
+        except (TypeError, ValueError):
+            continue
+
+        upsert_budget_entry(month_key, matched_item["id"], amount, uid)
+        items_applied += 1
+        if matched_item.get("linked_account_id"):
+            linked_syncs.append((matched_item["id"], amount))
+
+    return items_applied, linked_syncs
+
+
+@budget_bp.route("/annual-import", methods=["POST"])
+@login_required
+def budget_annual_import():
+    """Upload a workbook produced by /budget/annual-export.xlsx and apply each
+    recognised month tab. Existing budget items are matched by the hidden item_id
+    column; unknown items are skipped (not auto-created — the annual import trusts
+    the export as a round-trip format)."""
+    uid = current_user.id
+
+    f = request.files.get("file")
+    if not f or not f.filename.endswith((".xlsx", ".xls")):
+        flash("Please upload an .xlsx file.", "error")
+        return redirect(url_for("budget.budget"))
+
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(BytesIO(f.read()), data_only=True)
+    except Exception:
+        flash("Could not read the Excel file.", "error")
+        return redirect(url_for("budget.budget"))
+
+    existing_items = fetch_budget_items(uid)
+    items_by_id = {it["id"]: it for it in existing_items}
+    items_by_name = {it["name"].strip().lower(): it for it in existing_items}
+
+    total_items_applied = 0
+    months_applied = []
+    all_syncs = []
+
+    for sheet_name in wb.sheetnames:
+        if sheet_name in ("Summary", "Investment Tracking"):
+            continue
+        month_key = _sheet_name_to_month_key(sheet_name)
+        if not month_key:
+            continue
+        ws = wb[sheet_name]
+        applied, syncs = _parse_annual_month_sheet(ws, month_key, uid, items_by_id, items_by_name)
+        if applied:
+            total_items_applied += applied
+            months_applied.append(month_key)
+        for item_id, amount in syncs:
+            all_syncs.append((item_id, month_key, amount))
+
+    # Trigger contribution-override sync for linked items, after all entries landed
+    for item_id, month_key, amount in all_syncs:
+        _sync_linked_override(item_id, month_key, amount, uid)
+
+    if not months_applied:
+        flash("No month tabs matched — expected sheets named like 'Apr 2026'. Nothing imported.", "error")
+    else:
+        flash(
+            f"Imported {total_items_applied} entries across {len(months_applied)} month"
+            f"{'s' if len(months_applied) != 1 else ''}.",
+            "success",
+        )
+    return redirect(url_for("budget.budget"))
+
+
 @budget_bp.route("/trend/")
 @login_required
 def budget_trend():

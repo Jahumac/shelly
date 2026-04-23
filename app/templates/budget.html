@@ -64,11 +64,18 @@
     <a class="badge badge-sm" href="/budget/export.xlsx?month={{ month_key }}">↓ Export month</a>
     <a class="badge badge-sm" href="/budget/annual-export.xlsx" title="Download the whole UK tax year (Apr–Mar) with one tab per month, a summary, and an investment-tracking tab">↓ Export tax year</a>
     <label class="badge badge-sm budget-import-label" title="Import budget from an Excel file">
-      ↑ Import
+      ↑ Import month
       <form method="post" action="/budget/import" enctype="multipart/form-data" id="import-form" style="display:none">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="month" value="{{ month_key }}">
         <input type="file" name="file" accept=".xlsx,.xls" id="budget-import-file">
+      </form>
+    </label>
+    <label class="badge badge-sm budget-import-label" title="Upload a filled-in tax-year workbook (all 12 month tabs are applied at once)">
+      ↑ Import tax year
+      <form method="post" action="/budget/annual-import" enctype="multipart/form-data" id="annual-import-form" style="display:none">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="file" accept=".xlsx,.xls" id="budget-annual-import-file">
       </form>
     </label>
   </div>

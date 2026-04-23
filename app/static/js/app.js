@@ -411,6 +411,12 @@
           this.closest('form').submit();
         });
       }
+      var annualImportInput = document.getElementById('budget-annual-import-file');
+      if (annualImportInput) {
+        annualImportInput.addEventListener('change', function() {
+          this.closest('form').submit();
+        });
+      }
 
       document.querySelectorAll('.budget-amount-input').forEach(function(input) {
         var debounceTimer = null;
