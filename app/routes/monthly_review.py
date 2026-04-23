@@ -13,7 +13,6 @@ from app.calculations import (
     total_invested,
 )
 from app.models import (
-    create_contribution_override,
     ensure_monthly_review_items,
     fetch_account,
     fetch_all_accounts,
@@ -35,6 +34,7 @@ from app.models import (
     update_holding,
     update_monthly_review,
     upsert_monthly_snapshot,
+    upsert_single_month_contribution_override,
 )
 from app.utils import optional_float, optional_int, valid_month_key
 from app.services.csv_parsers import (
@@ -293,11 +293,15 @@ def api_confirm_contribution():
 @monthly_review_bp.route("/api/skip-contribution", methods=["POST"])
 @login_required
 def api_skip_contribution():
-    """Skip a contribution for this month only — creates a zero-amount override."""
+    """Skip a contribution for this month only — creates a zero-amount override.
+
+    Uses upsert so that if the budget page already wrote an override for this
+    (account, month), we replace it rather than adding a duplicate row.
+    """
     uid = current_user.id
     data = request.get_json(silent=True) or {}
     account_id = data.get("account_id")
-    month_key = data.get("month_key") or default_month_key()
+    month_key = valid_month_key(data.get("month_key")) or default_month_key()
     reason = (data.get("reason") or "Skipped").strip() or "Skipped"
 
     if not account_id:
@@ -305,13 +309,9 @@ def api_skip_contribution():
     if not fetch_account(account_id, uid):
         return jsonify({"ok": False, "error": "Account not found"}), 404
 
-    create_contribution_override({
-        "account_id": account_id,
-        "from_month": month_key,
-        "to_month": month_key,
-        "override_amount": 0,
-        "reason": reason,
-    })
+    upsert_single_month_contribution_override(
+        int(account_id), month_key, 0.0, uid, reason=reason
+    )
     return jsonify({"ok": True})
 
 

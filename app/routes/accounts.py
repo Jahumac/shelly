@@ -118,6 +118,15 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
         aid = int(c["account_id"])
         tax_year_logged[aid] = tax_year_logged.get(aid, 0.0) + float(c["amount"] or 0)
 
+    # Which accounts get the "Logged {tax year}" stat cell — uses canonical
+    # ISA wrapper set + pension predicate so new wrapper labels don't silently
+    # miss the strip.
+    tax_advantaged_ids = {
+        int(row["id"]) for row in rows
+        if (row["wrapper_type"] if "wrapper_type" in row.keys() else "") in ISA_WRAPPER_TYPES
+        or is_pension_account(dict(row))
+    }
+
     # Staleness: flag holdings-based accounts if prices > 7 days old
     prices_stale = False
     last_price_update = fetch_latest_price_update(user_id)
@@ -203,6 +212,7 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
         current_month_key=date.today().strftime("%Y-%m"),
         tax_year_logged=tax_year_logged,
         tax_year_label=uk_tax_year_label(today),
+        tax_advantaged_ids=tax_advantaged_ids,
         catalogue_prices=catalogue_prices,
         edit_holding=edit_holding,
         tax_band=assumptions["tax_band"] if assumptions and "tax_band" in assumptions else "basic",

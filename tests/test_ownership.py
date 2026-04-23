@@ -293,3 +293,34 @@ def test_unlinked_budget_edit_does_not_create_override(app, two_users):
         with get_connection() as conn:
             rows = conn.execute("SELECT * FROM contribution_overrides").fetchall()
         assert rows == []
+
+
+def test_skip_after_budget_edit_replaces_not_duplicates(app, two_users):
+    """Skipping a contribution for a month that already has a budget-written
+    override must replace it, not add a second row. Both paths now share
+    upsert_single_month_contribution_override."""
+    from app.models import get_connection, upsert_single_month_contribution_override
+    from app.routes.budget import _sync_linked_override
+
+    with app.app_context():
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE budget_items SET linked_account_id = ? WHERE id = ?",
+                (two_users["alice"]["account"], two_users["alice"]["budget"]),
+            )
+            conn.commit()
+
+        _sync_linked_override(two_users["alice"]["budget"], "2026-07", 400, two_users["alice"]["uid"])
+        upsert_single_month_contribution_override(
+            two_users["alice"]["account"], "2026-07", 0.0,
+            two_users["alice"]["uid"], reason="Skipped",
+        )
+
+        with get_connection() as conn:
+            rows = conn.execute(
+                "SELECT override_amount, reason FROM contribution_overrides WHERE account_id = ?",
+                (two_users["alice"]["account"],),
+            ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["override_amount"] == 0
+        assert rows[0]["reason"] == "Skipped"

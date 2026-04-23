@@ -492,6 +492,9 @@ def _write_budget_month_sheet(ws, title_text, db_sections, items, entry_map, ite
     _set_col_width(ws, 3 + col_offset, 16)
     if item_id_col:
         _set_col_width(ws, 1, 8)
+        # Actually hide column A so users don't see raw item_ids.
+        # The ids are still read on re-upload to match rows reliably.
+        ws.column_dimensions["A"].hidden = True
 
     _title_cell(ws, 1, title_text, 3 + col_offset)
     cell = ws.cell(row=2, column=1, value=f"Generated {datetime.now().strftime('%d %b %Y at %H:%M')}")

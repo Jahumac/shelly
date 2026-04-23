@@ -427,7 +427,9 @@ def budget_annual_import():
     try:
         from openpyxl import load_workbook
         wb = load_workbook(BytesIO(f.read()), data_only=True)
-    except Exception:
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.warning("annual-import: could not read workbook: %s", e)
         flash("Could not read the Excel file.", "error")
         return redirect(url_for("budget.budget"))
 

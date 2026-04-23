@@ -325,9 +325,7 @@
           {% endif %}
         </div>
         {% set _ty_logged = tax_year_logged.get(selected.id, 0) if tax_year_logged else 0 %}
-        {% set _wt_selected = (selected.wrapper_type or '') %}
-        {% set _is_tax_advantaged = _wt_selected in ['Stocks & Shares ISA', 'Cash ISA', 'Lifetime ISA', 'SIPP', 'Personal Pension', 'Workplace Pension'] %}
-        {% if _is_tax_advantaged %}
+        {% if tax_advantaged_ids and selected.id in tax_advantaged_ids %}
         <div class="acct-detail-stat" title="Extra contributions you've logged to this account this UK tax year, on top of the regular monthly amount">
           <span>Logged {{ tax_year_label }}</span>
           <strong>£{{ '{:,.2f}'.format(_ty_logged) }}</strong>
