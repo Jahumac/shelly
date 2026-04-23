@@ -4738,6 +4738,17 @@ a.link-accent:hover {
 .contribution-check-disabled {
   pointer-events: none;
 }
+.budget-diff-match,
+.budget-diff-over,
+.budget-diff-under {
+  margin: 0.1rem 0 0 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.budget-diff-match { color: var(--text-muted, #64748b); }
+.budget-diff-over  { color: var(--accent-danger, #dc2626); }
+.budget-diff-under { color: var(--accent-2, #22c55e); }
 .stat-row {
   display: flex;
   justify-content: space-between;

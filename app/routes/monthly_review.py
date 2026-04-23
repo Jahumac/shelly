@@ -226,22 +226,22 @@ def monthly_review():
             "pct": progress_to_goal(current, target) * 100,
         }
 
-    # Budget vs contributions comparison
-    budget_comparison = []
+    # Budget vs contributions comparison — keyed by account_id so the template can
+    # look up each row's budgeted amount inline with the Expected Contributions list.
+    budget_comparison_map = {}
     if contribution_items:
         budget_items_all = fetch_budget_items(uid)
         linked = {b["linked_account_id"]: b for b in budget_items_all if b.get("linked_account_id")}
         for item in contribution_items:
             budget_item = linked.get(item["account_id"])
-            expected = float(item["expected_contribution"] or 0)
-            budgeted = float(budget_item["default_amount"] or 0) if budget_item else None
-            if budgeted is not None:
-                budget_comparison.append({
-                    "account_name": item["account_name"],
+            if budget_item is not None:
+                expected = float(item["expected_contribution"] or 0)
+                budgeted = float(budget_item["default_amount"] or 0)
+                budget_comparison_map[item["account_id"]] = {
                     "budgeted": budgeted,
                     "expected": expected,
                     "diff": expected - budgeted,
-                })
+                }
 
     return render_template(
         "monthly_review.html",
@@ -263,7 +263,7 @@ def monthly_review():
         unconfirmed_count=unconfirmed_count,
         unupdated_manual_names=unupdated_manual_names,
         goal_data=goal_data,
-        budget_comparison=budget_comparison,
+        budget_comparison_map=budget_comparison_map,
         active_page="monthly_review",
     )
 

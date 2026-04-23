@@ -127,7 +127,7 @@
         <div class="guide-step-num">4</div>
         <div>
           <strong>Mark as complete</strong>
-          <p>Once everything's up to date, hit "Mark as Complete" and Shelly will snapshot your net worth for the month.</p>
+          <p>Once everything's up to date, hit "Mark as Complete" and Shelly will snapshot your net worth for the month. Any one-off top-ups or bonuses? Log them on the <a href="/allowance/" class="link-accent">Allowances page</a> so your tax-year totals stay accurate.</p>
         </div>
       </div>
     </div>
@@ -168,7 +168,19 @@
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
-            <strong>£{{ '{:,.2f}'.format(item.expected_contribution) }}</strong>
+            <div style="text-align:right;">
+              <strong>£{{ '{:,.2f}'.format(item.expected_contribution) }}</strong>
+              {% set bc = budget_comparison_map.get(item.account_id) %}
+              {% if bc %}
+                {% if bc.diff|round(2) == 0 %}
+                  <p class="budget-diff-match" title="Matches your budgeted amount (£{{ '{:,.2f}'.format(bc.budgeted) }})">matches budget</p>
+                {% elif bc.diff > 0 %}
+                  <p class="budget-diff-over" title="Budgeted £{{ '{:,.2f}'.format(bc.budgeted) }}">£{{ '{:,.2f}'.format(bc.diff) }} over budget</p>
+                {% else %}
+                  <p class="budget-diff-under" title="Budgeted £{{ '{:,.2f}'.format(bc.budgeted) }}">£{{ '{:,.2f}'.format(bc.diff|abs) }} under budget</p>
+                {% endif %}
+              {% endif %}
+            </div>
             {% if review.status != 'complete' %}
               {% if is_skipped %}
                 <button type="button" class="badge badge-meta contribution-restore-btn">Restore</button>
