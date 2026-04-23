@@ -83,6 +83,14 @@ def create_app():
         init_db()
         if not app.config.get("TESTING"):
             init_scheduler(app)
+            # Sweep any orphaned import-staging files left by previous runs
+            # (e.g. user uploaded a workbook then closed the tab without
+            # confirming/cancelling, or the app crashed mid-flow).
+            try:
+                from .services.import_staging import sweep_stale
+                sweep_stale(app)
+            except Exception as e:
+                app.logger.warning("import_staging sweep failed: %s", e)
 
     # ── Redirect to setup if no users exist ──────────────────────────────────
     @app.before_request

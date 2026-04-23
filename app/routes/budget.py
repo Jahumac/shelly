@@ -32,6 +32,11 @@ from app.models import (
     upsert_single_month_contribution_override,
 )
 from app.models.debts import amortisation_schedule
+from app.services.import_staging import (
+    delete_staged,
+    read_staged,
+    write_staged,
+)
 
 budget_bp = Blueprint("budget", __name__)
 
@@ -515,17 +520,23 @@ def budget_annual_import():
     diff = _compute_annual_import_diff(wb, uid)
 
     total_changes = sum(len(m["changes"]) for m in diff["months"])
+
+    # Any previously-staged diff for this user is now stale — drop it whether
+    # or not we proceed.
+    _drop_staged_annual_import(uid)
+
     if total_changes == 0:
         flash(
             "No changes detected — the workbook matches your current budget. Nothing to import.",
             "info",
         )
-        session.pop("budget_annual_import", None)
         return redirect(url_for("budget.budget"))
 
-    # Stash a minimal payload for the confirm step — just the fields we need
-    # to replay the writes. Keeps the session cookie small.
-    session["budget_annual_import"] = {
+    # Persist the minimal replay payload to disk (survives the 4KB cookie
+    # limit). The session only carries the token + owning user_id so a
+    # tampered cookie can't confirm someone else's staging.
+    payload = {
+        "user_id": uid,
         "changes": [
             {"item_id": c["item_id"], "month_key": m["month_key"],
              "new": c["new"], "linked": c["linked"]}
@@ -533,6 +544,8 @@ def budget_annual_import():
             for c in m["changes"]
         ],
     }
+    token = write_staged(current_app, payload)
+    session["budget_annual_import"] = {"token": token, "user_id": uid}
 
     return render_template(
         "budget_annual_import_preview.html",
@@ -542,26 +555,49 @@ def budget_annual_import():
     )
 
 
+def _load_staged_annual_import(uid):
+    """Load the staged diff for `uid` or return None if missing/stale/mismatched."""
+    stash = session.get("budget_annual_import")
+    if not stash or stash.get("user_id") != uid:
+        return None
+    token = stash.get("token")
+    payload = read_staged(current_app, token) if token else None
+    if not payload or payload.get("user_id") != uid:
+        return None
+    return payload
+
+
+def _drop_staged_annual_import(uid):
+    """Best-effort cleanup of any staged diff belonging to `uid`."""
+    stash = session.pop("budget_annual_import", None)
+    if stash and stash.get("token"):
+        delete_staged(current_app, stash["token"])
+
+
 @budget_bp.route("/annual-import/confirm", methods=["POST"])
 @login_required
 def budget_annual_import_confirm():
     """Stage 2: apply the previously-staged diff. Re-validates ownership at each
     write via upsert_budget_entry + _sync_linked_override."""
     uid = current_user.id
-    staged = session.pop("budget_annual_import", None)
-    if not staged or not staged.get("changes"):
+    payload = _load_staged_annual_import(uid)
+    if not payload or not payload.get("changes"):
+        _drop_staged_annual_import(uid)
         flash("Nothing to import — the preview expired. Upload the file again.", "info")
         return redirect(url_for("budget.budget"))
 
     total_written = 0
     months_touched = set()
     linked_syncs = []
-    for change in staged["changes"]:
-        item_id = int(change["item_id"])
-        month_key = change["month_key"]
+    for change in payload["changes"]:
+        try:
+            item_id = int(change["item_id"])
+            amount = float(change["new"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        month_key = change.get("month_key")
         if not valid_month_key(month_key):
             continue
-        amount = float(change["new"])
         upsert_budget_entry(month_key, item_id, amount, uid)
         total_written += 1
         months_touched.add(month_key)
@@ -571,6 +607,7 @@ def budget_annual_import_confirm():
     for item_id, month_key, amount in linked_syncs:
         _sync_linked_override(item_id, month_key, amount, uid)
 
+    _drop_staged_annual_import(uid)
     flash(
         f"Imported {total_written} entries across {len(months_touched)} month"
         f"{'s' if len(months_touched) != 1 else ''}.",
@@ -583,7 +620,7 @@ def budget_annual_import_confirm():
 @login_required
 def budget_annual_import_cancel():
     """Discard a staged annual-import diff."""
-    session.pop("budget_annual_import", None)
+    _drop_staged_annual_import(current_user.id)
     flash("Annual import cancelled — nothing was changed.", "info")
     return redirect(url_for("budget.budget"))
 

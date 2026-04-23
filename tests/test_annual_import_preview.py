@@ -140,3 +140,85 @@ def test_annual_import_stale_confirm_redirects_gracefully(app, auth_client, make
 
     resp = auth_client.post("/budget/annual-import/confirm", follow_redirects=False)
     assert resp.status_code == 302
+
+
+def test_annual_import_staging_survives_large_payload(app, auth_client, make_user):
+    """The disk-backed staging must handle a diff larger than the 4KB signed-
+    cookie limit. We simulate this by writing many budget items and editing
+    every month for each one."""
+    from app.models import get_connection, create_budget_item
+    uid, _, _ = make_user()
+    _seed(app, uid)
+
+    with app.app_context():
+        # ~50 items × 12 months = 600 potential rows
+        for i in range(50):
+            create_budget_item(
+                {"name": f"Item {i}", "section": "inv", "default_amount": 100 + i,
+                 "linked_account_id": None, "notes": "", "sort_order": i + 10},
+                uid,
+            )
+
+    # Edit every item in every month to a different value
+    r = auth_client.get("/budget/annual-export.xlsx")
+    wb = load_workbook(BytesIO(r.data))
+    for sheet in wb.sheetnames:
+        if sheet in ("Summary", "Investment Tracking"):
+            continue
+        ws = wb[sheet]
+        for r_idx in range(4, ws.max_row + 1):
+            name = ws.cell(r_idx, 2).value
+            if isinstance(name, str) and name.startswith("Item "):
+                ws.cell(r_idx, 4).value = 999  # everything → 999
+    buf = BytesIO(); wb.save(buf); buf.seek(0)
+
+    resp = auth_client.post("/budget/annual-import",
+                            data={"file": (buf, "t.xlsx")},
+                            content_type="multipart/form-data")
+    assert resp.status_code == 200
+    # Preview renders even though the diff is big (would have broken with
+    # cookie-only staging: ~50 items × 12 months × ~60 bytes > 4KB)
+
+    # Confirm should succeed — i.e. the staged payload is still readable
+    resp2 = auth_client.post("/budget/annual-import/confirm", follow_redirects=False)
+    assert resp2.status_code == 302
+    with app.app_context():
+        with get_connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM budget_entries be JOIN budget_items bi ON bi.id=be.budget_item_id "
+                "WHERE bi.user_id=? AND be.amount=999", (uid,)).fetchone()["c"]
+        assert count >= 50 * 12 * 0.9  # allow a bit of slack; round-trip noise excluded
+
+
+def test_annual_import_staging_rejects_cross_user_token(app, auth_client, client, make_user):
+    """A tampered session cookie pointing at another user's token must not
+    allow confirming their staged diff."""
+    from app.services.import_staging import write_staged
+
+    alice_uid, _, _ = make_user(username="alice")
+    bob_uid, _, _ = make_user(username="bob")
+    _seed(app, alice_uid)
+
+    # Write a staging file that claims it belongs to Alice
+    with app.app_context():
+        alice_token = write_staged(app, {
+            "user_id": alice_uid,
+            "changes": [{"item_id": 999, "month_key": "2026-07", "new": 5000, "linked": False}],
+        })
+
+    # Log in as Bob, plant Alice's token in Bob's session, try to confirm
+    client.post("/login", data={"username": "bob", "password": "testpass123"},
+                follow_redirects=False)
+    with client.session_transaction() as s:
+        s["budget_annual_import"] = {"token": alice_token, "user_id": alice_uid}
+
+    resp = client.post("/budget/annual-import/confirm", follow_redirects=False)
+    # Staged payload belongs to Alice, session claims Bob → mismatch, reject
+    assert resp.status_code == 302
+    with app.app_context():
+        from app.models import get_connection
+        with get_connection() as conn:
+            # No entry was written for Bob (or anyone)
+            count = conn.execute(
+                "SELECT COUNT(*) c FROM budget_entries WHERE amount=5000").fetchone()["c"]
+        assert count == 0
