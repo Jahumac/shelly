@@ -31,7 +31,7 @@ from app.models import (
     upsert_budget_entry,
     upsert_single_month_contribution_override,
 )
-from app.models.debts import amortisation_schedule
+from app.models.debts import amortisation_schedule, schedule_anchor
 from app.services.import_staging import (
     delete_staged,
     read_staged,
@@ -955,38 +955,23 @@ def budget_debts():
         original = selected_debt.get("original_amount", 0)
 
         if selected_debt["auto_tracked"] and original > 0:
-            # Full schedule from original balance — anchor dates from start_date
-            anchor = None
-            if selected_debt.get("start_date"):
-                try:
-                    from datetime import date as _date
-                    anchor = _date.fromisoformat(selected_debt["start_date"])
-                except (ValueError, TypeError):
-                    pass
+            # Full schedule from original balance — dates anchored at start_date
             schedule = amortisation_schedule(
                 original,
                 selected_debt["apr"],
                 selected_debt["monthly_payment"],
-                start_date=anchor,
+                start_date=schedule_anchor(selected_debt.get("start_date")),
             )
         elif selected_debt["months_remaining"]:
-            # Remaining schedule only — anchor from start_date + payments already made
-            anchor = None
-            if selected_debt.get("start_date"):
-                try:
-                    from datetime import date as _date
-                    from app.models.debts import _add_months
-                    anchor = _add_months(
-                        _date.fromisoformat(selected_debt["start_date"]),
-                        selected_debt.get("payments_made", 0),
-                    )
-                except (ValueError, TypeError):
-                    pass
+            # Remaining schedule only — dates anchored after payments already made
             schedule = amortisation_schedule(
                 selected_debt["current_balance"],
                 selected_debt["apr"],
                 selected_debt["monthly_payment"],
-                start_date=anchor,
+                start_date=schedule_anchor(
+                    selected_debt.get("start_date"),
+                    selected_debt.get("payments_made", 0),
+                ),
             )
 
         if schedule:
@@ -1120,18 +1105,7 @@ def budget_debts_export():
             ("Double", base_payment),
         ]
 
-        # Anchor date: start_date shifted forward by payments already made
-        export_anchor = None
-        if d.get("start_date"):
-            try:
-                from datetime import date as _date
-                from app.models.debts import _add_months
-                export_anchor = _add_months(
-                    _date.fromisoformat(d["start_date"]),
-                    d.get("payments_made", 0),
-                )
-            except (ValueError, TypeError):
-                pass
+        export_anchor = schedule_anchor(d.get("start_date"), d.get("payments_made", 0))
 
         for label, extra in scenarios:
             new_payment = base_payment + extra

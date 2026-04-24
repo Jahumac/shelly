@@ -190,7 +190,7 @@
   </div>
   {% if payments_made > 0 %}
   <p class="helper-text mb-075" id="debt-sched-hint">
-    First {{ payments_made }} payment{{ 's' if payments_made != 1 }} are past · remaining are upcoming
+    {% if payments_made == 1 %}First payment is past{% else %}First {{ payments_made }} payments are past{% endif %} · remaining are upcoming
   </p>
   {% endif %}
   <div id="debt-sched-container">

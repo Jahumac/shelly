@@ -129,6 +129,22 @@ def _add_months(d, n):
     return date(year, month, day)
 
 
+def schedule_anchor(start_date_str, offset_months=0):
+    """Calendar date for the first row of an amortisation schedule.
+
+    Parses an ISO start_date and optionally shifts forward by N months (used to
+    skip past payments already made). Returns None if start_date_str is missing
+    or malformed.
+    """
+    if not start_date_str:
+        return None
+    try:
+        start = date.fromisoformat(start_date_str)
+    except (ValueError, TypeError):
+        return None
+    return _add_months(start, offset_months) if offset_months else start
+
+
 def amortisation_schedule(balance, apr, monthly_payment, max_months=360, start_date=None):
     """Return a list of monthly rows: month, payment, interest, principal, balance.
 
