@@ -25,6 +25,23 @@ def is_price_stale(price_updated_at, now=None):
 
 
 
+def age_from_dob(dob_str, today=None):
+    if not dob_str:
+        return 0.0
+    today = today or date.today()
+    try:
+        dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return 0.0
+    age_years = today.year - dob.year
+    if (today.month, today.day) < (dob.month, dob.day):
+        age_years -= 1
+    months_since_birthday = (today.month - dob.month) % 12
+    if today.day < dob.day:
+        months_since_birthday = max(months_since_birthday - 1, 0)
+    return age_years + months_since_birthday / 12.0
+
+
 def current_age_from_assumptions(assumptions):
     """Get the user's current age, preferring date_of_birth over legacy current_age."""
     if not assumptions:
@@ -616,6 +633,18 @@ def uk_tax_year_start(today=None):
 
 
 
+def _resolve_contribution_day(year, month, nominal_day):
+    import calendar
+    max_day = calendar.monthrange(year, month)[1]
+    day = min(nominal_day, max_day)
+    wd = date(year, month, day).weekday()
+    if wd == 5:
+        day -= 1
+    elif wd == 6:
+        day -= 2
+    return max(1, day)
+
+
 def review_ready_date(year, month, salary_day=0):
     """Calculate the date when investments should be settled and the monthly
     review is ready to do, for a given month.
@@ -630,7 +659,7 @@ def review_ready_date(year, month, salary_day=0):
     """
     nominal_day = salary_day if salary_day >= 1 else 1
     # Clamp to last day of month and shift weekends to preceding Friday
-    day = resolve_contribution_day(year, month, nominal_day)
+    day = _resolve_contribution_day(year, month, nominal_day)
     d = date(year, month, day)
 
     # Add 2 business days for settlement
