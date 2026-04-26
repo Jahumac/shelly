@@ -29,6 +29,7 @@ def fetch_budget_item(item_id, user_id=None):
 
 def create_budget_item(payload, user_id):
     with get_connection() as conn:
+        linked_account_id = _owned_linked_account_id(conn, payload.get("linked_account_id"), user_id)
         cursor = conn.execute(
             """
             INSERT INTO budget_items (user_id, name, section, default_amount, linked_account_id, notes, sort_order, is_active)
@@ -39,7 +40,7 @@ def create_budget_item(payload, user_id):
                 payload["name"],
                 payload["section"],
                 payload["default_amount"],
-                payload.get("linked_account_id"),
+                linked_account_id,
                 payload.get("notes", ""),
                 payload.get("sort_order", 0),
             ),
@@ -51,6 +52,7 @@ def create_budget_item(payload, user_id):
 def update_budget_item(payload, user_id):
     """Update a budget item, scoped to user_id."""
     with get_connection() as conn:
+        linked_account_id = _owned_linked_account_id(conn, payload.get("linked_account_id"), user_id)
         cursor = conn.execute(
             """
             UPDATE budget_items
@@ -61,7 +63,7 @@ def update_budget_item(payload, user_id):
                 payload["name"],
                 payload["section"],
                 payload["default_amount"],
-                payload.get("linked_account_id"),
+                linked_account_id,
                 payload.get("notes", ""),
                 payload["id"],
                 user_id,
@@ -69,6 +71,16 @@ def update_budget_item(payload, user_id):
         )
         conn.commit()
         return cursor.rowcount > 0
+
+
+def _owned_linked_account_id(conn, account_id, user_id):
+    if not account_id:
+        return None
+    row = conn.execute(
+        "SELECT id FROM accounts WHERE id = ? AND user_id = ?",
+        (account_id, user_id),
+    ).fetchone()
+    return row["id"] if row else None
 
 
 def delete_budget_item(item_id, user_id):
@@ -267,4 +279,3 @@ def upsert_budget_entry(month_key, item_id, amount, user_id=None):
 
 
 # ── Monthly snapshots ─────────────────────────────────────────────────────────
-

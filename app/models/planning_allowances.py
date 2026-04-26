@@ -19,8 +19,17 @@ def fetch_allowance_tracking(user_id=None):
 
 # ── ISA contributions ─────────────────────────────────────────────────────────
 
+def _account_belongs_to_user(conn, account_id, user_id):
+    return conn.execute(
+        "SELECT 1 FROM accounts WHERE id = ? AND user_id = ?",
+        (account_id, user_id),
+    ).fetchone() is not None
+
+
 def add_isa_contribution(user_id, account_id, amount, contribution_date, note=None):
     with get_connection() as conn:
+        if not _account_belongs_to_user(conn, account_id, user_id):
+            return False
         conn.execute(
             """
             INSERT INTO isa_contributions (user_id, account_id, amount, contribution_date, note)
@@ -29,6 +38,7 @@ def add_isa_contribution(user_id, account_id, amount, contribution_date, note=No
             (user_id, account_id, amount, contribution_date, note),
         )
         conn.commit()
+        return True
 
 
 def fetch_isa_contributions(user_id, tax_year_start, tax_year_end):
@@ -39,6 +49,7 @@ def fetch_isa_contributions(user_id, tax_year_start, tax_year_end):
             FROM isa_contributions c
             JOIN accounts a ON a.id = c.account_id
             WHERE c.user_id = ?
+              AND a.user_id = c.user_id
               AND c.contribution_date >= ?
               AND c.contribution_date <= ?
             ORDER BY c.contribution_date DESC
@@ -60,6 +71,8 @@ def delete_isa_contribution(contribution_id, user_id):
 
 def add_pension_contribution(user_id, account_id, amount, kind, contribution_date, note=None):
     with get_connection() as conn:
+        if not _account_belongs_to_user(conn, account_id, user_id):
+            return False
         conn.execute(
             """
             INSERT INTO pension_contributions (user_id, account_id, amount, kind, contribution_date, note)
@@ -68,6 +81,7 @@ def add_pension_contribution(user_id, account_id, amount, kind, contribution_dat
             (user_id, account_id, amount, kind, contribution_date, note),
         )
         conn.commit()
+        return True
 
 
 def fetch_pension_contributions(user_id, tax_year_start, tax_year_end):
@@ -78,6 +92,7 @@ def fetch_pension_contributions(user_id, tax_year_start, tax_year_end):
             FROM pension_contributions c
             JOIN accounts a ON a.id = c.account_id
             WHERE c.user_id = ?
+              AND a.user_id = c.user_id
               AND c.contribution_date >= ?
               AND c.contribution_date <= ?
             ORDER BY c.contribution_date DESC
@@ -99,6 +114,8 @@ def delete_pension_contribution(contribution_id, user_id):
 
 def add_dividend_record(user_id, account_id, amount, dividend_date, note=None):
     with get_connection() as conn:
+        if not _account_belongs_to_user(conn, account_id, user_id):
+            return False
         conn.execute(
             """
             INSERT INTO dividend_records (user_id, account_id, amount, dividend_date, note)
@@ -107,6 +124,7 @@ def add_dividend_record(user_id, account_id, amount, dividend_date, note=None):
             (user_id, account_id, amount, dividend_date, note),
         )
         conn.commit()
+        return True
 
 
 def fetch_dividend_records(user_id, tax_year_start, tax_year_end):
@@ -117,6 +135,7 @@ def fetch_dividend_records(user_id, tax_year_start, tax_year_end):
             FROM dividend_records d
             JOIN accounts a ON a.id = d.account_id
             WHERE d.user_id = ?
+              AND a.user_id = d.user_id
               AND d.dividend_date >= ?
               AND d.dividend_date <= ?
             ORDER BY d.dividend_date DESC
@@ -138,6 +157,8 @@ def delete_dividend_record(record_id, user_id):
 
 def add_cgt_disposal(user_id, disposal_date, asset_name, proceeds, cost_basis, note=None, account_id=None):
     with get_connection() as conn:
+        if account_id is not None and not _account_belongs_to_user(conn, account_id, user_id):
+            return False
         conn.execute(
             """
             INSERT INTO cgt_disposals (user_id, disposal_date, asset_name, proceeds, cost_basis, note, account_id)
@@ -146,6 +167,7 @@ def add_cgt_disposal(user_id, disposal_date, asset_name, proceeds, cost_basis, n
             (user_id, disposal_date, asset_name, proceeds, cost_basis, note, account_id),
         )
         conn.commit()
+        return True
 
 
 def fetch_cgt_disposals(user_id, tax_year_start, tax_year_end):
@@ -154,7 +176,7 @@ def fetch_cgt_disposals(user_id, tax_year_start, tax_year_end):
             """
             SELECT c.*, a.name AS account_name
             FROM cgt_disposals c
-            LEFT JOIN accounts a ON a.id = c.account_id
+            LEFT JOIN accounts a ON a.id = c.account_id AND a.user_id = c.user_id
             WHERE c.user_id = ?
               AND c.disposal_date >= ?
               AND c.disposal_date <= ?

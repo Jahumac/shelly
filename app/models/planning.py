@@ -238,7 +238,6 @@ def reset_all_user_data(user_id):
         conn.execute("DELETE FROM cgt_disposals WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM pension_carry_forward WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM portfolio_daily_snapshots WHERE user_id = ?", (user_id,))
-        conn.execute("DELETE FROM allowance_tracking")
         conn.execute(
             "DELETE FROM monthly_review_items WHERE review_id IN "
             "(SELECT id FROM monthly_reviews WHERE user_id = ?)", (user_id,))

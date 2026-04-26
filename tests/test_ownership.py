@@ -106,6 +106,23 @@ def test_update_holding_scoped_to_account_owner(app, two_users):
         assert bob_h["holding_name"] == "VUSA"
 
 
+def test_update_holding_cannot_move_to_another_users_account(app, two_users):
+    from app.models import fetch_holding, update_holding
+    with app.app_context():
+        ok = update_holding({
+            "id": two_users["alice"]["holding"],
+            "account_id": two_users["bob"]["account"],
+            "holding_catalogue_id": None,
+            "holding_name": "Moved", "ticker": "X",
+            "asset_type": "", "bucket": "",
+            "value": 0, "units": 0, "price": 0, "notes": "",
+        }, two_users["alice"]["uid"])
+        assert ok is False
+        alice_h = fetch_holding(two_users["alice"]["holding"])
+        assert alice_h["account_id"] == two_users["alice"]["account"]
+        assert alice_h["holding_name"] == "VUSA"
+
+
 def test_delete_holding_scoped_to_account_owner(app, two_users):
     from app.models import delete_holding, fetch_holding
     with app.app_context():
@@ -127,6 +144,38 @@ def test_update_budget_item_scoped_to_user(app, two_users):
             name = conn.execute("SELECT name FROM budget_items WHERE id = ?",
                                 (two_users["bob"]["budget"],)).fetchone()["name"]
         assert name == "Rent"
+
+
+def test_budget_item_cannot_link_to_another_users_account(app, two_users):
+    from app.models import create_budget_item, get_connection, update_budget_item
+    with app.app_context():
+        new_id = create_budget_item({
+            "name": "Savings",
+            "section": "investment",
+            "default_amount": 100,
+            "linked_account_id": two_users["bob"]["account"],
+            "notes": "",
+        }, two_users["alice"]["uid"])
+        update_budget_item({
+            "id": two_users["alice"]["budget"],
+            "name": "Rent",
+            "section": "fixed",
+            "default_amount": 1000,
+            "linked_account_id": two_users["bob"]["account"],
+            "notes": "",
+        }, two_users["alice"]["uid"])
+
+        with get_connection() as conn:
+            created = conn.execute(
+                "SELECT linked_account_id FROM budget_items WHERE id = ?",
+                (new_id,),
+            ).fetchone()
+            updated = conn.execute(
+                "SELECT linked_account_id FROM budget_items WHERE id = ?",
+                (two_users["alice"]["budget"],),
+            ).fetchone()
+        assert created["linked_account_id"] is None
+        assert updated["linked_account_id"] is None
 
 
 def test_delete_budget_item_scoped_to_user(app, two_users):
@@ -199,6 +248,97 @@ def test_alice_cannot_delete_bobs_budget_item_via_route(app, client, two_users):
                 (two_users["bob"]["budget"],),
             ).fetchone()
         assert row["is_active"] == 1  # still active
+
+
+def test_alice_cannot_add_allowance_rows_for_bobs_account(app, client, two_users):
+    _login_as(client, "alice")
+
+    client.post("/allowance/add", data={
+        "account_id": two_users["bob"]["account"],
+        "amount": "100",
+        "contribution_date": "2026-04-10",
+    })
+    client.post("/allowance/pension/add", data={
+        "account_id": two_users["bob"]["account"],
+        "amount": "100",
+        "kind": "personal",
+        "contribution_date": "2026-04-10",
+    })
+    client.post("/allowance/dividend/add", data={
+        "account_id": two_users["bob"]["account"],
+        "amount": "100",
+        "dividend_date": "2026-04-10",
+    })
+    client.post("/allowance/cgt/add", data={
+        "account_id": two_users["bob"]["account"],
+        "asset_name": "Fund",
+        "proceeds": "150",
+        "cost_basis": "100",
+        "disposal_date": "2026-04-10",
+    })
+
+    with app.app_context():
+        from app.models import get_connection
+        with get_connection() as conn:
+            isa = conn.execute("SELECT COUNT(*) AS c FROM isa_contributions").fetchone()["c"]
+            pensions = conn.execute("SELECT COUNT(*) AS c FROM pension_contributions").fetchone()["c"]
+            dividends = conn.execute("SELECT COUNT(*) AS c FROM dividend_records").fetchone()["c"]
+            cgt = conn.execute("SELECT COUNT(*) AS c FROM cgt_disposals").fetchone()["c"]
+    assert (isa, pensions, dividends, cgt) == (0, 0, 0, 0)
+
+
+def test_allowance_fetches_do_not_join_cross_user_accounts(app, two_users):
+    from app.models import (
+        fetch_cgt_disposals,
+        fetch_dividend_records,
+        fetch_isa_contributions,
+        fetch_pension_contributions,
+        get_connection,
+    )
+    with app.app_context():
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO isa_contributions (user_id, account_id, amount, contribution_date) VALUES (?, ?, 100, '2026-04-10')",
+                (two_users["alice"]["uid"], two_users["bob"]["account"]),
+            )
+            conn.execute(
+                "INSERT INTO pension_contributions (user_id, account_id, amount, kind, contribution_date) VALUES (?, ?, 100, 'personal', '2026-04-10')",
+                (two_users["alice"]["uid"], two_users["bob"]["account"]),
+            )
+            conn.execute(
+                "INSERT INTO dividend_records (user_id, account_id, amount, dividend_date) VALUES (?, ?, 100, '2026-04-10')",
+                (two_users["alice"]["uid"], two_users["bob"]["account"]),
+            )
+            conn.execute(
+                "INSERT INTO cgt_disposals (user_id, account_id, asset_name, proceeds, cost_basis, disposal_date) VALUES (?, ?, 'Fund', 150, 100, '2026-04-10')",
+                (two_users["alice"]["uid"], two_users["bob"]["account"]),
+            )
+            conn.commit()
+
+        assert fetch_isa_contributions(two_users["alice"]["uid"], "2026-04-06", "2027-04-05") == []
+        assert fetch_pension_contributions(two_users["alice"]["uid"], "2026-04-06", "2027-04-05") == []
+        assert fetch_dividend_records(two_users["alice"]["uid"], "2026-04-06", "2027-04-05") == []
+        cgt_rows = fetch_cgt_disposals(two_users["alice"]["uid"], "2026-04-06", "2027-04-05")
+        assert len(cgt_rows) == 1
+        assert cgt_rows[0]["account_name"] is None
+
+
+def test_user_reset_keeps_global_allowance_tracking(app, two_users):
+    from app.models import get_connection, reset_all_user_data
+    with app.app_context():
+        with get_connection() as conn:
+            conn.execute(
+                "INSERT INTO allowance_tracking (tax_year, isa_used, lisa_used, notes) VALUES ('2026/27', 123, 45, 'global')"
+            )
+            conn.commit()
+
+        reset_all_user_data(two_users["alice"]["uid"])
+
+        with get_connection() as conn:
+            row = conn.execute("SELECT tax_year, isa_used, lisa_used FROM allowance_tracking").fetchone()
+        assert row["tax_year"] == "2026/27"
+        assert row["isa_used"] == 123
+        assert row["lisa_used"] == 45
 
 
 # ── Budget → contribution_overrides back-sync ────────────────────────────────

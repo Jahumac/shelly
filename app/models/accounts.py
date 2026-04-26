@@ -525,8 +525,9 @@ def fetch_all_holdings_grouped(user_id):
 
 def update_holding(payload, user_id):
     """Update a holding, scoped so the mutation only applies if the
-    holding belongs to an account owned by user_id. Returns True on
-    a real update, False if the id didn't match that user."""
+    holding belongs to an account owned by user_id and the target account
+    also belongs to that user. Returns True on a real update, False if the
+    ids didn't match that user."""
     with get_connection() as conn:
         cursor = conn.execute(
             """
@@ -544,6 +545,7 @@ def update_holding(payload, user_id):
                 notes = ?
             WHERE id = ?
               AND account_id IN (SELECT id FROM accounts WHERE user_id = ?)
+              AND ? IN (SELECT id FROM accounts WHERE user_id = ?)
             """,
             (
                 payload["account_id"],
@@ -558,6 +560,8 @@ def update_holding(payload, user_id):
                 payload.get("book_cost"),
                 payload["notes"],
                 payload["id"],
+                user_id,
+                payload["account_id"],
                 user_id,
             ),
         )

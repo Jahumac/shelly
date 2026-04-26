@@ -26,6 +26,7 @@ from app.models import (
     delete_dividend_record,
     delete_pension_carry_forward,
     fetch_all_accounts,
+    fetch_account,
     fetch_assumptions,
     fetch_cgt_disposals,
     fetch_isa_contributions,
@@ -162,6 +163,10 @@ def add_contribution():
         flash("Please select an account and enter a valid amount.", "error")
         return redirect(url_for("allowance.allowance_overview"))
 
+    if not fetch_account(account_id, uid):
+        flash("Please select one of your ISA accounts.", "error")
+        return redirect(url_for("allowance.allowance_overview"))
+
     add_isa_contribution(uid, account_id, amount, contribution_date, note)
     flash(f"Recorded £{amount:,.2f} top-up.", "success")
     return redirect(url_for("allowance.allowance_overview"))
@@ -192,6 +197,10 @@ def add_pension_topup():
     if kind not in ("personal", "employer"):
         kind = "personal"
 
+    if not fetch_account(account_id, uid):
+        flash("Please select one of your pension accounts.", "error")
+        return redirect(url_for("allowance.allowance_overview"))
+
     add_pension_contribution(uid, account_id, amount, kind, contribution_date, note)
     flash(f"Recorded £{amount:,.2f} pension contribution.", "success")
     return redirect(url_for("allowance.allowance_overview"))
@@ -216,6 +225,10 @@ def add_dividend():
 
     if not account_id or not amount or amount <= 0:
         flash("Please select an account and enter a valid amount.", "error")
+        return redirect(url_for("allowance.allowance_overview"))
+
+    if not fetch_account(account_id, uid):
+        flash("Please select one of your taxable accounts.", "error")
         return redirect(url_for("allowance.allowance_overview"))
 
     add_dividend_record(uid, account_id, amount, dividend_date, note)
@@ -244,6 +257,10 @@ def add_cgt():
 
     if not asset_name or proceeds is None or cost_basis is None or proceeds < 0 or cost_basis < 0:
         flash("Please fill in all required fields.", "error")
+        return redirect(url_for("allowance.allowance_overview") + "#cgt")
+
+    if account_id is not None and not fetch_account(account_id, uid):
+        flash("Please select one of your accounts.", "error")
         return redirect(url_for("allowance.allowance_overview") + "#cgt")
 
     add_cgt_disposal(uid, disposal_date, asset_name, proceeds, cost_basis, note, account_id)
