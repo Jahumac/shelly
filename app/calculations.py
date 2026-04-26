@@ -157,6 +157,14 @@ def future_value(current_value, monthly_contribution, annual_growth_rate, years)
 
 
 
+def add_months_to_key(month_key, offset):
+    y, m = [int(x) for x in month_key.split("-")]
+    m = m + offset
+    y += (m - 1) // 12
+    m = (m - 1) % 12 + 1
+    return f"{y:04d}-{m:02d}"
+
+
 def projection_start_month_key(assumptions=None, today=None):
     """Month whose contribution should be considered next in projections.
 
@@ -292,6 +300,25 @@ def total_monthly_contributions(accounts):
 
 
 
+def _retirement_target_date(dob_str, retirement_age, mode="birthday"):
+    if not dob_str:
+        return None
+    try:
+        dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+    retire_year = dob.year + int(retirement_age)
+    if mode == "end_of_year":
+        return date(retire_year, 12, 31)
+    elif mode == "end_of_tax_year":
+        if (dob.month, dob.day) < (4, 6):
+            return date(retire_year, 4, 5)
+        else:
+            return date(retire_year + 1, 4, 5)
+    else:
+        return date(retire_year, dob.month, dob.day)
+
+
 def years_to_retirement(current_age, retirement_age, assumptions=None):
     """Return years remaining to retirement.
 
@@ -302,7 +329,7 @@ def years_to_retirement(current_age, retirement_age, assumptions=None):
         dob = _safe_get(assumptions, "date_of_birth")
         mode = _safe_get(assumptions, "retirement_date_mode") or "birthday"
         if dob:
-            target = retirement_target_date(dob, retirement_age, mode)
+            target = _retirement_target_date(dob, retirement_age, mode)
             if target:
                 today = date.today()
                 delta = target - today
