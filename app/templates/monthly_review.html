@@ -164,7 +164,7 @@
             <div style="min-width:0;">
               <strong>{{ item.account_name }}</strong>
               {% if is_skipped %}<span class="budget-pill" style="margin-left:0.4rem;">skipped</span>{% endif %}
-              <p>{{ item.provider or '—' }} · {{ item.wrapper_type or 'Account' }}</p>
+              <p>{% if item.provider %}{{ item.provider }} · {% endif %}{{ item.wrapper_type or 'Account' }}</p>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
@@ -216,7 +216,7 @@
           <div class="section-header">
             <div>
               <h3>{{ item.account_name }}</h3>
-              <p>{{ item.provider or '—' }} · {{ item.wrapper_type or 'Account' }}</p>
+              <p>{% if item.provider %}{{ item.provider }} · {% endif %}{{ item.wrapper_type or 'Account' }}</p>
             </div>
             <div class="badge-row">
               <a class="badge" href="/accounts/{{ item.account_id }}">Open account</a>
@@ -307,7 +307,7 @@
           <input type="hidden" name="account_id" value="{{ item.account_id }}">
           <div>
             <strong>{{ item.account_name }}</strong>
-            <p>{{ item.provider or '—' }} · {{ item.wrapper_type or 'Account' }}</p>
+            <p>{% if item.provider %}{{ item.provider }} · {% endif %}{{ item.wrapper_type or 'Account' }}</p>
           </div>
           <label>
             <span>Current Balance</span>
