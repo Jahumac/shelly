@@ -33,6 +33,9 @@
     <div>
       <p class="eyebrow">Budget</p>
       <h2 class="hero-value">{{ month_label }}</h2>
+      {% if salary_cycle_label %}
+      <p class="budget-cycle-label">{{ salary_cycle_label }}</p>
+      {% endif %}
       {% if is_inherited %}
       <p class="hero-subtitle">Shelly carried everything forward from your last saved month — tweak any number to make this month your own.</p>
       {% elif sections | length == 0 %}
@@ -112,7 +115,7 @@
   {% elif 'debt' in section.key %}
   <p class="helper-text helper-text-section">Minimum payments and extra chunks you're throwing at debt — every pound here gets you closer to freedom.</p>
   {% elif 'invest' in section.key or 'saving' in section.key %}
-  <p class="helper-text helper-text-section">Pay yourself first! Items marked <em>linked</em> pull their amount from your account's monthly contribution automatically.</p>
+  <p class="helper-text helper-text-section">Pay yourself first! Items marked <em>linked</em> pull their amount from your account's monthly contribution. Edit the number here to adjust <strong>this month only</strong> — to change all future months, update the contribution in the account's settings.</p>
   {% elif 'fixed' in section.key or 'expense' in section.key %}
   <p class="helper-text helper-text-section">The essentials — bills, rent, subscriptions. These tend to stay steady month to month.</p>
   {% elif 'discretionary' in section.key or 'variable' in section.key or 'personal' in section.key %}

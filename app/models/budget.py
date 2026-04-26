@@ -65,28 +65,41 @@ def _ensure_account_contribution_items(conn, user_id):
             """,
             (user_id, account["id"]),
         ).fetchone()
-        if existing:
-            continue
-        sort_row = conn.execute(
-            "SELECT COALESCE(MAX(sort_order), -1) AS max_sort FROM budget_items WHERE user_id = ? AND section = ?",
-            (user_id, section_key),
-        ).fetchone()
+        if not existing:
+            sort_row = conn.execute(
+                "SELECT COALESCE(MAX(sort_order), -1) AS max_sort FROM budget_items WHERE user_id = ? AND section = ?",
+                (user_id, section_key),
+            ).fetchone()
+            conn.execute(
+                """
+                INSERT INTO budget_items (
+                    user_id, name, section, default_amount, linked_account_id,
+                    notes, sort_order, is_active
+                )
+                VALUES (?, ?, ?, 0, ?, ?, ?, 1)
+                """,
+                (
+                    user_id,
+                    account["name"],
+                    section_key,
+                    account["id"],
+                    "Auto-created from account contribution.",
+                    (sort_row["max_sort"] or -1) + 1,
+                ),
+            )
+        # Retire any old unlinked items in the investment section with the same name —
+        # they were created manually before auto-linking existed and are now duplicates.
         conn.execute(
             """
-            INSERT INTO budget_items (
-                user_id, name, section, default_amount, linked_account_id,
-                notes, sort_order, is_active
-            )
-            VALUES (?, ?, ?, 0, ?, ?, ?, 1)
+            UPDATE budget_items
+            SET is_active = 0
+            WHERE user_id = ?
+              AND section = ?
+              AND linked_account_id IS NULL
+              AND is_active = 1
+              AND name = ?
             """,
-            (
-                user_id,
-                account["name"],
-                section_key,
-                account["id"],
-                "Auto-created from account contribution.",
-                (sort_row["max_sort"] or -1) + 1,
-            ),
+            (user_id, section_key, account["name"]),
         )
     conn.commit()
 

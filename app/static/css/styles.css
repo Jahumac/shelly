@@ -1608,6 +1608,14 @@ button.badge-like-button {
   margin: 0;
 }
 
+.budget-cycle-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  opacity: 0.75;
+  margin: 0.1rem 0 0.35rem;
+  letter-spacing: 0.02em;
+}
+
 /* Shared month picker inside hero sections */
 .hero-month-input {
   background: rgba(255,255,255,0.07);

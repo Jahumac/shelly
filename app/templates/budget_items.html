@@ -15,6 +15,9 @@
     <div>
       <p class="eyebrow">Editing Budget</p>
       <h2 class="hero-value">{{ month_label }}</h2>
+      {% if salary_cycle_label %}
+      <p class="budget-cycle-label">{{ salary_cycle_label }}</p>
+      {% endif %}
       <p class="hero-subtitle">Add, edit, or remove items. Changes to items apply to all months.</p>
     </div>
     <div class="hero-turtle-wrap">
