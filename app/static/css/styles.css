@@ -1910,6 +1910,14 @@ button.badge-like-button {
   font-weight: 500;
 }
 
+/* monthly review prize form */
+.pb-prize-log-form.settings-form .pb-prize-log-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
 .pb-prize-list {
   display: flex;
   flex-direction: column;
@@ -1941,6 +1949,12 @@ button.badge-like-button {
   color: var(--muted);
   font-style: italic;
   font-size: 0.85rem;
+}
+
+.pb-prize-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
 }
 
 .pb-prize-pending {

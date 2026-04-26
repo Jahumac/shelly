@@ -579,31 +579,46 @@
             <p class="eyebrow">Prize Draw</p>
             <h3>Prize History</h3>
           </div>
+          {% if pb_prizes_ty_total > 0 %}
+          <div class="acct-detail-stat" style="text-align:right;">
+            <span>{{ tax_year_label }}</span>
+            <strong class="pb-prize-won">£{{ '{:,.2f}'.format(pb_prizes_ty_total) }}</strong>
+          </div>
+          {% endif %}
         </div>
-        <p class="helper-text">Log each month's prize draw result. NS&amp;I announces prizes on the 1st of each month — even £0 is worth recording so your history stays complete.</p>
+        <p class="helper-text">NS&amp;I runs the draw on the 1st of each month — results are in your NS&amp;I app or online. Log the result here, even if it's a no-win month. Shelly keeps score so you can see your luck over time.</p>
 
-        <form method="post" class="pb-prize-log-form mt-075">
+        <form method="post" class="settings-form mt-075">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="form_name" value="log_prize">
-          <div class="pb-prize-log-row">
+          <div class="form-grid">
             <label>
               <span>Month</span>
-              <input type="month" name="month_key" value="{{ current_month_key }}" required>
+              <select name="month_key" required>
+                {% for key, label, already_logged in pb_month_options %}
+                <option value="{{ key }}" {% if key == current_month_key %}selected{% endif %}>
+                  {{ label }}{% if already_logged %} ✓{% endif %}
+                </option>
+                {% endfor %}
+              </select>
             </label>
             <label>
-              <span>Prize amount (£)</span>
-              <input type="number" step="0.01" min="0" name="prize_amount" placeholder="0.00" required>
+              <span>Prize won (£)</span>
+              <input type="number" step="0.01" min="0" name="prize_amount" placeholder="e.g. 25.00 — enter 0 for no win">
             </label>
-            <button type="submit" class="badge badge-primary-action">Log prize</button>
+          </div>
+          <div class="badge-row mt-075">
+            <button type="submit">Save result</button>
           </div>
         </form>
 
         {% if pb_prizes %}
-        <div class="pb-prize-list mt-075">
+        <div class="pb-prize-list mt-1">
           {% for prize in pb_prizes %}
+          {% set prize_month_label = prize.month_key %}
           <div class="pb-prize-row">
             <div>
-              <strong>{{ prize.month_key }}</strong>
+              <strong>{{ prize_month_label }}</strong>
               {% if prize.prize_amount > 0 %}
                 <span class="pb-prize-won">£{{ '{:,.2f}'.format(prize.prize_amount) }}</span>
               {% else %}
@@ -615,17 +630,18 @@
               <input type="hidden" name="form_name" value="delete_prize">
               <input type="hidden" name="prize_id" value="{{ prize.id }}">
               <button type="submit" class="badge badge-meta badge-sm"
-                      data-confirm="Remove prize entry for {{ prize.month_key }}?"
-                      data-confirm-title="Delete prize entry?"
+                      data-confirm="Remove this prize entry?"
+                      data-confirm-title="Delete {{ prize_month_label }} entry?"
                       data-confirm-ok="Yes, remove it"
                       data-confirm-cancel="Keep it">✕</button>
             </form>
           </div>
           {% endfor %}
         </div>
-        <p class="helper-text mt-05">Total {{ tax_year_label }}: <strong>£{{ '{:,.2f}'.format(pb_prizes_ty_total) }}</strong></p>
         {% else %}
-        <p class="helper-text mt-075">No prizes logged yet. Use the form above to start tracking.</p>
+        <div class="pb-prize-empty mt-075">
+          <p>No prize results logged yet. Shelly's waiting patiently — like a turtle who knows good things take time.</p>
+        </div>
         {% endif %}
       </section>
       {% endif %}

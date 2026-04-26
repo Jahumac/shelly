@@ -173,11 +173,24 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
     # Premium Bonds prize history for selected account
     pb_prizes = []
     pb_prizes_ty_total = 0.0
+    pb_month_options = []
     if selected and selected.get("valuation_mode") == "premium_bonds":
         pb_prizes = fetch_prizes(selected["id"], user_id)
         ty_start_month = uk_tax_year_start(today).strftime("%Y-%m")
         ty_end_month = uk_tax_year_end(today).strftime("%Y-%m")
         pb_prizes_ty_total = fetch_prizes_tax_year(selected["id"], user_id, ty_start_month, ty_end_month)
+        # Last 18 months as (value, label) for the month select
+        import calendar as _cal
+        logged_keys = {p["month_key"] for p in pb_prizes}
+        for i in range(18):
+            m = today.month - i
+            y = today.year
+            while m <= 0:
+                m += 12
+                y -= 1
+            key = f"{y}-{m:02d}"
+            label = f"{_cal.month_name[m]} {y}"
+            pb_month_options.append((key, label, key in logged_keys))
 
     allocation_rows = []
     allocation_total = 0.0
@@ -241,6 +254,7 @@ def _render_accounts_page(user_id, selected=None, detail_mode="view", position_e
         prices_stale=prices_stale,
         pb_prizes=pb_prizes,
         pb_prizes_ty_total=pb_prizes_ty_total,
+        pb_month_options=pb_month_options,
     )
 
 
