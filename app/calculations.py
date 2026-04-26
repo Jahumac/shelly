@@ -518,6 +518,7 @@ def compute_performance_series(monthly_data, assumed_rate, assumed_monthly, benc
     month_keys   = [m[0] for m in monthly_data]
     balances     = [m[1] for m in monthly_data]
     contribs     = [m[2] for m in monthly_data]
+    carried_counts = [m[3] if len(m) > 3 else 0 for m in monthly_data]
 
     def _fmt(mk):
         try:
@@ -571,6 +572,7 @@ def compute_performance_series(monthly_data, assumed_rate, assumed_monthly, benc
             "market_gain":  round(gain, 2),
             "closing":      round(closing, 2),
             "return_pct":   round(r * 100, 2),
+            "carried_forward_count": carried_counts[i],
         })
     rows.reverse()   # most recent first
 
@@ -596,6 +598,7 @@ def compute_performance_series(monthly_data, assumed_rate, assumed_monthly, benc
         "total_market_gain": round(total_market_gain, 2),
         "vs_plan":           round(vs_plan, 2),
         "current_value":     round(balances[-1], 2) if balances else 0,
+        "carried_forward_months": sum(1 for c in carried_counts if c),
     }
 
 

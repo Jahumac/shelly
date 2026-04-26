@@ -1681,19 +1681,52 @@
 
       document.querySelectorAll('.tag-delete').forEach(btn => btn.addEventListener('click', handleDeleteTag));
 
-      var addBtn = document.querySelector('[data-add-tag-btn]');
-      if (addBtn) {
+      function buildTagChip(tagName, checked, useFormName) {
+        var label = document.createElement('label');
+        label.className = 'tag-chip';
+
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = tagName;
+        checkbox.checked = !!checked;
+        if (useFormName) checkbox.name = 'tags';
+        else checkbox.setAttribute('data-tag-checkbox', '');
+
+        var span = document.createElement('span');
+        span.textContent = tagName;
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        return label;
+      }
+
+      document.querySelectorAll('[data-add-tag-btn]').forEach(function(addBtn) {
         addBtn.addEventListener('click', function () {
-          var input = document.querySelector('[data-new-tag-input]');
+          var row = addBtn.closest('.tag-add-row');
+          var input = row ? row.querySelector('[data-new-tag-input]') : document.querySelector('[data-new-tag-input]');
           var tagName = (input.value || '').trim();
           if (!tagName) return;
           var fd = new FormData();
           fd.append('tag', tagName);
           fetch('/accounts/api/tags', { method: 'POST', body: fd })
             .then(r => r.json())
-            .then(data => { if (data.ok) window.location.reload(); });
+            .then(function(data) {
+              if (!data.ok) return;
+              var picker = row ? row.parentElement.querySelector('[data-tag-picker]') : document.querySelector('[data-tag-picker]');
+              if (!picker) return;
+              var existing = Array.from(picker.querySelectorAll('input')).find(function(el) {
+                return (el.value || '').toLowerCase() === tagName.toLowerCase();
+              });
+              if (existing) {
+                existing.checked = true;
+              } else {
+                var isWizard = !!picker.closest('#create-account-form');
+                picker.appendChild(buildTagChip(data.tag || tagName, true, !isWizard));
+              }
+              input.value = '';
+            });
         });
-      }
+      });
     })();
 
     // 19. Projections What-If Logic

@@ -63,27 +63,81 @@ def fetch_account_snapshot_history(account_id, limit=24):
 
 
 def fetch_monthly_performance_data(user_id):
-    """Return list of (month_key, total_balance, total_contribution) ordered by month."""
+    """Return monthly performance rows ordered by month.
+
+    For each account, use that month's snapshot when present; otherwise carry
+    forward the last known snapshot before that month. This prevents a partial
+    month (for example, updating only a new Cash ISA) from making every other
+    account look like it fell to zero.
+    """
     with get_connection() as conn:
-        rows = conn.execute(
+        months = conn.execute(
             """
-            SELECT
-                ms.month_key,
-                SUM(ms.balance) AS total_balance,
-                COALESCE(SUM(mri.expected_contribution), 0) AS total_contribution
+            SELECT DISTINCT ms.month_key
             FROM monthly_snapshots ms
             JOIN accounts a ON a.id = ms.account_id
-            LEFT JOIN monthly_reviews mr ON mr.month_key = ms.month_key AND mr.user_id = ?
-            LEFT JOIN monthly_review_items mri
-                   ON mri.review_id = mr.id AND mri.account_id = ms.account_id
-            WHERE ms.month_key IS NOT NULL AND a.user_id = ?
-            GROUP BY ms.month_key
+            WHERE ms.month_key IS NOT NULL
+              AND a.user_id = ?
+              AND a.is_active = 1
             ORDER BY ms.month_key ASC
             """,
-            (user_id, user_id),
+            (user_id,),
         ).fetchall()
-    return [(r["month_key"], r["total_balance"], r["total_contribution"]) for r in rows]
+        accounts = conn.execute(
+            "SELECT id FROM accounts WHERE user_id = ? AND is_active = 1 ORDER BY id ASC",
+            (user_id,),
+        ).fetchall()
+        rows = []
+        for month in months:
+            month_key = month["month_key"]
+            total_balance = 0.0
+            carried_forward = 0
+            accounts_with_value = 0
 
+            for account in accounts:
+                snap = conn.execute(
+                    """
+                    SELECT balance, month_key
+                    FROM monthly_snapshots
+                    WHERE account_id = ?
+                      AND month_key <= ?
+                    ORDER BY month_key DESC
+                    LIMIT 1
+                    """,
+                    (account["id"], month_key),
+                ).fetchone()
+                if not snap:
+                    continue
+                accounts_with_value += 1
+                total_balance += float(snap["balance"] or 0)
+                if snap["month_key"] != month_key:
+                    carried_forward += 1
+
+            if accounts_with_value == 0:
+                continue
+
+            contrib = conn.execute(
+                """
+                SELECT COALESCE(SUM(mri.expected_contribution), 0) AS total_contribution
+                FROM monthly_reviews mr
+                JOIN monthly_review_items mri ON mri.review_id = mr.id
+                JOIN accounts a ON a.id = mri.account_id
+                WHERE mr.user_id = ?
+                  AND mr.month_key = ?
+                  AND a.user_id = ?
+                """,
+                (user_id, month_key, user_id),
+            ).fetchone()
+            rows.append({
+                "month_key": month_key,
+                "total_balance": total_balance,
+                "total_contribution": float(contrib["total_contribution"] or 0) if contrib else 0.0,
+                "carried_forward_count": carried_forward,
+            })
+    return [
+        (r["month_key"], r["total_balance"], r["total_contribution"], r["carried_forward_count"])
+        for r in rows
+    ]
 
 def fetch_monthly_performance_data_by_account(user_id):
     """Return per-account monthly performance data keyed by account_id."""

@@ -64,6 +64,12 @@
 </div>
 {% endif %}
 
+{% if perf and perf.carried_forward_months %}
+<section class="card alert-banner alert-info mb-1">
+  <p class="m-0">Some monthly snapshots were incomplete, so Shelly carried forward the last known value for untouched accounts instead of treating them as £0.</p>
+</section>
+{% endif %}
+
 {% if not perf or perf.n_months < 1 %}
 <section class="card">
   {{ empty_state('Not enough data yet',
@@ -118,6 +124,9 @@
         <td class="num">£{{ '{:,.0f}'.format(row.closing) }}</td>
         <td class="num {% if row.return_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
           {{ '{:+.2f}'.format(row.return_pct) }}%
+          {% if row.carried_forward_count %}
+            <span class="text-muted" title="{{ row.carried_forward_count }} account value{{ 's' if row.carried_forward_count != 1 }} carried forward"> *</span>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
