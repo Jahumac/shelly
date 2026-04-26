@@ -4,7 +4,7 @@ from flask import Blueprint, render_template
 from flask_login import current_user, login_required
 
 from app.calculations import compute_performance_series, to_float, uk_tax_year_start, uk_tax_year_end, uk_tax_year_label
-from app.models import fetch_all_accounts, fetch_assumptions, fetch_monthly_performance_data, fetch_monthly_performance_data_by_account, fetch_tax_year_contributions
+from app.models import fetch_all_accounts, fetch_assumptions, fetch_daily_snapshots, fetch_monthly_performance_data, fetch_monthly_performance_data_by_account, fetch_tax_year_contributions
 
 performance_bp = Blueprint("performance", __name__)
 
@@ -15,17 +15,46 @@ def performance():
     uid = current_user.id
     assumptions   = fetch_assumptions(uid)
     accounts      = fetch_all_accounts(uid)
-    monthly_data  = fetch_monthly_performance_data(uid)
 
-    assumed_rate    = to_float(assumptions["annual_growth_rate"]) if assumptions else 0.07
-    assumed_monthly = sum(to_float(a["monthly_contribution"]) for a in accounts)
-    benchmark_rate  = to_float(assumptions["benchmark_rate"]) if assumptions and assumptions["benchmark_rate"] is not None else None
-
-    perf = compute_performance_series(monthly_data, assumed_rate, assumed_monthly, benchmark_rate=benchmark_rate)
-
+    assumed_rate   = to_float(assumptions["annual_growth_rate"]) if assumptions else 0.07
+    benchmark_rate = to_float(assumptions["benchmark_rate"]) if assumptions and assumptions["benchmark_rate"] is not None else None
     benchmark_rate_pct = round(benchmark_rate * 100, 1) if benchmark_rate is not None else None
 
-    # Per-account performance
+    # Daily snapshots for the chart (same as overview)
+    daily_snapshots = fetch_daily_snapshots(uid, limit=730)
+    has_data = len(daily_snapshots) >= 2
+
+    daily_labels = []
+    daily_actual = []
+    daily_plan   = []
+    daily_bench  = []
+    plan_value      = None
+    benchmark_value = None
+    current_value   = None
+
+    if has_data:
+        start_val = daily_snapshots[0][1]
+        daily_rate_plan  = (1 + assumed_rate) ** (1 / 365) - 1
+        daily_rate_bench = (1 + benchmark_rate) ** (1 / 365) - 1 if benchmark_rate else None
+
+        for i, (date_str, val) in enumerate(daily_snapshots):
+            # Format date label same style as overview
+            try:
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                label = dt.strftime("%-d %b %Y")
+            except ValueError:
+                label = date_str
+            daily_labels.append(label)
+            daily_actual.append(round(val, 2))
+            daily_plan.append(round(start_val * ((1 + daily_rate_plan) ** i), 2))
+            if daily_rate_bench is not None:
+                daily_bench.append(round(start_val * ((1 + daily_rate_bench) ** i), 2))
+
+        current_value   = daily_actual[-1]
+        plan_value      = daily_plan[-1]
+        benchmark_value = daily_bench[-1] if daily_bench else None
+
+    # Per-account performance (still uses monthly snapshots)
     by_account_raw = fetch_monthly_performance_data_by_account(uid)
     account_perf = []
     for aid, info in by_account_raw.items():
@@ -36,7 +65,7 @@ def performance():
         ap = compute_performance_series(acct_data, assumed_rate, 0, benchmark_rate=None)
         if ap:
             account_perf.append({
-                "account_id":  aid,
+                "account_id":   aid,
                 "account_name": info["account_name"],
                 "total_return": ap["total_return"],
                 "annualised_return": ap["annualised_return"],
@@ -45,20 +74,18 @@ def performance():
             })
     account_perf.sort(key=lambda x: (x["annualised_return"] is None, -(x["annualised_return"] or 0)))
 
-    plan_value      = perf["projected_values"][-1]  if perf and perf.get("projected_values") else None
-    benchmark_value = perf["benchmark_values"][-1]  if perf and perf.get("benchmark_values") else None
-    start_value     = perf["actual_values"][0]       if perf and perf.get("actual_values") else None
-    current_value   = perf["actual_values"][-1]      if perf and perf.get("actual_values") else None
-
     return render_template(
         "performance.html",
-        perf=perf,
+        has_data=has_data,
+        daily_labels=daily_labels,
+        daily_actual=daily_actual,
+        daily_plan=daily_plan,
+        daily_bench=daily_bench,
         assumed_rate_pct=round(assumed_rate * 100, 1),
         benchmark_rate_pct=benchmark_rate_pct,
         account_perf=account_perf,
         plan_value=plan_value,
         benchmark_value=benchmark_value,
-        start_value=start_value,
         current_value=current_value,
         active_page="performance",
     )

@@ -18,7 +18,7 @@
   <div class="hero-top">
     <div>
       <p class="eyebrow">Performance</p>
-      {% if perf %}
+      {% if has_data %}
         <h2 class="hero-value">£{{ '{:,.0f}'.format(current_value) }}</h2>
         {% if plan_value is not none %}
           {% set vs_plan = current_value - plan_value %}
@@ -28,10 +28,10 @@
             {% else %}
               <span class="perf-negative">£{{ '{:,.0f}'.format(vs_plan | abs) }} behind</span> your {{ assumed_rate_pct }}% plan
             {% endif %}
-            · {{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked
+            · {{ daily_labels | length }} days tracked
           </p>
         {% else %}
-          <p class="hero-subtitle">{{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked</p>
+          <p class="hero-subtitle">{{ daily_labels | length }} days tracked</p>
         {% endif %}
       {% else %}
         <h2 class="hero-value">No data yet</h2>
@@ -42,7 +42,7 @@
       <img src="{{ url_for('static', filename='icons/shelly/Goals.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
-  {% if perf and current_value is not none %}
+  {% if has_data and current_value is not none %}
   <div class="hero-strip">
     {% call hero_stat('Portfolio now') %}<strong>£{{ '{:,.0f}'.format(current_value) }}</strong>{% endcall %}
     {% if plan_value is not none %}
@@ -66,13 +66,7 @@
   {% endif %}
 </section>
 
-{% if perf %}
-<div class="row-end mb-1">
-  <a href="/performance/export.xlsx" class="badge badge-meta">↓ Export (.xlsx)</a>
-</div>
-{% endif %}
-
-{% if not perf or perf.n_months < 1 %}
+{% if not has_data %}
 <section class="card">
   {{ empty_state('Not enough data yet',
                  'Even Shelly needs at least two data points to draw a line. Complete two monthly reviews and the performance charts will appear — patience is a virtue.',
@@ -88,56 +82,19 @@
     <div class="perf-legend">
       <span class="perf-legend-dot" style="background:var(--accent-2)"></span><span>Actual</span>
       <span class="perf-legend-dot" style="background:var(--muted);opacity:0.6"></span><span>Plan ({{ assumed_rate_pct }}%)</span>
-      {% if perf.benchmark_values %}<span class="perf-legend-dot" style="background:var(--accent)"></span><span>Benchmark ({{ benchmark_rate_pct }}%)</span>{% endif %}
+      {% if daily_bench %}<span class="perf-legend-dot" style="background:var(--accent)"></span><span>Benchmark ({{ benchmark_rate_pct }}%)</span>{% endif %}
     </div>
   </div>
   <canvas id="perfChart" height="90" role="img" aria-label="Portfolio performance chart showing actual vs plan"
-    data-labels='{{ perf.labels | tojson | safe }}'
-    data-actual='{{ perf.actual_values | tojson | safe }}'
-    data-plan='{{ perf.projected_values | tojson | safe }}'
-    data-bench='{{ (perf.benchmark_values or []) | tojson | safe }}'
+    data-labels='{{ daily_labels | tojson | safe }}'
+    data-actual='{{ daily_actual | tojson | safe }}'
+    data-plan='{{ daily_plan | tojson | safe }}'
+    data-bench='{{ daily_bench | tojson | safe }}'
     data-assumed-rate='{{ assumed_rate_pct }}'
     data-benchmark-rate='{{ benchmark_rate_pct or "" }}'></canvas>
 </div>
 
-{# ── Simple month table ───────────────────────────────────────────── #}
-{% if perf.labels | length >= 2 %}
-<div class="panel" style="overflow-x:auto;">
-  <h3 class="section-title">Month by Month</h3>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Month</th>
-        <th class="num">Portfolio value</th>
-        <th class="num">Plan ({{ assumed_rate_pct }}%)</th>
-        <th class="num">vs Plan</th>
-        {% if perf.benchmark_values %}<th class="num">Benchmark ({{ benchmark_rate_pct }}%)</th>{% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% set actual_list = perf.actual_values %}
-      {% set plan_list = perf.projected_values %}
-      {% set bench_list = perf.benchmark_values %}
-      {% set labels = perf.labels %}
-      {# Show most recent first #}
-      {% for i in range(labels | length - 1, -1, -1) %}
-      {% set diff = actual_list[i] - plan_list[i] %}
-      <tr>
-        <td>{{ labels[i] }}</td>
-        <td class="num">£{{ '{:,.0f}'.format(actual_list[i]) }}</td>
-        <td class="num text-muted">£{{ '{:,.0f}'.format(plan_list[i]) }}</td>
-        <td class="num {% if diff >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-          {% if diff >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(diff) }}
-        </td>
-        {% if bench_list %}<td class="num text-muted">£{{ '{:,.0f}'.format(bench_list[i]) }}</td>{% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
-{# ── Account-level snapshot ───────────────────────────────────────── #}
+{# ── By-account snapshot ───────────────────────────────────────────── #}
 {% if account_perf %}
 <div class="panel" style="overflow-x:auto;">
   <h3 class="section-title">By Account</h3>
