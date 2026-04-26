@@ -398,7 +398,7 @@
             }
           },
           extraScales: {
-            x: { grid: { color: c.gridAlt }, ticks: { color: c.muted, maxRotation: 45 } },
+            x: { grid: { color: c.gridAlt }, ticks: { color: c.muted, maxRotation: 0, maxTicksLimit: 6, callback: function(val, idx) { var lbl = labels[idx] || ''; var parts = lbl.split(' '); return parts.length >= 2 ? parts[0] + ' ' + parts[1] : lbl; } } },
             y: { grid: { color: c.gridAlt }, ticks: { color: c.muted, callback: function(v) { return '£' + Math.round(v).toLocaleString('en-GB'); } } }
           },
           extra: { interaction: { mode: 'index', intersect: false } }
