@@ -179,6 +179,7 @@
 
       function syncValuationMode() {
         var isHoldings = select.value === 'holdings';
+        var isPB = select.value === 'premium_bonds';
         if (manualFields) {
           manualFields.hidden = isHoldings;
           manualFields.style.display = isHoldings ? 'none' : 'contents';
@@ -193,6 +194,10 @@
         }
         if (hintManual)   hintManual.style.display   = isHoldings ? 'none' : '';
         if (hintHoldings) hintHoldings.style.display = isHoldings ? '' : 'none';
+        // For Premium Bonds: the server renders a different growth-mode section
+        // on save; for live switching we just show a note in the growth-mode row.
+        var growthModeRow = form.querySelector('[data-growth-mode-row]');
+        if (growthModeRow) growthModeRow.style.display = isPB ? 'none' : '';
       }
 
       select.addEventListener('change', syncValuationMode);

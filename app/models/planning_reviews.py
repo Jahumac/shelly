@@ -55,37 +55,40 @@ def ensure_monthly_review_items(review_id, user_id):
     accounts = fetch_all_accounts(user_id)
     with get_connection() as conn:
         review = conn.execute(
-            "SELECT month_key FROM monthly_reviews WHERE id = ? AND user_id = ?",
+            "SELECT month_key, status FROM monthly_reviews WHERE id = ? AND user_id = ?",
             (review_id, user_id),
         ).fetchone()
         if not review:
             return
         month_key = review["month_key"]
+        is_complete = review["status"] == "complete"
+
         existing_rows = conn.execute(
-            "SELECT account_id FROM monthly_review_items WHERE review_id = ?",
+            "SELECT account_id, expected_contribution FROM monthly_review_items WHERE review_id = ?",
             (review_id,),
         ).fetchall()
-        existing_ids = {row["account_id"] for row in existing_rows}
+        existing_map = {row["account_id"]: float(row["expected_contribution"] or 0) for row in existing_rows}
 
         for account in accounts:
-            if account["id"] not in existing_ids:
-                override = conn.execute(
-                    """
-                    SELECT override_amount
-                    FROM contribution_overrides
-                    WHERE account_id = ?
-                      AND from_month <= ?
-                      AND to_month >= ?
-                    ORDER BY id DESC
-                    LIMIT 1
-                    """,
-                    (account["id"], month_key, month_key),
-                ).fetchone()
-                expected = (
-                    override["override_amount"]
-                    if override is not None
-                    else account["monthly_contribution"] or 0
-                )
+            override = conn.execute(
+                """
+                SELECT override_amount
+                FROM contribution_overrides
+                WHERE account_id = ?
+                  AND from_month <= ?
+                  AND to_month >= ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (account["id"], month_key, month_key),
+            ).fetchone()
+            expected = (
+                float(override["override_amount"])
+                if override is not None
+                else float(account["monthly_contribution"] or 0)
+            )
+
+            if account["id"] not in existing_map:
                 conn.execute(
                     """
                     INSERT INTO monthly_review_items (
@@ -95,6 +98,16 @@ def ensure_monthly_review_items(review_id, user_id):
                     VALUES (?, ?, ?, 0, 0, 0, '')
                     """,
                     (review_id, account["id"], expected),
+                )
+            elif not is_complete and existing_map[account["id"]] != expected:
+                # Sync when account contribution changed and review isn't locked
+                conn.execute(
+                    """
+                    UPDATE monthly_review_items
+                    SET expected_contribution = ?
+                    WHERE review_id = ? AND account_id = ?
+                    """,
+                    (expected, review_id, account["id"]),
                 )
         conn.commit()
 

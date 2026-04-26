@@ -1943,6 +1943,21 @@ button.badge-like-button {
   font-size: 0.85rem;
 }
 
+.pb-prize-pending {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.badge-warning {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+  white-space: nowrap;
+}
+
 /* What-if per-account rows */
 .wi-account-list {
   display: grid;

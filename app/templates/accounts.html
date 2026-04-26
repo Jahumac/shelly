@@ -163,26 +163,29 @@
                 <option value="premium_bonds" {% if selected.valuation_mode == 'premium_bonds' %}selected{% endif %}>Premium Bonds</option>
               </select>
             </label>
+            <div data-manual-fields class="form-contents" {% if selected.valuation_mode == 'holdings' %}hidden{% endif %}>
+              <label><span>Current Balance</span><input type="number" step="any" name="current_value" value="{{ selected.current_value if selected.current_value is not none else '' }}"></label>
+            </div>
+            {% if selected.valuation_mode == 'premium_bonds' %}
+            {# Premium Bonds: lock to custom mode, show prize fund rate directly #}
+            <input type="hidden" name="growth_mode" value="custom">
             <label>
+              <span>Prize fund rate (%)</span>
+              <input type="number" step="0.1" name="growth_rate_override" value="{{ '{:.1f}'.format(selected.growth_rate_override * 100) if selected.growth_rate_override else '3.3' }}" placeholder="e.g. 3.3">
+              <small class="form-hint">NS&amp;I's current prize fund rate. Used as a calm estimate for projections only — not guaranteed. Check ns&amp;i.com for the latest.</small>
+            </label>
+            {% else %}
+            <label data-growth-mode-row>
               <span>Growth Mode</span>
               <select name="growth_mode" data-growth-mode>
                 <option value="default" {% if selected.growth_mode == 'default' %}selected{% endif %}>Default investment growth</option>
                 <option value="custom" {% if selected.growth_mode == 'custom' %}selected{% endif %}>Custom rate / interest</option>
               </select>
             </label>
-            <div data-manual-fields class="form-contents" {% if selected.valuation_mode == 'holdings' %}hidden{% endif %}>
-              <label><span>Current Balance</span><input type="number" step="any" name="current_value" value="{{ selected.current_value if selected.current_value is not none else '' }}"></label>
-            </div>
             <label data-custom-rate-field {% if selected.growth_mode != 'custom' %}class="hidden"{% endif %}>
-              <span>{{ 'Expected prize fund rate (%)' if selected.wrapper_type == 'Premium Bonds' else 'Custom Growth / Interest Rate (%)' }}</span>
+              <span>Custom Growth / Interest Rate (%)</span>
               <input type="number" step="0.1" name="growth_rate_override" value="{{ '{:.1f}'.format(selected.growth_rate_override * 100) if selected.growth_rate_override else '' }}" placeholder="e.g. 4.5">
-              <small class="form-hint">
-                {% if selected.wrapper_type == 'Premium Bonds' %}
-                  Premium Bonds do not pay guaranteed interest. Shelly can use this as a gentle estimate only; NS&amp;I's prize fund rate is variable.
-                {% else %}
-                  Enter as a percentage — e.g. 4.5 for 4.5%, 3.6 for 3.6%
-                {% endif %}
-              </small>
+              <small class="form-hint">Enter as a percentage — e.g. 4.5 for 4.5%, 3.6 for 3.6%</small>
             </label>
             {% set _wt_lower = (selected.wrapper_type or '') | lower %}
             {% set _cat_lower = (selected.category or '') | lower %}
@@ -192,6 +195,7 @@
               <input type="number" name="interest_payment_day" min="0" max="31" value="{{ selected.interest_payment_day or 0 }}">
               <small class="form-hint">Day of the month when interest is credited to your account (e.g. 3 for the 3rd). Set 0 if unknown or not applicable.</small>
             </label>
+            {% endif %}
             {% endif %}
             <label>
               <span>Your Monthly Contribution</span>
