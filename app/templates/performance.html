@@ -19,41 +19,49 @@
     <div>
       <p class="eyebrow">Performance</p>
       {% if perf %}
-        <h2 class="hero-value {% if perf.annualised_return is not none %}{% if perf.annualised_return >= assumed_rate_pct %}perf-positive{% else %}perf-negative{% endif %}{% endif %}">
-          {% if perf.annualised_return is not none %}{{ '{:+.1f}'.format(perf.annualised_return) }}% annualised{% else %}—{% endif %}
-        </h2>
-        {% if perf.annualised_return is none %}
-          <p class="hero-subtitle">Need 3+ months to calculate a meaningful annualised return · {{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked so far</p>
+        <h2 class="hero-value">£{{ '{:,.0f}'.format(current_value) }}</h2>
+        {% if plan_value is not none %}
+          {% set vs_plan = current_value - plan_value %}
+          <p class="hero-subtitle">
+            {% if vs_plan >= 0 %}
+              <span class="perf-positive">£{{ '{:,.0f}'.format(vs_plan) }} ahead</span> of your {{ assumed_rate_pct }}% plan
+            {% else %}
+              <span class="perf-negative">£{{ '{:,.0f}'.format(vs_plan | abs) }} behind</span> your {{ assumed_rate_pct }}% plan
+            {% endif %}
+            · {{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked
+          </p>
         {% else %}
-          <p class="hero-subtitle">vs your {{ assumed_rate_pct }}% assumption · {{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked</p>
+          <p class="hero-subtitle">{{ perf.n_months }} month{{ 's' if perf.n_months != 1 }} tracked</p>
         {% endif %}
       {% else %}
         <h2 class="hero-value">No data yet</h2>
-        <p class="hero-subtitle">Shelly needs at least two monthly reviews before the maths kicks in</p>
+        <p class="hero-subtitle">Complete two monthly reviews and Shelly will start drawing the lines</p>
       {% endif %}
     </div>
     <div class="hero-turtle-wrap">
       <img src="{{ url_for('static', filename='icons/shelly/Goals.png') }}" alt="" class="hero-turtle">
     </div>
   </div>
-  {% if perf %}
+  {% if perf and current_value is not none %}
   <div class="hero-strip">
-    {% call hero_stat('Total return') %}
-      <strong class="{% if perf.total_return >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-        {{ '{:+.1f}'.format(perf.total_return) }}%
-      </strong>
-    {% endcall %}
-    {% call hero_stat('Market gain') %}
-      <strong class="{% if perf.total_market_gain >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-        {% if perf.total_market_gain >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(perf.total_market_gain) }}
-      </strong>
-    {% endcall %}
+    {% call hero_stat('Portfolio now') %}<strong>£{{ '{:,.0f}'.format(current_value) }}</strong>{% endcall %}
+    {% if plan_value is not none %}
+    {% set vs_plan = current_value - plan_value %}
+    {% call hero_stat('Plan (' ~ assumed_rate_pct ~ '%)') %}<strong>£{{ '{:,.0f}'.format(plan_value) }}</strong>{% endcall %}
     {% call hero_stat('vs Plan') %}
-      <strong class="{% if perf.vs_plan >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-        {% if perf.vs_plan >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(perf.vs_plan) }}
+      <strong class="{% if vs_plan >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+        {% if vs_plan >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(vs_plan) }}
       </strong>
     {% endcall %}
-    {% call hero_stat('Contributed') %}<strong>£{{ '{:,.0f}'.format(perf.total_contributed) }}</strong>{% endcall %}
+    {% endif %}
+    {% if benchmark_value is not none %}
+    {% set vs_bench = current_value - benchmark_value %}
+    {% call hero_stat('Benchmark (' ~ benchmark_rate_pct ~ '%)') %}
+      <strong class="{% if vs_bench >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+        {% if vs_bench >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(vs_bench) }}
+      </strong>
+    {% endcall %}
+    {% endif %}
   </div>
   {% endif %}
 </section>
@@ -62,12 +70,6 @@
 <div class="row-end mb-1">
   <a href="/performance/export.xlsx" class="badge badge-meta">↓ Export (.xlsx)</a>
 </div>
-{% endif %}
-
-{% if perf and perf.carried_forward_months %}
-<section class="card alert-banner alert-info mb-1">
-  <p class="m-0">Some monthly snapshots were incomplete, so Shelly carried forward the last known value for untouched accounts instead of treating them as £0.</p>
-</section>
 {% endif %}
 
 {% if not perf or perf.n_months < 1 %}
@@ -79,14 +81,13 @@
 
 {% else %}
 
-
 {# ── Chart ─────────────────────────────────────────────────────── #}
 <div class="panel chart-wrap mb-15">
   <div class="flex flex-between flex-center mb-1">
     <h3 class="section-title-sm">Portfolio Value Over Time</h3>
     <div class="perf-legend">
       <span class="perf-legend-dot" style="background:var(--accent-2)"></span><span>Actual</span>
-      <span class="perf-legend-dot" style="background:var(--muted);opacity:0.6"></span><span>Plan</span>
+      <span class="perf-legend-dot" style="background:var(--muted);opacity:0.6"></span><span>Plan ({{ assumed_rate_pct }}%)</span>
       {% if perf.benchmark_values %}<span class="perf-legend-dot" style="background:var(--accent)"></span><span>Benchmark ({{ benchmark_rate_pct }}%)</span>{% endif %}
     </div>
   </div>
@@ -98,36 +99,37 @@
     data-assumed-rate='{{ assumed_rate_pct }}'
     data-benchmark-rate='{{ benchmark_rate_pct or "" }}'></canvas>
 </div>
-{% if perf.table_rows %}
+
+{# ── Simple month table ───────────────────────────────────────────── #}
+{% if perf.labels | length >= 2 %}
 <div class="panel" style="overflow-x:auto;">
   <h3 class="section-title">Month by Month</h3>
   <table class="data-table">
     <thead>
       <tr>
         <th>Month</th>
-        <th class="num">Opening</th>
-        <th class="num">Contributions</th>
-        <th class="num">Market Gain / Loss</th>
-        <th class="num">Closing</th>
-        <th class="num">Return</th>
+        <th class="num">Portfolio value</th>
+        <th class="num">Plan ({{ assumed_rate_pct }}%)</th>
+        <th class="num">vs Plan</th>
+        {% if perf.benchmark_values %}<th class="num">Benchmark ({{ benchmark_rate_pct }}%)</th>{% endif %}
       </tr>
     </thead>
     <tbody>
-      {% for row in perf.table_rows %}
+      {% set actual_list = perf.actual_values %}
+      {% set plan_list = perf.projected_values %}
+      {% set bench_list = perf.benchmark_values %}
+      {% set labels = perf.labels %}
+      {# Show most recent first #}
+      {% for i in range(labels | length - 1, -1, -1) %}
+      {% set diff = actual_list[i] - plan_list[i] %}
       <tr>
-        <td>{{ row.month_key }}</td>
-        <td class="num">£{{ '{:,.0f}'.format(row.opening) }}</td>
-        <td class="num">+£{{ '{:,.0f}'.format(row.contribution) }}</td>
-        <td class="num {% if row.market_gain >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-          {% if row.market_gain >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(row.market_gain) }}
+        <td>{{ labels[i] }}</td>
+        <td class="num">£{{ '{:,.0f}'.format(actual_list[i]) }}</td>
+        <td class="num text-muted">£{{ '{:,.0f}'.format(plan_list[i]) }}</td>
+        <td class="num {% if diff >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
+          {% if diff >= 0 %}+{% endif %}£{{ '{:,.0f}'.format(diff) }}
         </td>
-        <td class="num">£{{ '{:,.0f}'.format(row.closing) }}</td>
-        <td class="num {% if row.return_pct >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
-          {{ '{:+.2f}'.format(row.return_pct) }}%
-          {% if row.carried_forward_count %}
-            <span class="text-muted" title="{{ row.carried_forward_count }} account value{{ 's' if row.carried_forward_count != 1 }} carried forward"> *</span>
-          {% endif %}
-        </td>
+        {% if bench_list %}<td class="num text-muted">£{{ '{:,.0f}'.format(bench_list[i]) }}</td>{% endif %}
       </tr>
       {% endfor %}
     </tbody>
@@ -135,17 +137,17 @@
 </div>
 {% endif %}
 
-{# ── Account-level performance ─────────────────────────────────────── #}
+{# ── Account-level snapshot ───────────────────────────────────────── #}
 {% if account_perf %}
 <div class="panel" style="overflow-x:auto;">
   <h3 class="section-title">By Account</h3>
+  <p class="helper-text">Current value of each account, and how much it has grown since Shelly first tracked it.</p>
   <table class="data-table">
     <thead>
       <tr>
         <th>Account</th>
-        <th class="num">Current Value</th>
-        <th class="num">Total Return</th>
-        <th class="num">Annualised</th>
+        <th class="num">Current value</th>
+        <th class="num">Total growth</th>
         <th class="num">Months</th>
       </tr>
     </thead>
@@ -157,14 +159,12 @@
         <td class="num {% if ap.total_return >= 0 %}perf-positive{% else %}perf-negative{% endif %}">
           {{ '{:+.1f}'.format(ap.total_return) }}%
         </td>
-        <td class="num {% if ap.annualised_return is not none %}{% if ap.annualised_return >= assumed_rate_pct %}perf-positive{% else %}perf-negative{% endif %}{% endif %}">
-          {% if ap.annualised_return is not none %}{{ '{:+.1f}'.format(ap.annualised_return) }}%{% else %}<span class="text-muted">—</span>{% endif %}
-        </td>
         <td class="num text-muted">{{ ap.n_months }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <p class="helper-text mt-05">Total growth % is based on snapshot values — it includes contributions, so it's a portfolio size measure, not pure investment return.</p>
 </div>
 {% endif %}
 

@@ -45,12 +45,21 @@ def performance():
             })
     account_perf.sort(key=lambda x: (x["annualised_return"] is None, -(x["annualised_return"] or 0)))
 
+    plan_value      = perf["projected_values"][-1]  if perf and perf.get("projected_values") else None
+    benchmark_value = perf["benchmark_values"][-1]  if perf and perf.get("benchmark_values") else None
+    start_value     = perf["actual_values"][0]       if perf and perf.get("actual_values") else None
+    current_value   = perf["actual_values"][-1]      if perf and perf.get("actual_values") else None
+
     return render_template(
         "performance.html",
         perf=perf,
         assumed_rate_pct=round(assumed_rate * 100, 1),
         benchmark_rate_pct=benchmark_rate_pct,
         account_perf=account_perf,
+        plan_value=plan_value,
+        benchmark_value=benchmark_value,
+        start_value=start_value,
+        current_value=current_value,
         active_page="performance",
     )
 
