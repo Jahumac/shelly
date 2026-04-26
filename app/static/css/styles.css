@@ -2486,6 +2486,11 @@ button.badge-like-button {
   background: rgba(192, 132, 252, 0.12);
   border-color: rgba(192, 132, 252, 0.25);
 }
+.acct-type-pill[data-type="premium-bonds"] {
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.11);
+  border-color: rgba(250, 204, 21, 0.25);
+}
 .acct-type-pill[data-type="sipp"],
 .acct-type-pill[data-type="pension"] {
   color: #fb923c;
@@ -4591,6 +4596,45 @@ a.link-accent:hover {
   line-height: 1.5;
 }
 
+.cw-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+.cw-template {
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.cw-template:hover,
+.cw-template-selected {
+  background: rgba(56,189,248,0.08);
+  border-color: rgba(56,189,248,0.32);
+  transform: translateY(-1px);
+}
+
+.cw-template strong {
+  display: block;
+  font-size: 0.88rem;
+  margin-bottom: 0.15rem;
+}
+
+.cw-template span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 /* Action bar */
 .cw-actions {
   display: flex;
@@ -4696,6 +4740,11 @@ a.link-accent:hover {
 .review-nudge {
   border-left: 3px solid var(--accent);
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, transparent 100%);
+}
+
+.next-action-card {
+  border-left: 3px solid rgba(56,189,248,0.55);
+  background: linear-gradient(135deg, rgba(56,189,248,0.055) 0%, transparent 100%);
 }
 
 /* ── Contribution confirmation checklist ────────────────────────────── */

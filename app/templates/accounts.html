@@ -39,7 +39,7 @@
   {% for account in accounts %}
   {% set val = effective_values[account.id] %}
   {% set _wt = account.wrapper_type | lower %}
-  {% set pill_type = 'isa' if 'stocks' in _wt else ('cash-isa' if 'cash' in _wt else ('lisa' if 'lifetime' in _wt else ('sipp' if 'sipp' in _wt else ('pension' if 'pension' in _wt else ('gia' if 'general' in _wt else ''))))) %}
+  {% set pill_type = 'isa' if 'stocks' in _wt else ('cash-isa' if 'cash' in _wt else ('lisa' if 'lifetime' in _wt else ('premium-bonds' if 'premium bonds' in _wt else ('sipp' if 'sipp' in _wt else ('pension' if 'pension' in _wt else ('gia' if 'general' in _wt else '')))))) %}
   <a class="acct-card" href="/accounts/{{ account.id }}?mode=view">
     <div class="acct-card-top">
       <div class="acct-type-pill" data-type="{{ pill_type }}">{{ account.wrapper_type }}</div>
@@ -175,9 +175,15 @@
               <label><span>Current Balance</span><input type="number" step="any" name="current_value" value="{{ selected.current_value if selected.current_value is not none else '' }}"></label>
             </div>
             <label data-custom-rate-field {% if selected.growth_mode != 'custom' %}class="hidden"{% endif %}>
-              <span>Custom Growth / Interest Rate (%)</span>
+              <span>{{ 'Expected prize fund rate (%)' if selected.wrapper_type == 'Premium Bonds' else 'Custom Growth / Interest Rate (%)' }}</span>
               <input type="number" step="0.1" name="growth_rate_override" value="{{ '{:.1f}'.format(selected.growth_rate_override * 100) if selected.growth_rate_override else '' }}" placeholder="e.g. 4.5">
-              <small class="form-hint">Enter as a percentage — e.g. 4.5 for 4.5%, 3.6 for 3.6%</small>
+              <small class="form-hint">
+                {% if selected.wrapper_type == 'Premium Bonds' %}
+                  Premium Bonds do not pay guaranteed interest. Shelly can use this as a gentle estimate only; NS&amp;I's prize fund rate is variable.
+                {% else %}
+                  Enter as a percentage — e.g. 4.5 for 4.5%, 3.6 for 3.6%
+                {% endif %}
+              </small>
             </label>
             {% set _wt_lower = (selected.wrapper_type or '') | lower %}
             {% set _cat_lower = (selected.category or '') | lower %}

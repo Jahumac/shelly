@@ -313,6 +313,19 @@ def overview():
                 "cta_href": "/holdings/",
             })
 
+    premium_bond_accounts = [
+        a for a in accounts
+        if (a.get("wrapper_type") or "").lower() == "premium bonds"
+    ]
+    premium_bonds_total = sum(float(a.get("current_value") or 0) for a in premium_bond_accounts)
+    if premium_bonds_total > 50000:
+        alerts.append({
+            "kind": "warning",
+            "message": f"Your Premium Bonds total is £{premium_bonds_total:,.0f}. NS&I's current maximum eligible holding is £50,000.",
+            "cta_text": "Review accounts",
+            "cta_href": "/accounts/",
+        })
+
     # Nudge to set investment day if accounts exist but salary_day is not configured
     if not salary_day and raw_accounts:
         alerts.append({
@@ -384,6 +397,49 @@ def overview():
                     "cta_href": None,
                 })
 
+    next_action = None
+    if raw_accounts:
+        if review_nudge:
+            next_action = {
+                "eyebrow": "Shelly's next nudge",
+                "title": "Monthly update is ready",
+                "body": "A quick check keeps your history honest. Update balances, confirm contributions, then Shelly can draw the next little line.",
+                "cta_text": "Start monthly update",
+                "cta_href": "/monthly-review/",
+            }
+        elif not goals_data:
+            next_action = {
+                "eyebrow": "Shelly's next nudge",
+                "title": "Give this money a destination",
+                "body": "A goal turns the dashboard from a pile of numbers into a plan. Retirement, emergency fund, house deposit — one target is enough to start.",
+                "cta_text": "Create a goal",
+                "cta_href": "/goals/?mode=create",
+            }
+        elif not history_labels:
+            next_action = {
+                "eyebrow": "Shelly's next nudge",
+                "title": "Save your first snapshot",
+                "body": "Complete one Monthly Update and Shelly will have a proper starting point for progress, performance, and projections.",
+                "cta_text": "Do first update",
+                "cta_href": "/monthly-review/",
+            }
+        elif not salary_day:
+            next_action = {
+                "eyebrow": "Shelly's next nudge",
+                "title": "Set your monthly rhythm",
+                "body": "Add your investment day so Shelly knows when the month is ready to review, instead of nudging at the wrong time.",
+                "cta_text": "Open settings",
+                "cta_href": "/settings/?mode=edit",
+            }
+        else:
+            next_action = {
+                "eyebrow": "Shelly's next nudge",
+                "title": "Have a calm look at the trend",
+                "body": "Your main flow is set. Performance is the place to check whether the real path is keeping pace with the plan.",
+                "cta_text": "View performance",
+                "cta_href": "/performance/",
+            }
+
     # ── Asset allocation by individual holding ────────────────────────────────
     all_holdings_grouped = fetch_all_holdings_grouped(uid)
     holding_totals: dict = {}
@@ -418,6 +474,7 @@ def overview():
         review_nudge=review_nudge,
         review_ready=review_ready,
         alerts=alerts,
+        next_action=next_action,
         allocation_labels=allocation_labels,
         allocation_values=allocation_values,
         active_page="overview",

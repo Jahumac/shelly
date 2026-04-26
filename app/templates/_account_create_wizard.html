@@ -21,6 +21,24 @@
       <div class="cw-panel cw-visible" data-cw="1">
         <h3 class="cw-title">What's this account called?</h3>
         <p class="cw-hint">Every penny needs a home. Give Shelly a name for this one, tell him who it's with and what kind of wrapper it sits in — he'll take it from there.</p>
+        <div class="cw-template-grid" aria-label="Account templates">
+          <button type="button" class="cw-template" data-cw-template="stocks_isa">
+            <strong>Stocks ISA</strong>
+            <span>Holdings, prices, long-term growth</span>
+          </button>
+          <button type="button" class="cw-template" data-cw-template="workplace_pension">
+            <strong>Workplace Pension</strong>
+            <span>Employee and employer contributions</span>
+          </button>
+          <button type="button" class="cw-template" data-cw-template="cash_savings">
+            <strong>Cash Savings</strong>
+            <span>Manual balance, steady interest</span>
+          </button>
+          <button type="button" class="cw-template" data-cw-template="premium_bonds">
+            <strong>Premium Bonds</strong>
+            <span>NS&amp;I, tax-free prize estimate</span>
+          </button>
+        </div>
         <div class="form-grid">
           <label><span>Name</span><input type="text" name="name" id="cw-name" placeholder="e.g. My Stocks ISA" required></label>
           <label>
@@ -79,9 +97,9 @@
             <label><span>Current balance</span><input type="number" step="0.01" name="current_value" placeholder="0.00"></label>
           </div>
           <label data-custom-rate-field style="display:none;">
-            <span>Custom growth rate (%)</span>
+            <span id="cw-custom-rate-label">Custom growth rate (%)</span>
             <input type="number" step="0.1" name="growth_rate_override" placeholder="e.g. 4.5">
-            <small class="form-hint">Enter as a percentage — 4.5 for 4.5%, 3.6 for 3.6%</small>
+            <small class="form-hint" id="cw-custom-rate-hint">Enter as a percentage — 4.5 for 4.5%, 3.6 for 3.6%</small>
           </label>
         </div>
         {# ── Advanced: Fees (collapsible, below the main grid) ────── #}

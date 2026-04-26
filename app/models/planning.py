@@ -67,6 +67,7 @@ WRAPPER_TYPE_OPTIONS = [
     "Stocks & Shares ISA",
     "Cash ISA",
     "Lifetime ISA",
+    "Premium Bonds",
     "SIPP",
     "Workplace Pension",
     "General Investment Account",
@@ -76,6 +77,7 @@ WRAPPER_TYPE_OPTIONS = [
 CATEGORY_OPTIONS = [
     "ISA",
     "Pension",
+    "Savings",
     "Taxable",
     "Other",
 ]

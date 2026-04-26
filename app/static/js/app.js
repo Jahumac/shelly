@@ -219,7 +219,7 @@
       'moneyfarm':               { wrapper: 'Stocks & Shares ISA', category: 'ISA' },
       'wealthsimple':            { wrapper: 'Stocks & Shares ISA', category: 'ISA' },
       'moneybox':                { wrapper: 'Lifetime ISA', category: 'ISA' },
-      "ns&i":                    { wrapper: 'Other', category: 'Other' },
+      "ns&i":                    { wrapper: 'Premium Bonds', category: 'Savings' },
       'marcus by goldman sachs': { wrapper: 'Other', category: 'Other' },
       'chip':                    { wrapper: 'Other', category: 'Other' },
       'plum':                    { wrapper: 'Other', category: 'Other' },
@@ -1114,6 +1114,8 @@
 
       var growthModeEl    = document.getElementById('cw-growth-mode');
       var customRateField = form.querySelector('[data-custom-rate-field]');
+      var customRateLabel = document.getElementById('cw-custom-rate-label');
+      var customRateHint  = document.getElementById('cw-custom-rate-hint');
       function toggleCustomRate() {
         if (customRateField) {
           customRateField.style.display = growthModeEl && growthModeEl.value === 'custom' ? '' : 'none';
@@ -1445,10 +1447,49 @@
         'Stocks & Shares ISA':       { cat: 'ISA',     bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Monthly contribution', hint: 'How much do you put into this ISA each month? Even a rough figure helps Shelly map out your future.' },
         'Cash ISA':                   { cat: 'ISA',     bal: 'manual',   showEmployer: false, method: null, personalLabel: 'Monthly deposit', hint: 'How much do you stash away in this Cash ISA each month?' },
         'Lifetime ISA':               { cat: 'ISA',     bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Your monthly contribution', hint: 'How much do you pay in each month? The government tops it up with a lovely 25% bonus (up to £1,000/year).' },
+        'Premium Bonds':              { cat: 'Savings', bal: 'manual',   showEmployer: false, method: null, personalLabel: 'Monthly purchase', hint: 'How much do you usually add to Premium Bonds each month? Shelly treats prize returns as an estimate, not guaranteed interest.' },
         'SIPP':                       { cat: 'Pension', bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Your monthly contribution', hint: 'How much do you pay in? Your provider claims 25% tax relief from HMRC automatically — free money, basically.' },
         'Workplace Pension':          { cat: 'Pension', bal: 'manual',   showEmployer: true,  method: ['salary_sacrifice','relief_at_source'], methodDefault: 'salary_sacrifice', personalLabel: 'Your employee contribution', hint: 'How is your workplace pension set up? Pick the method first — Shelly will work out the rest.', methodHints: { salary_sacrifice: 'Contributions come out of your pay before tax — no further relief needed.', relief_at_source: 'You pay from net pay; your provider claims 20% tax relief from HMRC (e.g. NEST).' } },
         'General Investment Account': { cat: 'Taxable', bal: 'holdings', showEmployer: false, method: null, personalLabel: 'Monthly investment', hint: 'How much do you invest into this account each month?' },
         'Other':                      { cat: null,      bal: 'manual',   showEmployer: false, method: null, personalLabel: 'Monthly contribution', hint: 'How much goes in each month, if anything? No pressure — you can always update this later.' }
+      };
+      var ACCOUNT_TEMPLATES = {
+        stocks_isa: {
+          name: 'My Stocks & Shares ISA',
+          provider: '',
+          wrapper: 'Stocks & Shares ISA',
+          category: 'ISA',
+          valuation: 'holdings',
+          growthMode: 'default',
+          rate: ''
+        },
+        workplace_pension: {
+          name: 'Workplace Pension',
+          provider: '',
+          wrapper: 'Workplace Pension',
+          category: 'Pension',
+          valuation: 'manual',
+          growthMode: 'default',
+          rate: ''
+        },
+        cash_savings: {
+          name: 'Cash Savings',
+          provider: '',
+          wrapper: 'Other',
+          category: 'Savings',
+          valuation: 'manual',
+          growthMode: 'custom',
+          rate: ''
+        },
+        premium_bonds: {
+          name: 'Premium Bonds',
+          provider: 'NS&I',
+          wrapper: 'Premium Bonds',
+          category: 'Savings',
+          valuation: 'manual',
+          growthMode: 'custom',
+          rate: '3.3'
+        }
       };
       var currentWrapper = '';
 
@@ -1461,6 +1502,16 @@
         if (valModeEl) { valModeEl.value = cfg.bal; valModeEl.dispatchEvent(new Event('change')); }
         if (contribHint) contribHint.textContent = cfg.hint;
         if (personalLabel) personalLabel.textContent = cfg.personalLabel;
+        if (customRateLabel) {
+          customRateLabel.textContent = w === 'Premium Bonds'
+            ? 'Expected prize fund rate (%)'
+            : 'Custom growth rate (%)';
+        }
+        if (customRateHint) {
+          customRateHint.textContent = w === 'Premium Bonds'
+            ? 'Premium Bonds do not pay guaranteed interest. Shelly uses this as a calm estimate only; NS&I can change the prize fund rate.'
+            : 'Enter as a percentage — 4.5 for 4.5%, 3.6 for 3.6%';
+        }
 
         if (methodField && methodSelect) {
           if (cfg.method) {
@@ -1577,6 +1628,31 @@
       if (methodSelect) methodSelect.addEventListener('change', updateMethodHint);
       if (personalIn) { personalIn.addEventListener('input', updatePreview); personalIn.addEventListener('change', updatePreview); }
       if (employerIn) { employerIn.addEventListener('input', updatePreview); employerIn.addEventListener('change', updatePreview); }
+
+      function setField(selector, value) {
+        var el = form.querySelector(selector);
+        if (el) el.value = value;
+      }
+
+      form.querySelectorAll('[data-cw-template]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tpl = ACCOUNT_TEMPLATES[btn.getAttribute('data-cw-template')];
+          if (!tpl) return;
+          setField('input[name="name"]', tpl.name);
+          setField('input[name="provider"]', tpl.provider);
+          if (wrapperEl) wrapperEl.value = tpl.wrapper;
+          if (categoryEl) categoryEl.value = tpl.category;
+          if (valModeEl) valModeEl.value = tpl.valuation;
+          if (growthModeEl) growthModeEl.value = tpl.growthMode;
+          setField('input[name="growth_rate_override"]', tpl.rate);
+          form.querySelectorAll('[data-cw-template]').forEach(function(other) {
+            other.classList.toggle('cw-template-selected', other === btn);
+          });
+          applyConfig();
+          toggleManualFields();
+          toggleCustomRate();
+        });
+      });
     })();
 
     // 18. Tag Management

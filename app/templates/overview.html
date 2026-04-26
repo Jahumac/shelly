@@ -91,6 +91,20 @@
 </section>
 {% endfor %}
 
+{% if next_action and steps_done >= 4 %}
+<section class="card next-action-card mb-1">
+  <div class="flex flex-center flex-wrap gap-075">
+    <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="" class="shelly-inline-icon shelly-icon-sm">
+    <div style="flex:1; min-width:220px;">
+      <p class="eyebrow m-0">{{ next_action.eyebrow }}</p>
+      <strong>{{ next_action.title }}</strong>
+      <p class="helper-text" style="margin:0.15rem 0 0;">{{ next_action.body }}</p>
+    </div>
+    <a href="{{ next_action.cta_href }}" class="badge badge-primary-action">{{ next_action.cta_text }}</a>
+  </div>
+</section>
+{% endif %}
+
 {# ── Month strip ─────────────────────────────────────────────────────────── #}
 {% include '_month_strip.html' %}
 
