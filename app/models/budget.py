@@ -49,10 +49,25 @@ def _ensure_account_contribution_items(conn, user_id):
         WHERE user_id = ?
           AND is_active = 1
           AND COALESCE(monthly_contribution, 0) > 0
+          AND COALESCE(include_in_budget, 1) = 1
         ORDER BY id ASC
         """,
         (user_id,),
     ).fetchall()
+
+    # Retire linked items for any accounts now excluded from the budget
+    excluded = conn.execute(
+        """
+        SELECT id FROM accounts
+        WHERE user_id = ? AND is_active = 1 AND COALESCE(include_in_budget, 1) = 0
+        """,
+        (user_id,),
+    ).fetchall()
+    for ex in excluded:
+        conn.execute(
+            "UPDATE budget_items SET is_active = 0 WHERE user_id = ? AND linked_account_id = ? AND is_active = 1",
+            (user_id, ex["id"]),
+        )
 
     for account in accounts:
         existing = conn.execute(

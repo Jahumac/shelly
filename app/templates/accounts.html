@@ -230,6 +230,18 @@
               <small class="form-hint">Optional. Use if workplace pension invests later than salary day (e.g. paid on the 28th, invested on the 7th). Set 0 to use salary day from Settings.</small>
             </label>
             {% endif %}
+            <label class="form-full-col checkbox-label">
+              <input type="hidden" name="include_in_budget" value="0">
+              <input type="checkbox" name="include_in_budget" value="1" {% if selected.include_in_budget is none or selected.include_in_budget %}checked{% endif %}>
+              <span>Include in budget</span>
+              <small class="form-hint">Show this account's contribution in the Investments &amp; Savings section of your budget. Uncheck for accounts you don't want tracked there.</small>
+            </label>
+            <label class="form-full-col checkbox-label">
+              <input type="hidden" name="pre_salary" value="0">
+              <input type="checkbox" name="pre_salary" value="1" {% if selected.pre_salary %}checked{% endif %}>
+              <span>Pre-salary deduction</span>
+              <small class="form-hint">Tick if this contribution leaves before your salary hits your account (e.g. salary sacrifice pension). It will show in the budget for visibility but won't be counted against your take-home surplus.</small>
+            </label>
             <label><span>Account Goal</span><input type="number" step="0.01" name="goal_value" value="{{ selected.goal_value or '' }}"></label>
             <label><span>Account holder</span><input type="text" name="owner" value="{{ selected.owner or '' }}" placeholder="e.g. Samuel, Me, Joint">
               <small class="form-hint">Optional — useful for household accounts to show whose account this is.</small>

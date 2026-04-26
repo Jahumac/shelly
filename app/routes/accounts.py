@@ -93,6 +93,8 @@ def _account_payload_from_form(form):
         "contribution_fee_pct": optional_float(form.get("contribution_fee_pct"), 0.0, min_val=0.0),
         "cash_interest_rate": optional_float(form.get("cash_interest_rate"), None, divide_by_100=True),
         "interest_payment_day": max(0, min(31, optional_int(form.get("interest_payment_day"), default=0))),
+        "include_in_budget": form.get("include_in_budget") == "1",
+        "pre_salary": form.get("pre_salary") == "1",
     }
 
 
@@ -556,6 +558,8 @@ def update_cash(account_id):
     payload.setdefault("uninvested_cash", 0)
     payload.setdefault("cash_interest_rate", 0)
     payload.setdefault("interest_payment_day", 0)
+    payload.setdefault("include_in_budget", True)
+    payload.setdefault("pre_salary", False)
 
     update_account(payload, uid)
     holdings_totals = fetch_holding_totals_by_account(uid)

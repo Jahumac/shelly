@@ -150,7 +150,7 @@ def _build_monthly_data(month_key, user_id):
             pre_salary = False
             if linked_account:
                 linked_account_name = linked_account["name"]
-                pre_salary = (linked_account.get("contribution_method") == "salary_sacrifice")
+                pre_salary = bool(linked_account.get("pre_salary"))
 
             section_items.append({
                 "id": item["id"],

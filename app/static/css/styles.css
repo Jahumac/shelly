@@ -744,6 +744,28 @@ body.is-back-online .site-header {
   color: var(--muted);
 }
 
+.settings-form label.checkbox-label {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.settings-form label.checkbox-label input[type="checkbox"] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  width: auto;
+}
+
+.settings-form label.checkbox-label span {
+  flex: 1;
+}
+
+.settings-form label.checkbox-label .form-hint {
+  flex-basis: 100%;
+  margin-left: 1.4rem;
+}
+
 .settings-form label span {
   font-size: 0.9rem;
   font-weight: 600;

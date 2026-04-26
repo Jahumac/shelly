@@ -267,6 +267,21 @@
           <p class="text-sm text-muted" id="cw-prev-selfassess-note" style="display:none;margin-top:0.4rem;"></p>
         </div>
 
+        <div class="form-grid" style="margin-top:0.75rem;">
+          <label class="form-full-col checkbox-label">
+            <input type="hidden" name="include_in_budget" value="0">
+            <input type="checkbox" name="include_in_budget" value="1" checked>
+            <span>Include in budget</span>
+            <small class="form-hint">Show this account's contribution in the Investments &amp; Savings section of your budget.</small>
+          </label>
+          <label class="form-full-col checkbox-label">
+            <input type="hidden" name="pre_salary" value="0">
+            <input type="checkbox" name="pre_salary" value="1">
+            <span>Pre-salary deduction</span>
+            <small class="form-hint">Tick if this leaves before your salary hits (e.g. salary sacrifice). Shown in budget for visibility but not counted against your take-home.</small>
+          </label>
+        </div>
+
         <div class="cw-actions">
           <button type="button" class="badge" data-cw-prev>Back</button>
           <button type="button" class="badge badge-accent" data-cw-next>Continue</button>

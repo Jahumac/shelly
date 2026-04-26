@@ -111,7 +111,9 @@ def update_account(payload, user_id=None):
                 contribution_fee_pct = ?,
                 uninvested_cash = ?,
                 cash_interest_rate = ?,
-                interest_payment_day = ?
+                interest_payment_day = ?,
+                include_in_budget = ?,
+                pre_salary = ?
             {where}
             """,
             (
@@ -141,6 +143,8 @@ def update_account(payload, user_id=None):
                 payload.get("uninvested_cash", 0),
                 payload.get("cash_interest_rate", 0),
                 payload.get("interest_payment_day", 0),
+                1 if payload.get("include_in_budget", True) else 0,
+                1 if payload.get("pre_salary", False) else 0,
                 *params_tail,
             ),
         )

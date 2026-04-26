@@ -546,6 +546,8 @@ def _run_migrations(conn):
         "uninvested_cash REAL DEFAULT 0",
         "cash_interest_rate REAL DEFAULT 0",
         "interest_payment_day INTEGER DEFAULT 0",
+        "include_in_budget INTEGER DEFAULT 1",
+        "pre_salary INTEGER DEFAULT 0",
     ]:
         try:
             conn.execute(f"ALTER TABLE accounts ADD COLUMN {col}")
