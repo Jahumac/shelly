@@ -11,7 +11,7 @@ Flask-Limiter>=4.1.1
 cryptography>=49.0.0
 
 # Price lookups (redundant: Yahoo + Twelve Data)
-yfinance>=1.5.2
+yfinance>=1.7.0
 
 # Scheduled jobs (price refresh, backups)
 APScheduler>=3.11.3
@@ -21,4 +21,4 @@ pytz>=2026.3.post1
 openpyxl>=3.1.5
 
 # Production WSGI server
-gunicorn>=26.0.0
+gunicorn>=26.2.0
